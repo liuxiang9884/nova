@@ -27,7 +27,7 @@ find_package(CLI11 CONFIG REQUIRED)
 #target_link_libraries(main PRIVATE CLI11::CLI11)
 add_executable(nova main.cpp)
 
-add_subdirectory(example)
+add_subdirectory(examples)
 
 
 
