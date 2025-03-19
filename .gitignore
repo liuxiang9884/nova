@@ -1,0 +1,5 @@
+cmake-*
+.cache
+.git
+build*
+.idea
