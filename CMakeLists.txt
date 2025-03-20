@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.30)
 
-set(VCPKG_ROOT "$ENV{HOME}/vcpkg/scripts/buildsystems/vcpkg.cmake")
-set(VCPKG_INCLUDE "$ENV{HOME}/vcpkg/installed/arm64-osx/include")
-set(CMAKE_TOOLCHAIN_FILE ${VCPKG_ROOT} CACHE STRING "Vcpkg toolchain file")
+include(cmake/settings.cmake)
 
 project(nova VERSION 0.1.0 LANGUAGES C CXX)
 
