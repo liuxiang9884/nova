@@ -136,22 +136,26 @@ IfMacros:
   - KJ_IF_MAYBE
 IncludeBlocks:   Regroup
 IncludeCategories:
-  - Regex:           '^<ext/.*\.h>'
-    Priority:        2
-    SortPriority:    0
-    CaseSensitive:   false
-  - Regex:           '^<.*\.h>'
+  - Regex:           '^"[^/]+\.h'
     Priority:        1
-    SortPriority:    0
-    CaseSensitive:   false
-  - Regex:           '^<.*'
+    SortPriority:    1
+    CaseSensitive: false
+  - Regex:           '^<.*\.h>'
     Priority:        2
-    SortPriority:    0
-    CaseSensitive:   false
-  - Regex:           '.*'
+    SortPriority:    2
+    CaseSensitive: false
+  - Regex:           '^<[^/]*>'
     Priority:        3
-    SortPriority:    0
-    CaseSensitive:   false
+    SortPriority:    3
+    CaseSensitive: false
+  - Regex:           '^<'
+    Priority:        4
+    SortPriority:    4
+    CaseSensitive: false
+  - Regex:           '.*'
+    Priority:        5
+    SortPriority:    5
+    CaseSensitive: false
 IncludeIsMainRegex: '([-_](test|unittest))?$'
 IncludeIsMainSourceRegex: ''
 IndentAccessModifiers: false
@@ -305,4 +309,3 @@ WhitespaceSensitiveMacros:
   - PP_STRINGIZE
   - STRINGIZE
 ...
-
