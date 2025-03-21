@@ -23,7 +23,8 @@ pkg_check_modules(tomlplusplus REQUIRED IMPORTED_TARGET tomlplusplus)
 # CLI11
 find_package(CLI11 CONFIG REQUIRED)
 #target_link_libraries(main PRIVATE CLI11::CLI11)
-add_executable(nova main.cpp)
+add_executable(nova main.cpp
+        include/nova/utils/format.h)
 
 add_subdirectory(examples)
 

@@ -2,11 +2,19 @@
 // Created by liuxiang on 2025/3/19.
 //
 
+#include <toml++/toml.h>
+
 #include <filesystem>
 #include <iostream>
 #include <string>
 
-#include <toml++/toml.h>
+#include <nova/utils/format.h>
+
+std::string ToString(const toml::date_time &datetime) {
+  return std::format("{:d}-{:d}-{:d} {:d}:{:d}:{:d}", datetime.date.year,
+                     datetime.date.month, datetime.date.day, datetime.time.hour,
+                     datetime.time.minute, datetime.time.second);
+}
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -21,11 +29,11 @@ int main(int argc, char *argv[]) {
   const int32_t version = toml["value"].value_or(0);
   const float pi = toml["pi"].value_or(3.14);
   const bool debug = toml["debug"].value_or(true);
-  std::println("title={}, version={}, pi={}, debug={}",
-    title, version, pi, debug);
+  std::println("title={}, version={}, pi={}, debug={}", title, version, pi,
+               debug);
 
   auto created_at = toml["created_at"].value<toml::date_time>().value();
-  // std::println("created_at={}", created_at.date.year, created_at.date.month,);
+  fmt::print("created_at={}", created_at);
 
   return 0;
 }
