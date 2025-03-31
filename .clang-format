@@ -140,10 +140,10 @@ IncludeCategories:
     Priority:        1
     SortPriority:    1
     CaseSensitive: false
-  - Regex:           '^<.*\.h>'
-    Priority:        2
-    SortPriority:    2
-    CaseSensitive: false
+#  - Regex:           '^<.*\.h>'
+#    Priority:        2
+#    SortPriority:    2
+#    CaseSensitive: false
   - Regex:           '^<[^/]*>'
     Priority:        3
     SortPriority:    3
