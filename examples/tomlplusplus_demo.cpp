@@ -62,5 +62,6 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  std::cout << toml::json_formatter{toml} << std::endl;
   return 0;
 }
