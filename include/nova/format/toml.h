@@ -5,15 +5,17 @@
 #ifndef FORMAT_TOML_H
 #define FORMAT_TOML_H
 
-#include <fmt/format.h>
-#include <toml++/toml.h>
-
 #include <iostream>
 #include <string>
 
+#include <fmt/format.h>
+#include <toml++/toml.h>
+
 template <>
 struct fmt::formatter<toml::date_time> {
-  constexpr auto parse(fmt::format_parse_context& ctx) { return ctx.end(); }
+  constexpr auto parse(fmt::format_parse_context& ctx) {
+    return ctx.end();
+  }
 
   template <typename FormatContext>
   auto format(const toml::date_time& dt, FormatContext& ctx) const {
@@ -34,4 +36,4 @@ struct fmt::formatter<toml::date_time> {
   }
 };
 
-#endif //FORMAT_TOML_H
+#endif  // FORMAT_TOML_H
