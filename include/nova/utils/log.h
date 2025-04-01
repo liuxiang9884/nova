@@ -14,6 +14,8 @@
 #include <quill/sinks/ConsoleSink.h>
 #include <quill/sinks/FileSink.h>
 
+#include "nova/utils/enum.h"
+
 namespace nova {
 
 enum LogLevel : uint8_t {

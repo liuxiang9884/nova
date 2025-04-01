@@ -5,7 +5,7 @@
 #ifndef ENUM_H
 #define ENUM_H
 
-#include <ranges>
+#include <array>
 
 #include <magic_enum/magic_enum.hpp>
 
@@ -15,16 +15,39 @@ template <typename T>
 concept EnumType = std::is_enum_v<T>;
 
 template <EnumType Enum>
-constexpr auto MaxEnumValue() {
+constexpr auto MaxEnumValue() -> int32_t {
   constexpr auto values = magic_enum::enum_values<Enum>();
   return static_cast<int32_t>(*std::ranges::max_element(values));
 }
 
+template <EnumType Enum, typename ValueType>
 class EnumMap {
-public:
-private:
+ public:
+  static constexpr auto kMaxEnumValue = MaxEnumValue<Enum>();
+  static constexpr auto kSize = kMaxEnumValue + 1;
+
+  EnumMap() = default;
+
+  EnumMap(std::initializer_list<ValueType> values) {
+    if (values.size() > kSize) {
+      throw std::invalid_argument(
+          "initializer list size must smaller than enum array size");
+    }
+    std::copy(values.begin(), values.end(), values_.begin());
+  }
+
+  ValueType& operator[](Enum index) {
+    return values_[static_cast<int32_t>(index)];
+  }
+
+  void SetValue(Enum key, ValueType value) {
+    values_[static_cast<int32_t>(key)] = value;
+  }
+
+ private:
+  std::array<ValueType, kMaxEnumValue> values_;
 };
 
-}
+}  // namespace nova
 
-#endif //ENUM_H
+#endif  // ENUM_H

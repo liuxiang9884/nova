@@ -17,5 +17,7 @@ int main(int argc, const char** argv) {
   LOG_INFO(logger, "Hello World!");
   LOG_WARNING(logger, "Hello World!");
   std::cout << nova::MaxEnumValue<nova::LogLevel>() << std::endl;
+
+
   return 0;
 }
