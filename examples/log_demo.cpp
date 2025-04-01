@@ -14,5 +14,6 @@ int main(int argc, const char** argv) {
   nova::LogManager log_manager(config);
   auto logger = log_manager.logger();
   LOG_INFO(logger, "Hello World!");
+  LOG_WARNING(logger, "Hello World!");
   return 0;
 }
