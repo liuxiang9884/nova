@@ -12,16 +12,17 @@
 #include <quill/LogMacros.h>
 #include <quill/Logger.h>
 #include <quill/sinks/ConsoleSink.h>
+#include <quill/sinks/FileSink.h>
 
 namespace nova {
 
 enum LogLevel : uint8_t {
-  kLogTrace = quill::LogLevel::TraceL1,
-  kLogDebug = quill::LogLevel::Debug,
-  kLogInfo = quill::LogLevel::Info,
-  kLogWarning = quill::LogLevel::Warning,
-  kLogError = quill::LogLevel::Error,
-  kLogCritical = quill::LogLevel::Critical
+  kLogTrace = static_cast<uint8_t>(quill::LogLevel::TraceL1),
+  kLogDebug = static_cast<uint8_t>(quill::LogLevel::Debug),
+  kLogInfo = static_cast<uint8_t>(quill::LogLevel::Info),
+  kLogWarning = static_cast<uint8_t>(quill::LogLevel::Warning),
+  kLogError = static_cast<uint8_t>(quill::LogLevel::Error),
+  kLogCritical = static_cast<uint8_t>(quill::LogLevel::Critical)
 };
 
 struct LogConfig {
@@ -32,7 +33,36 @@ struct LogConfig {
 
 class LogManager {
  public:
+  LogManager(const LogConfig& config) {
+    quill::Backend::start();
+    auto console_sink =
+        quill::Frontend::create_or_get_sink<quill::ConsoleSink>("console_sink");
+
+    auto file_sink = quill::Frontend::create_or_get_sink<quill::FileSink>(
+        "/tmp/test.log",
+        []() {
+          quill::FileSinkConfig cfg;
+          cfg.set_open_mode('w');
+          cfg.set_filename_append_option(
+              quill::FilenameAppendOption::StartDateTime);
+          return cfg;
+        }(),
+        quill::FileEventNotifier{});
+
+    logger_ = quill::Frontend::create_or_get_logger(
+        "logger", {console_sink, file_sink},
+        quill::PatternFormatterOptions{
+            "%(time) [%(thread_id)] [%(log_level)] %(message)",
+            "%Y-%m-%d %H:%M:%S.%Qns", quill::Timezone::LocalTime});
+  }
+
+  [[nodiscard]] quill::Logger* logger() const {
+    return logger_;
+  }
+
  private:
+  LogConfig config_;
+  quill::Logger* logger_ = nullptr;
 };
 
 }  // namespace nova
