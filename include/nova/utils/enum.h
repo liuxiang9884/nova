@@ -21,14 +21,14 @@ constexpr auto MaxEnumValue() -> int32_t {
 }
 
 template <EnumType Enum, typename ValueType>
-class EnumMap {
+class EnumArray {
  public:
   static constexpr auto kMaxEnumValue = MaxEnumValue<Enum>();
   static constexpr auto kSize = kMaxEnumValue + 1;
 
-  constexpr EnumMap() = default;
+  constexpr EnumArray() = default;
 
-  EnumMap(std::initializer_list<ValueType> values) {
+  EnumArray(std::initializer_list<ValueType> values) {
     if (values.size() > kSize) {
       throw std::invalid_argument(
           "initializer list size must be no larger than enum array size");
@@ -36,7 +36,11 @@ class EnumMap {
     std::copy(values.begin(), values.end(), values_.begin());
   }
 
-  ValueType& operator[](Enum index) {
+  [[nodiscard]] const ValueType& operator[](Enum index) const {
+    return values_[static_cast<int32_t>(index)];
+  }
+
+  [[nodiscard]] ValueType& operator[](Enum index) {
     return values_[static_cast<int32_t>(index)];
   }
 

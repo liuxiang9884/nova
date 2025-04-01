@@ -27,10 +27,10 @@ enum LogLevel : uint8_t {
   kLogCritical
 };
 
-const EnumMap<LogLevel, quill::LogLevel> LogLevelArray {
-  quill::LogLevel::TraceL1, quill::LogLevel::Debug, quill::LogLevel::Info,
-  quill::LogLevel::Warning, quill::LogLevel::Error, quill::LogLevel::Critical
-};
+const EnumArray<LogLevel, quill::LogLevel> LogLevelArray{
+    quill::LogLevel::TraceL1, quill::LogLevel::Debug,
+    quill::LogLevel::Info,    quill::LogLevel::Warning,
+    quill::LogLevel::Error,   quill::LogLevel::Critical};
 
 struct LogConfig {
   std::string log_file;
