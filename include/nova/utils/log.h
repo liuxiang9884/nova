@@ -40,7 +40,7 @@ struct LogConfig {
 
 class LogManager {
  public:
-  LogManager(const LogConfig& config) {
+  LogManager([[maybe_unused]] const LogConfig& config) {
     quill::Backend::start();
     auto console_sink =
         quill::Frontend::create_or_get_sink<quill::ConsoleSink>("console_sink");
@@ -68,7 +68,7 @@ class LogManager {
   }
 
  private:
-  LogConfig config_;
+  LogConfig config_{};
   quill::Logger* logger_ = nullptr;
 };
 
