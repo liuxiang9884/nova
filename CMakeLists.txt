@@ -13,7 +13,8 @@ else ()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif ()
 
-add_executable(nova main.cpp)
+add_executable(nova main.cpp
+        include/nova/utils/enum.h)
 
 add_subdirectory(examples)
 
