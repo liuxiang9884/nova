@@ -26,13 +26,12 @@ class EnumMap {
   static constexpr auto kMaxEnumValue = MaxEnumValue<Enum>();
   static constexpr auto kSize = kMaxEnumValue + 1;
 
-  EnumMap() = default;
+  constexpr EnumMap() = default;
 
-  EnumMap(std::initializer_list<ValueType> values) {
-    if (values.size() > kSize) {
-      throw std::invalid_argument(
-          "initializer list size must smaller than enum array size");
-    }
+  constexpr EnumMap(std::initializer_list<ValueType> values) {
+    static_assert(
+        values.size() <= kSize,
+        "initializer list size must be no larger than enum array size");
     std::copy(values.begin(), values.end(), values_.begin());
   }
 
