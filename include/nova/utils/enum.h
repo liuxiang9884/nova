@@ -28,10 +28,11 @@ class EnumMap {
 
   constexpr EnumMap() = default;
 
-  constexpr EnumMap(std::initializer_list<ValueType> values) {
-    static_assert(
-        values.size() <= kSize,
-        "initializer list size must be no larger than enum array size");
+  EnumMap(std::initializer_list<ValueType> values) {
+    if (values.size() > kSize) {
+      throw std::invalid_argument(
+          "initializer list size must be no larger than enum array size");
+    }
     std::copy(values.begin(), values.end(), values_.begin());
   }
 

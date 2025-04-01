@@ -19,12 +19,17 @@
 namespace nova {
 
 enum LogLevel : uint8_t {
-  kLogTrace = static_cast<uint8_t>(quill::LogLevel::TraceL1),
-  kLogDebug = static_cast<uint8_t>(quill::LogLevel::Debug),
-  kLogInfo = static_cast<uint8_t>(quill::LogLevel::Info),
-  kLogWarning = static_cast<uint8_t>(quill::LogLevel::Warning),
-  kLogError = static_cast<uint8_t>(quill::LogLevel::Error),
-  kLogCritical = static_cast<uint8_t>(quill::LogLevel::Critical)
+  kLogTrace,
+  kLogDebug,
+  kLogInfo,
+  kLogWarning,
+  kLogError,
+  kLogCritical
+};
+
+const EnumMap<LogLevel, quill::LogLevel> LogLevelArray {
+  quill::LogLevel::TraceL1, quill::LogLevel::Debug, quill::LogLevel::Info,
+  quill::LogLevel::Warning, quill::LogLevel::Error, quill::LogLevel::Critical
 };
 
 struct LogConfig {
