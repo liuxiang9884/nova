@@ -11,7 +11,7 @@
 #include "nova/utils/log.h"
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] const char** argv) {
-  nova::LogConfig config;
+  const nova::LogConfig config;
   nova::LogManager log_manager(config);
   auto logger = log_manager.logger();
   LOG_INFO(logger, "Hello World!");
@@ -21,5 +21,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] const char** argv) {
   std::cout << static_cast<int32_t>(
                    nova::LogLevelArray[nova::LogLevel::kLogCritical])
             << std::endl;
+
+  std::cout << config.log_file_name() << std::endl;
   return 0;
 }
