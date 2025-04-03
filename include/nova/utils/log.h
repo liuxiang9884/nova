@@ -16,6 +16,7 @@
 #include <quill/Logger.h>
 #include <quill/sinks/ConsoleSink.h>
 #include <quill/sinks/FileSink.h>
+#include <toml++/toml.h>
 
 #include "nova/utils/enum.h"
 
@@ -32,15 +33,23 @@ enum LogLevel : uint8_t {
 
 #ifdef NDEBUG
 constexpr LogLevel kDefaultLogLevel = LogLevel::kLogInfo;
+constexpr std::string_view kDefaultLogLevelString = "info";
 #else
 constexpr LogLevel kDefaultLogLevel = LogLevel::kLogTrace;
+constexpr std::string_view kDefaultLogLevelString = "trace";
 #endif
 constexpr std::string_view kDefaultLogFile = "/tmp/nova.log";
 constexpr std::string_view kDefaultBackendThreadName = "nova.log";
 constexpr auto kDefaultBackendCpuAffinity =
     std::numeric_limits<uint16_t>::max();
 
-
+constexpr uint32_t kInitialQueueSize = 1024 * 1024;
+constexpr auto kQueueType = quill::QueueType::BoundedDropping;
+#ifdef WIN32
+constexpr auto enableHugePages = false;
+#else
+constexpr auto enableHugePages = true;
+#endif
 
 const EnumArray<LogLevel, quill::LogLevel> LogLevelArray{
     quill::LogLevel::TraceL1, quill::LogLevel::Debug,
@@ -49,7 +58,7 @@ const EnumArray<LogLevel, quill::LogLevel> LogLevelArray{
 
 class LogConfig {
  public:
-  const std::unordered_map<std::string_view, LogLevel> LogLevelMap{
+  std::unordered_map<std::string_view, LogLevel> LogLevelMap{
       {"trace", LogLevel::kLogTrace}, {"debug", LogLevel::kLogDebug},
       {"info", LogLevel::kLogInfo},   {"warning", LogLevel::kLogWarning},
       {"error", LogLevel::kLogError}, {"critical", LogLevel::kLogCritical}};
@@ -80,6 +89,18 @@ class LogConfig {
 
   void set_backend_cpu_affinity(uint16_t value) {
     backend_cpu_affinity_ = value;
+  }
+
+  void FromToml(const toml::node_view<const toml::node>& log_node) {
+    auto log_level = log_node["log_level"].value_or(kDefaultLogLevelString);
+    log_level_ = LogLevelMap[log_level];
+    log_file_ = log_node["log_file"].value_or(kDefaultLogFile);
+    to_console_ = log_node["to_console"].value_or(true);
+    to_file_ = log_node["to_file"].value_or(true);
+    backend_thread_name_ =
+        log_node["backend_thread_name"].value_or(kDefaultBackendThreadName);
+    backend_cpu_affinity_ =
+        log_node["backend_cpu_affinity"].value_or(kDefaultBackendCpuAffinity);
   }
 
   [[nodiscard]] const std::string& log_file() const {

@@ -1,0 +1,8 @@
+[log]
+log_file = "/tmp/demo.log"
+# should be one of ["trace", "debug", "info", "warning", "error", "critial"]
+log_level = "trace"
+to_console = false
+to_file = true
+backend_thread_name = "demo.log"
+backend_cpu_affinity = 5
