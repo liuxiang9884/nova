@@ -23,5 +23,6 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] const char** argv) {
             << std::endl;
 
   std::cout << config.log_file() << std::endl;
+  std::cout << config.backend_thread_name() << std::endl;
   return 0;
 }

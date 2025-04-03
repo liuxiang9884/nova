@@ -5,6 +5,7 @@
 #ifndef LOG_H
 #define LOG_H
 
+#include <limits>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -35,6 +36,11 @@ constexpr LogLevel kDefaultLogLevel = LogLevel::kLogInfo;
 constexpr LogLevel kDefaultLogLevel = LogLevel::kLogTrace;
 #endif
 constexpr std::string_view kDefaultLogFile = "/tmp/nova.log";
+constexpr std::string_view kDefaultBackendThreadName = "nova.log";
+constexpr auto kDefaultBackendCpuAffinity =
+    std::numeric_limits<uint16_t>::max();
+
+
 
 const EnumArray<LogLevel, quill::LogLevel> LogLevelArray{
     quill::LogLevel::TraceL1, quill::LogLevel::Debug,
@@ -68,6 +74,14 @@ class LogConfig {
     to_file_ = value;
   }
 
+  void set_backend_thread_name(std::string_view value) {
+    backend_thread_name_ = value;
+  }
+
+  void set_backend_cpu_affinity(uint16_t value) {
+    backend_cpu_affinity_ = value;
+  }
+
   [[nodiscard]] const std::string& log_file() const {
     return log_file_;
   }
@@ -84,11 +98,21 @@ class LogConfig {
     return to_console_;
   }
 
+  [[nodiscard]] const std::string& backend_thread_name() const noexcept {
+    return backend_thread_name_;
+  }
+
+  [[nodiscard]] uint16_t backend_cpu_affinity() const noexcept {
+    return backend_cpu_affinity_;
+  }
+
  private:
   std::string log_file_{kDefaultLogFile};
   LogLevel log_level_{kDefaultLogLevel};
   bool to_console_{true};
   bool to_file_{true};
+  std::string backend_thread_name_{kDefaultBackendThreadName};
+  uint16_t backend_cpu_affinity_{kDefaultBackendCpuAffinity};
 };
 
 class LogManager {
@@ -124,7 +148,6 @@ class LogManager {
   LogConfig config_{};
   quill::Logger* logger_ = nullptr;
 };
-
 
 }  // namespace nova
 
