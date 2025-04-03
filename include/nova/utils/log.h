@@ -29,6 +29,13 @@ enum LogLevel : uint8_t {
   kLogCritical
 };
 
+#ifdef NDEBUG
+constexpr LogLevel kDefaultLogLevel = LogLevel::kLogInfo;
+#else
+constexpr LogLevel kDefaultLogLevel = LogLevel::kLogTrace;
+#endif
+constexpr std::string_view kDefaultLogFile = "/tmp/nova.log";
+
 const EnumArray<LogLevel, quill::LogLevel> LogLevelArray{
     quill::LogLevel::TraceL1, quill::LogLevel::Debug,
     quill::LogLevel::Info,    quill::LogLevel::Warning,
@@ -36,19 +43,21 @@ const EnumArray<LogLevel, quill::LogLevel> LogLevelArray{
 
 class LogConfig {
  public:
-  std::unordered_map<std::string_view, LogLevel> LogLevelMap{
+  const std::unordered_map<std::string_view, LogLevel> LogLevelMap{
       {"trace", LogLevel::kLogTrace}, {"debug", LogLevel::kLogDebug},
       {"info", LogLevel::kLogInfo},   {"warning", LogLevel::kLogWarning},
       {"error", LogLevel::kLogError}, {"critical", LogLevel::kLogCritical}};
 
   LogConfig() = default;
 
-  void set_log_file_name(std::string_view filename) {
-    log_filename_ = filename;
+  void set_log_file(std::string_view file) {
+    log_file_ = file;
   }
 
   void set_log_level(std::string_view level) {
-    log_level_ = LogLevelMap[level];
+    if (const auto iter = LogLevelMap.find(level); iter != LogLevelMap.end()) {
+      log_level_ = iter->second;
+    }
   }
 
   void set_to_console(bool value) {
@@ -59,8 +68,8 @@ class LogConfig {
     to_file_ = value;
   }
 
-  [[nodiscard]] const std::string& log_file_name() const {
-    return log_filename_;
+  [[nodiscard]] const std::string& log_file() const {
+    return log_file_;
   }
 
   [[nodiscard]] LogLevel log_level() const noexcept {
@@ -76,8 +85,8 @@ class LogConfig {
   }
 
  private:
-  std::string log_filename_{"/tmp/test.log"};
-  LogLevel log_level_{LogLevel::kLogTrace};
+  std::string log_file_{kDefaultLogFile};
+  LogLevel log_level_{kDefaultLogLevel};
   bool to_console_{true};
   bool to_file_{true};
 };

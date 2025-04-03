@@ -22,6 +22,6 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] const char** argv) {
                    nova::LogLevelArray[nova::LogLevel::kLogCritical])
             << std::endl;
 
-  std::cout << config.log_file_name() << std::endl;
+  std::cout << config.log_file() << std::endl;
   return 0;
 }
