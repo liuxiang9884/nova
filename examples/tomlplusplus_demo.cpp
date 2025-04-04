@@ -5,8 +5,9 @@
 #include <iostream>
 #include <string>
 
-#include <nova/format/toml.h>
 #include <toml++/toml.h>
+
+#include "nova/format/toml.h"
 
 int main(int argc, char* argv[]) {
   if (argc != 2) {
@@ -24,7 +25,7 @@ int main(int argc, char* argv[]) {
   fmt::println("title = {}, version = {}, pi = {}, debug = {}", title, version,
                pi, debug);
 
-  auto created_at = toml["created_at"].value<toml::date_time>().value();
+  const auto created_at = toml["created_at"].value<toml::date_time>().value();
   fmt::println("created_at = {}", created_at);
 
   const auto colors = toml["colors"].as_array();
@@ -32,7 +33,8 @@ int main(int argc, char* argv[]) {
     fmt::println("{}", color.value<std::string>().value());
     fmt::println("{}", color.as_string()->get());
   }
-
+  int a = 0;
+  fmt::println("a = {}", a);
   const auto database = toml["database"];
   const auto server = database["server"].value_or("localhost");
   const auto max_connection = toml["max_connection"].value_or(0);

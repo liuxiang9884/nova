@@ -9,9 +9,8 @@
 //  -f,     --file TEXT         file name
 //  -d,     --date INT          date to be loaded
 
-#include <fmt/format.h>
-
 #include <CLI/CLI.hpp>
+#include <fmt/format.h>
 
 int main(int argc, char *argv[]) {
   CLI::App app{"CLI11 demo"};
