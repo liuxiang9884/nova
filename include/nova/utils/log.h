@@ -153,6 +153,37 @@ class LogManager {
             "%Y-%m-%d %H:%M:%S.%Qns", quill::Timezone::LocalTime});
   }
 
+  void Initialize() {
+    std::vector<std::shared_ptr<quill::Sink>> sinks;
+    if (!config_.console_sink_name().empty()) {
+      auto console_sink =
+          quill::Frontend::create_or_get_sink<quill::ConsoleSink>(
+              config_.console_sink_name());
+      sinks.push_back(std::move(console_sink));
+    }
+
+    if (!config_.log_file().empty()) {
+      auto console_sink =
+          quill::Frontend::create_or_get_sink<quill::ConsoleSink>(
+              config_.console_sink_name());
+      auto file_sink = quill::Frontend::create_or_get_sink<quill::FileSink>(
+          config_.log_file(),
+          []() {
+            quill::FileSinkConfig cfg;
+            cfg.set_open_mode('w');
+            cfg.set_filename_append_option(
+                quill::FilenameAppendOption::StartDateTime);
+            return cfg;
+          }(),
+          quill::FileEventNotifier{});
+      sinks.push_back(std::move(file_sink));
+    }
+
+    if (sinks.empty()) {
+      fmt::println("Must have at least one console sink or file sink");
+    }
+  }
+
   [[nodiscard]] quill::Logger* logger() const {
     return logger_;
   }
