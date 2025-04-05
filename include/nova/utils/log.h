@@ -38,8 +38,9 @@ constexpr std::string_view kDefaultLogLevelString = "info";
 constexpr LogLevel kDefaultLogLevel = LogLevel::kLogTrace;
 constexpr std::string_view kDefaultLogLevelString = "trace";
 #endif
+constexpr std::string_view kDefaultConsoleSinkName = "nova_console";
 constexpr std::string_view kDefaultLogFile = "/tmp/nova.log";
-constexpr std::string_view kDefaultBackendThreadName = "nova.log";
+constexpr std::string_view kDefaultBackendThreadName = "nova_log";
 constexpr auto kDefaultBackendCpuAffinity =
     std::numeric_limits<uint16_t>::max();
 
@@ -69,18 +70,14 @@ class LogConfig {
     log_file_ = file;
   }
 
+  void set_console_sink_name(std::string_view name) {
+    console_sink_name_ = name;
+  }
+
   void set_log_level(std::string_view level) {
     if (const auto iter = LogLevelMap.find(level); iter != LogLevelMap.end()) {
       log_level_ = iter->second;
     }
-  }
-
-  void set_to_console(bool value) {
-    to_console_ = value;
-  }
-
-  void set_to_file(bool value) {
-    to_file_ = value;
   }
 
   void set_backend_thread_name(std::string_view value) {
@@ -94,29 +91,25 @@ class LogConfig {
   void FromToml(const toml::node_view<const toml::node>& log_node) {
     auto log_level = log_node["log_level"].value_or(kDefaultLogLevelString);
     log_level_ = LogLevelMap[log_level];
+    console_sink_name_ =
+        log_node["console_sink_name"].value_or(kDefaultConsoleSinkName);
     log_file_ = log_node["log_file"].value_or(kDefaultLogFile);
-    to_console_ = log_node["to_console"].value_or(true);
-    to_file_ = log_node["to_file"].value_or(true);
     backend_thread_name_ =
         log_node["backend_thread_name"].value_or(kDefaultBackendThreadName);
     backend_cpu_affinity_ =
         log_node["backend_cpu_affinity"].value_or(kDefaultBackendCpuAffinity);
   }
 
-  [[nodiscard]] const std::string& log_file() const {
-    return log_file_;
-  }
-
   [[nodiscard]] LogLevel log_level() const noexcept {
     return log_level_;
   }
 
-  [[nodiscard]] bool to_file() const noexcept {
-    return to_file_;
+  [[nodiscard]] const std::string& log_file() const {
+    return log_file_;
   }
 
-  [[nodiscard]] bool to_console() const noexcept {
-    return to_console_;
+  [[nodiscard]] const std::string& console_sink_name() const {
+    return console_sink_name_;
   }
 
   [[nodiscard]] const std::string& backend_thread_name() const noexcept {
@@ -128,10 +121,9 @@ class LogConfig {
   }
 
  private:
-  std::string log_file_{kDefaultLogFile};
   LogLevel log_level_{kDefaultLogLevel};
-  bool to_console_{true};
-  bool to_file_{true};
+  std::string console_sink_name_{kDefaultConsoleSinkName};
+  std::string log_file_{kDefaultLogFile};
   std::string backend_thread_name_{kDefaultBackendThreadName};
   uint16_t backend_cpu_affinity_{kDefaultBackendCpuAffinity};
 };

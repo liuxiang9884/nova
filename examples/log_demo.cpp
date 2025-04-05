@@ -31,8 +31,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] const char** argv) {
   log_config.FromToml(log_node);
   fmt::println("log_level = {}", static_cast<int32_t>(log_config.log_level()));
   fmt::println("log_file = {}", log_config.log_file());
-  fmt::println("to_console = {}", log_config.to_console());
-  fmt::println("to_file = {}", log_config.to_file());
+  fmt::println("console_sink_name = {}", log_config.console_sink_name());
   fmt::println("backend_thread_name = {}", log_config.backend_thread_name());
   fmt::println("backend_cpu_affinity = {}", log_config.backend_cpu_affinity());
 
