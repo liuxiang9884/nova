@@ -54,6 +54,7 @@ constexpr auto enableHugePages = true;
 constexpr std::string_view kDefaultLogFormatPattern =
     "%(log_level_short_code)%(time) %(process_id):%(thread_id) "
     "%(file_name):%(caller_function):%(line_number)] %(message)";
+constexpr std::string_view kDefaultLogTimestampPattern = "%Y%m%d %H:%M:%S.%Qns";
 
 const EnumArray<LogLevel, quill::LogLevel> LogLevelArray{
     quill::LogLevel::TraceL1, quill::LogLevel::Debug,
@@ -95,6 +96,10 @@ class LogConfig {
     format_pattern_ = format_pattern;
   }
 
+  void set_timestamp_pattern(std::string_view value) {
+    timestamp_pattern_ = value;
+  }
+
   void FromToml(const toml::node_view<const toml::node>& log_node) {
     const auto log_level =
         log_node["log_level"].value_or(kDefaultLogLevelString);
@@ -108,17 +113,19 @@ class LogConfig {
         kDefaultLogBackendCpuAffinity);
     format_pattern_ =
         log_node["format_pattern"].value_or(kDefaultLogFormatPattern);
+    timestamp_pattern_ =
+        log_node["timestamp_pattern"].value_or(kDefaultLogTimestampPattern);
   }
 
   [[nodiscard]] LogLevel log_level() const noexcept {
     return log_level_;
   }
 
-  [[nodiscard]] const std::string& log_file() const {
+  [[nodiscard]] const std::string& log_file() const noexcept {
     return log_file_;
   }
 
-  [[nodiscard]] const std::string& console_sink_name() const {
+  [[nodiscard]] const std::string& console_sink_name() const noexcept {
     return console_sink_name_;
   }
 
@@ -134,13 +141,18 @@ class LogConfig {
     return format_pattern_;
   }
 
+  [[nodiscard]] const std::string& timestamp_pattern() const noexcept {
+    return timestamp_pattern_;
+  }
+
  private:
   LogLevel log_level_{kDefaultLogLevel};
   std::string console_sink_name_{kDefaultLogConsoleSinkName};
   std::string log_file_{kDefaultLogFile};
   std::string backend_thread_name_{kDefaultLogBackendThreadName};
-  std::string format_pattern_{kDefaultLogFormatPattern};
   uint16_t backend_cpu_affinity_{kDefaultLogBackendCpuAffinity};
+  std::string format_pattern_{kDefaultLogFormatPattern};
+  std::string timestamp_pattern_{kDefaultLogTimestampPattern};
 };
 
 class LogManager {
@@ -178,16 +190,12 @@ class LogManager {
     }
 
     if (!config_.log_file().empty()) {
+      quill::FileSinkConfig file_sink_config;
+      file_sink_config.set_open_mode('w');
+      file_sink_config.set_filename_append_option(
+          quill::FilenameAppendOption::StartDateTime);
       auto file_sink = quill::Frontend::create_or_get_sink<quill::FileSink>(
-          config_.log_file(),
-          []() {
-            quill::FileSinkConfig cfg;
-            cfg.set_open_mode('w');
-            cfg.set_filename_append_option(
-                quill::FilenameAppendOption::StartDateTime);
-            return cfg;
-          }(),
-          quill::FileEventNotifier{});
+          config_.log_file(), file_sink_config, quill::FileEventNotifier{});
       sinks.emplace_back(std::move(file_sink));
     }
 
@@ -202,6 +210,14 @@ class LogManager {
     std::string format_pattern{
         "%(log_level_short_code)%(time) [%(thread_id)] "
         "%(file_name):%(full_path) %(message)"};
+
+    quill::PatternFormatterOptions format_options;
+    format_options.format_pattern = config_.format_pattern();
+    format_options.timestamp_pattern = config_.timestamp_pattern();
+    format_options.timestamp_timezone = quill::Timezone::LocalTime;
+
+    logger_ =
+        quill::Frontend::create_or_get_logger("logger", sinks, format_options);
   }
 
   [[nodiscard]] quill::Logger* logger() const {

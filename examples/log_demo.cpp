@@ -33,7 +33,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] const char** argv) {
   fmt::println("log_file = {}", log_config.log_file());
   fmt::println("console_sink_name = {}", log_config.console_sink_name());
   fmt::println("backend_thread_name = {}", log_config.backend_thread_name());
+  fmt::println("format_pattern = {}", log_config.format_pattern());
   fmt::println("backend_cpu_affinity = {}", log_config.backend_cpu_affinity());
+  fmt::println("timestamp_pattern = {}", log_config.timestamp_pattern());
 
   nova::LogManager log_manager(log_config);
   auto logger = log_manager.logger();
