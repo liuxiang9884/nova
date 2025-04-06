@@ -38,19 +38,22 @@ constexpr std::string_view kDefaultLogLevelString = "info";
 constexpr LogLevel kDefaultLogLevel = LogLevel::kLogTrace;
 constexpr std::string_view kDefaultLogLevelString = "trace";
 #endif
-constexpr std::string_view kDefaultConsoleSinkName = "nova_console";
+constexpr std::string_view kDefaultLogConsoleSinkName = "nova_console";
 constexpr std::string_view kDefaultLogFile = "/tmp/nova.log";
-constexpr std::string_view kDefaultBackendThreadName = "nova_log";
-constexpr auto kDefaultBackendCpuAffinity =
+constexpr std::string_view kDefaultLogBackendThreadName = "nova_log";
+constexpr auto kDefaultLogBackendCpuAffinity =
     std::numeric_limits<uint16_t>::max();
 
-constexpr uint32_t kInitialQueueSize = 1024 * 1024;
-constexpr auto kQueueType = quill::QueueType::BoundedDropping;
+constexpr uint32_t kDefaultLogInitialQueueSize = 1024 * 1024;
+constexpr auto kDefaultLogQueueType = quill::QueueType::BoundedDropping;
 #ifdef WIN32
 constexpr auto enableHugePages = false;
 #else
 constexpr auto enableHugePages = true;
 #endif
+constexpr std::string_view kDefaultLogFormatPattern =
+    "%(log_level_short_code)%(time) %(process_id):%(thread_id) "
+    "%(file_name):%(caller_function):%(line_number)] %(message)";
 
 const EnumArray<LogLevel, quill::LogLevel> LogLevelArray{
     quill::LogLevel::TraceL1, quill::LogLevel::Debug,
@@ -88,16 +91,23 @@ class LogConfig {
     backend_cpu_affinity_ = value;
   }
 
+  void set_format_pattern(std::string_view format_pattern) {
+    format_pattern_ = format_pattern;
+  }
+
   void FromToml(const toml::node_view<const toml::node>& log_node) {
-    auto log_level = log_node["log_level"].value_or(kDefaultLogLevelString);
+    const auto log_level =
+        log_node["log_level"].value_or(kDefaultLogLevelString);
     log_level_ = LogLevelMap[log_level];
     console_sink_name_ =
-        log_node["console_sink_name"].value_or(kDefaultConsoleSinkName);
+        log_node["console_sink_name"].value_or(kDefaultLogConsoleSinkName);
     log_file_ = log_node["log_file"].value_or(kDefaultLogFile);
     backend_thread_name_ =
-        log_node["backend_thread_name"].value_or(kDefaultBackendThreadName);
-    backend_cpu_affinity_ =
-        log_node["backend_cpu_affinity"].value_or(kDefaultBackendCpuAffinity);
+        log_node["backend_thread_name"].value_or(kDefaultLogBackendThreadName);
+    backend_cpu_affinity_ = log_node["backend_cpu_affinity"].value_or(
+        kDefaultLogBackendCpuAffinity);
+    format_pattern_ =
+        log_node["format_pattern"].value_or(kDefaultLogFormatPattern);
   }
 
   [[nodiscard]] LogLevel log_level() const noexcept {
@@ -120,12 +130,17 @@ class LogConfig {
     return backend_cpu_affinity_;
   }
 
+  [[nodiscard]] const std::string& format_pattern() const noexcept {
+    return format_pattern_;
+  }
+
  private:
   LogLevel log_level_{kDefaultLogLevel};
-  std::string console_sink_name_{kDefaultConsoleSinkName};
+  std::string console_sink_name_{kDefaultLogConsoleSinkName};
   std::string log_file_{kDefaultLogFile};
-  std::string backend_thread_name_{kDefaultBackendThreadName};
-  uint16_t backend_cpu_affinity_{kDefaultBackendCpuAffinity};
+  std::string backend_thread_name_{kDefaultLogBackendThreadName};
+  std::string format_pattern_{kDefaultLogFormatPattern};
+  uint16_t backend_cpu_affinity_{kDefaultLogBackendCpuAffinity};
 };
 
 class LogManager {
@@ -148,24 +163,21 @@ class LogManager {
 
     logger_ = quill::Frontend::create_or_get_logger(
         "logger", {console_sink, file_sink},
-        quill::PatternFormatterOptions{
-            "%(time) [%(thread_id)] [%(log_level)] %(message)",
-            "%Y-%m-%d %H:%M:%S.%Qns", quill::Timezone::LocalTime});
+        quill::PatternFormatterOptions{std::string{kDefaultLogFormatPattern},
+                                       "%Y-%m-%d %H:%M:%S.%Qns",
+                                       quill::Timezone::LocalTime});
   }
 
-  void Initialize() {
+  std::vector<std::shared_ptr<quill::Sink>> CreateSinks() {
     std::vector<std::shared_ptr<quill::Sink>> sinks;
     if (!config_.console_sink_name().empty()) {
       auto console_sink =
           quill::Frontend::create_or_get_sink<quill::ConsoleSink>(
               config_.console_sink_name());
-      sinks.push_back(std::move(console_sink));
+      sinks.emplace_back(std::move(console_sink));
     }
 
     if (!config_.log_file().empty()) {
-      auto console_sink =
-          quill::Frontend::create_or_get_sink<quill::ConsoleSink>(
-              config_.console_sink_name());
       auto file_sink = quill::Frontend::create_or_get_sink<quill::FileSink>(
           config_.log_file(),
           []() {
@@ -176,12 +188,20 @@ class LogManager {
             return cfg;
           }(),
           quill::FileEventNotifier{});
-      sinks.push_back(std::move(file_sink));
+      sinks.emplace_back(std::move(file_sink));
     }
 
     if (sinks.empty()) {
-      fmt::println("Must have at least one console sink or file sink");
+      throw std::logic_error("Must have at least one sink");
     }
+    return sinks;
+  }
+
+  void Initialize() {
+    auto sinks = CreateSinks();
+    std::string format_pattern{
+        "%(log_level_short_code)%(time) [%(thread_id)] "
+        "%(file_name):%(full_path) %(message)"};
   }
 
   [[nodiscard]] quill::Logger* logger() const {

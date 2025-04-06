@@ -37,8 +37,11 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] const char** argv) {
 
   nova::LogManager log_manager(log_config);
   auto logger = log_manager.logger();
-  LOG_INFO(logger, "Hello World!");
-  LOG_WARNING(logger, "Hello World!");
+
+  for (auto i = 0; i < 10; i++) {
+    LOG_INFO(logger, "Hello World!");
+    LOG_WARNING(logger, "Hello World!");
+  }
   std::cout << nova::MaxEnumValue<nova::LogLevel>() << std::endl;
 
   std::cout << static_cast<int32_t>(
