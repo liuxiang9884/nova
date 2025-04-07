@@ -140,12 +140,9 @@ class LogManager {
   }
 
  private:
-  std::vector<std::shared_ptr<quill::Sink>> CreateSinks();
-
-  void InitializeBackend();
-
+  [[nodiscard]] std::vector<std::shared_ptr<quill::Sink>> CreateSinks() const;
+  void InitializeBackend() const;
   void InitializeFrontend();
-
   void Initialize();
 
  private:

@@ -15,8 +15,8 @@ namespace nova {
 constexpr LogLevel kDefaultLogLevel = LogLevel::kLogInfo;
 constexpr std::string_view kDefaultLogLevelString = "info";
 #else
-const LogLevel kDefaultLogLevel = LogLevel::kLogTrace;
-const std::string_view kDefaultLogLevelString = "trace";
+constexpr LogLevel kDefaultLogLevel = LogLevel::kLogTrace;
+constexpr std::string_view kDefaultLogLevelString = "trace";
 #endif
 constexpr std::string_view kDefaultLogConsoleSinkName = "nova_console";
 constexpr std::string_view kDefaultLogFile = "/tmp/nova.log";
@@ -59,7 +59,7 @@ void LogConfig::FromToml(const toml::node_view<const toml::node>& log_node) {
       log_node["timestamp_pattern"].value_or(kDefaultLogTimestampPattern);
 }
 
-std::vector<std::shared_ptr<quill::Sink>> LogManager::CreateSinks() {
+std::vector<std::shared_ptr<quill::Sink>> LogManager::CreateSinks() const {
   std::vector<std::shared_ptr<quill::Sink>> sinks;
   if (!config_.console_sink_name().empty()) {
     auto console_sink = NovaFrontend::create_or_get_sink<quill::ConsoleSink>(
@@ -83,7 +83,7 @@ std::vector<std::shared_ptr<quill::Sink>> LogManager::CreateSinks() {
   return sinks;
 }
 
-void LogManager::InitializeBackend() {
+void LogManager::InitializeBackend() const {
   quill::BackendOptions backend_options;
   backend_options.thread_name = config_.backend_thread_name();
   backend_options.cpu_affinity = config_.backend_cpu_affinity();
@@ -91,7 +91,7 @@ void LogManager::InitializeBackend() {
 }
 
 void LogManager::InitializeFrontend() {
-  auto sinks = CreateSinks();
+  const auto sinks = CreateSinks();
   quill::PatternFormatterOptions format_options;
   format_options.format_pattern = config_.format_pattern();
   format_options.timestamp_pattern = config_.timestamp_pattern();
