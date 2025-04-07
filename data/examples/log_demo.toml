@@ -5,5 +5,5 @@ log_file = "/tmp/demo.log"
 console_sink_name = "console_sink_demo"
 backend_thread_name = "log_demo"
 backend_cpu_affinity = 5
-format_pattern = "%(log_level)%(time) %(process_id):%(thread_id) %(file_name):%(caller_function):%(line_number)] %(message)"
+format_pattern = "%(log_level_short_code)%(time) %(process_id):%(thread_id) %(file_name):%(caller_function):%(line_number)] %(message)"
 timestamp_pattern = "%Y-%m-%d %H:%M:%S.%Qns"

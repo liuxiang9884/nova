@@ -44,12 +44,12 @@ constexpr std::string_view kDefaultLogBackendThreadName = "nova_log";
 constexpr auto kDefaultLogBackendCpuAffinity =
     std::numeric_limits<uint16_t>::max();
 
-constexpr uint32_t kDefaultLogInitialQueueSize = 1024 * 1024;
+constexpr uint32_t kDefaultLogInitialQueueCapacity = 1024 * 1024;
 constexpr auto kDefaultLogQueueType = quill::QueueType::BoundedDropping;
 #ifdef WIN32
-constexpr auto enableHugePages = false;
+constexpr auto kLogEnableHugePages = false;
 #else
-constexpr auto enableHugePages = true;
+constexpr auto kLogEnableHugePages = true;
 #endif
 constexpr std::string_view kDefaultLogFormatPattern =
     "%(log_level_short_code)%(time) %(process_id):%(thread_id) "
@@ -157,35 +157,27 @@ class LogConfig {
 
 class LogManager {
  public:
-  explicit LogManager([[maybe_unused]] const LogConfig& config) {
-    quill::Backend::start();
-    auto console_sink =
-        quill::Frontend::create_or_get_sink<quill::ConsoleSink>("console_sink");
-
-    auto file_sink = quill::Frontend::create_or_get_sink<quill::FileSink>(
-        "/tmp/test.log",
-        []() {
-          quill::FileSinkConfig cfg;
-          cfg.set_open_mode('w');
-          cfg.set_filename_append_option(
-              quill::FilenameAppendOption::StartDateTime);
-          return cfg;
-        }(),
-        quill::FileEventNotifier{});
-
-    logger_ = quill::Frontend::create_or_get_logger(
-        "logger", {console_sink, file_sink},
-        quill::PatternFormatterOptions{std::string{kDefaultLogFormatPattern},
-                                       "%Y-%m-%d %H:%M:%S.%Qns",
-                                       quill::Timezone::LocalTime});
+  explicit LogManager([[maybe_unused]] const LogConfig& config)
+      : config_(config) {
+    Initialize();
   }
+
+  struct NovaFrontendOptions {
+    static constexpr quill::QueueType queue_type = kDefaultLogQueueType;
+    static constexpr uint32_t initial_queue_capacity =
+        kDefaultLogInitialQueueCapacity;
+    static constexpr uint32_t blocking_queue_retry_interval_ns = 800;
+    static constexpr bool huge_pages_enabled = kLogEnableHugePages;
+  };
+
+  using NovaFrontend = quill::FrontendImpl<NovaFrontendOptions>;
+  using NovaLogger = quill::LoggerImpl<NovaFrontendOptions>;
 
   std::vector<std::shared_ptr<quill::Sink>> CreateSinks() {
     std::vector<std::shared_ptr<quill::Sink>> sinks;
     if (!config_.console_sink_name().empty()) {
-      auto console_sink =
-          quill::Frontend::create_or_get_sink<quill::ConsoleSink>(
-              config_.console_sink_name());
+      auto console_sink = NovaFrontend::create_or_get_sink<quill::ConsoleSink>(
+          config_.console_sink_name());
       sinks.emplace_back(std::move(console_sink));
     }
 
@@ -194,7 +186,7 @@ class LogManager {
       file_sink_config.set_open_mode('w');
       file_sink_config.set_filename_append_option(
           quill::FilenameAppendOption::StartDateTime);
-      auto file_sink = quill::Frontend::create_or_get_sink<quill::FileSink>(
+      auto file_sink = NovaFrontend::create_or_get_sink<quill::FileSink>(
           config_.log_file(), file_sink_config, quill::FileEventNotifier{});
       sinks.emplace_back(std::move(file_sink));
     }
@@ -205,28 +197,35 @@ class LogManager {
     return sinks;
   }
 
-  void Initialize() {
-    auto sinks = CreateSinks();
-    std::string format_pattern{
-        "%(log_level_short_code)%(time) [%(thread_id)] "
-        "%(file_name):%(full_path) %(message)"};
+  void InitializeBackend() {
+    quill::BackendOptions backend_options;
+    backend_options.thread_name = config_.backend_thread_name();
+    backend_options.cpu_affinity = config_.backend_cpu_affinity();
+    quill::Backend::start(backend_options);
+  }
 
+  void InitializeFrontend() {
+    auto sinks = CreateSinks();
     quill::PatternFormatterOptions format_options;
     format_options.format_pattern = config_.format_pattern();
     format_options.timestamp_pattern = config_.timestamp_pattern();
     format_options.timestamp_timezone = quill::Timezone::LocalTime;
-
     logger_ =
-        quill::Frontend::create_or_get_logger("logger", sinks, format_options);
+        NovaFrontend::create_or_get_logger("logger", sinks, format_options);
   }
 
-  [[nodiscard]] quill::Logger* logger() const {
+  void Initialize() {
+    InitializeBackend();
+    InitializeFrontend();
+  }
+
+  [[nodiscard]] NovaLogger* logger() const {
     return logger_;
   }
 
  private:
   LogConfig config_{};
-  quill::Logger* logger_ = nullptr;
+  NovaLogger* logger_{nullptr};
 };
 
 }  // namespace nova
