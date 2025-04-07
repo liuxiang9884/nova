@@ -24,12 +24,15 @@ file(GLOB_RECURSE SOURCES
         src/*.cpp
 )
 
-add_library(nova ${HEADERS} ${SOURCES})
-target_include_directories(nova PUBLIC ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
+message(STATUS "Headers: ${HEADERS}")
+message(STATUS "Sources: ${SOURCES}")
+
+add_library(nova ${SOURCES})
+target_include_directories(nova PUBLIC ${NOVA_INCLUDE} ${VCPKG_INCLUDE})
 target_compile_options(nova PRIVATE -Wno-gnu-zero-variadic-macro-arguments)
 
 add_executable(nova_demo main.cpp)
-target_link_libraries(nova_demo nova)
+target_link_libraries(nova_demo PRIVATE nova)
 
 add_subdirectory(examples)
 
