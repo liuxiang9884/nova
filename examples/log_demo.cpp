@@ -46,9 +46,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] const char** argv) {
   }
   std::cout << nova::MaxEnumValue<nova::LogLevel>() << std::endl;
 
-  std::cout << static_cast<int32_t>(
-                   nova::LogLevelArray[nova::LogLevel::kLogCritical])
-            << std::endl;
+  std::cout << static_cast<int32_t>(nova::LogLevel::kLogCritical) << std::endl;
 
   std::cout << log_config.log_file() << std::endl;
   std::cout << log_config.backend_thread_name() << std::endl;
