@@ -13,8 +13,23 @@ else ()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif ()
 
-add_executable(nova main.cpp
-        include/nova/utils/enum.h)
+file(GLOB_RECURSE HEADERS
+        include/*.h
+        include/*.hpp
+)
+
+file(GLOB_RECURSE SOURCES
+        src/*.c
+        src/*.cc
+        src/*.cpp
+)
+
+add_library(nova ${HEADERS} ${SOURCES})
+target_include_directories(nova PUBLIC ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
+target_compile_options(nova PRIVATE -Wno-gnu-zero-variadic-macro-arguments)
+
+add_executable(nova_demo main.cpp)
+target_link_libraries(nova_demo nova)
 
 add_subdirectory(examples)
 
