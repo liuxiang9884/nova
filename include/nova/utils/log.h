@@ -5,7 +5,6 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include <limits>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -17,6 +16,9 @@
 #include <toml++/toml.h>
 
 namespace nova {
+
+class LogConfig;
+class LogManager;
 
 enum LogLevel : uint8_t {
   kLogTrace,
@@ -118,10 +120,12 @@ class LogConfig {
 
 class LogManager {
  public:
-  explicit LogManager([[maybe_unused]] const LogConfig& config)
-      : config_(config) {
-    Initialize();
+  static LogManager& Instance() {
+    static LogManager instance;
+    return instance;
   }
+
+  void Initialize(const LogConfig& config);
 
   struct NovaFrontendOptions {
     static constexpr quill::QueueType queue_type = kDefaultLogQueueType;
@@ -141,15 +145,38 @@ class LogManager {
 
  private:
   [[nodiscard]] std::vector<std::shared_ptr<quill::Sink>> CreateSinks() const;
+
   void InitializeBackend() const;
+
   void InitializeFrontend();
-  void Initialize();
 
  private:
   LogConfig config_{};
   NovaLogger* logger_{nullptr};
 };
 
+
+extern LogManager kLogManager;
+void InitializeLogging(const LogConfig& config = LogConfig{});
+
 }  // namespace nova
+
+#define NOVA_TRACE(format, ...) \
+LOG_TRACE_L1(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+
+#define NOVA_DEBUG(format, ...) \
+  LOG_DEBUG(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+
+#define NOVA_INFO(format, ...) \
+LOG_INFO(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+
+#define NOVA_WARNING(format, ...) \
+LOG_WARNING(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+
+#define NOVA_ERROR(format, ...) \
+LOG_ERROR(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+
+#define NOVA_CRITICAL(format, ...) \
+LOG_CRITICAL(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
 
 #endif  // LOG_H

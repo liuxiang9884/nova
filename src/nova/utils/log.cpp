@@ -4,12 +4,21 @@
 
 #include "nova/utils/log.h"
 
+#include <limits>
+#include <memory>
+
 #include <quill/sinks/ConsoleSink.h>
 #include <quill/sinks/FileSink.h>
 
 #include "nova/utils/enum.h"
 
 namespace nova {
+
+LogManager kLogManager = LogManager::Instance();
+
+void InitializeLogging(const LogConfig& config) {
+  kLogManager.Initialize(config);
+}
 
 #ifdef NDEBUG
 constexpr LogLevel kDefaultLogLevel = LogLevel::kLogInfo;
@@ -99,7 +108,8 @@ void LogManager::InitializeFrontend() {
   logger_ = NovaFrontend::create_or_get_logger("logger", sinks, format_options);
 }
 
-void LogManager::Initialize() {
+void LogManager::Initialize(const LogConfig& config) {
+  config_ = config;
   InitializeBackend();
   InitializeFrontend();
 }

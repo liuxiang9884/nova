@@ -37,12 +37,14 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] const char** argv) {
   fmt::println("backend_cpu_affinity = {}", log_config.backend_cpu_affinity());
   fmt::println("timestamp_pattern = {}", log_config.timestamp_pattern());
 
-  nova::LogManager log_manager(log_config);
-  auto logger = log_manager.logger();
-
+  // nova::LogManager log_manager(log_config);
+  // auto logger = log_manager.logger();
+  nova::InitializeLogging(log_config);
   for (auto i = 0; i < 10; i++) {
-    LOG_INFO(logger, "Hello World!");
-    LOG_WARNING(logger, "Hello World!");
+    // LOG_INFO(logger, "Hello World!");
+    // LOG_WARNING(logger, "Hello World!");
+    NOVA_INFO("Hello World!");
+    sleep(1);
   }
   std::cout << nova::MaxEnumValue<nova::LogLevel>() << std::endl;
 
@@ -51,6 +53,6 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] const char** argv) {
   std::cout << log_config.log_file() << std::endl;
   std::cout << log_config.backend_thread_name() << std::endl;
 
-#include <CLI/CLI.hpp>
+  // nova::ShutdownLogging();
   return 0;
 }
