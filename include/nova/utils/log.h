@@ -158,6 +158,10 @@ class LogManager {
     return logger_;
   }
 
+  static void Preallocate() {
+    NovaFrontend::preallocate();
+  }
+
  private:
   [[nodiscard]] std::vector<std::shared_ptr<quill::Sink>> CreateSinks() const;
 
@@ -172,6 +176,7 @@ class LogManager {
 
 extern LogManager kLogManager;
 void InitializeLogging(const LogConfig& config = LogConfig{});
+void PreallocateLogging();
 
 }  // namespace nova
 

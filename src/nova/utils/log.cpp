@@ -24,6 +24,10 @@ void InitializeLogging(const LogConfig& config) {
   kLogManager.Initialize(config);
 }
 
+void PreallocateLogging() {
+  nova::LogManager::Preallocate();
+}
+
 #ifdef NDEBUG
 constexpr LogLevel kDefaultLogLevel = LogLevel::kLogInfo;
 constexpr std::string_view kDefaultLogLevelString = "info";
@@ -201,7 +205,7 @@ std::vector<std::shared_ptr<quill::Sink>> LogManager::CreateSinks() const {
   }
 
   if (sinks.empty()) {
-    throw std::logic_error("Must have at least one sink");
+    throw std::logic_error("Log must have at least one sink");
   }
   return sinks;
 }
