@@ -41,7 +41,7 @@ constexpr uint16_t kDefaultLogBackendCpuAffinity =
 
 constexpr std::string_view kDefaultLogFormatPattern =
     "%(log_level_short_code)%(time) %(process_id):%(thread_id) "
-    "%(file_name):%(caller_function):%(line_number)] %(message)";
+    "%(file_name):%(caller_function):%(line_number)] %(message) %(tags)";
 constexpr std::string_view kDefaultLogTimestampPattern = "%Y%m%d %H:%M:%S.%Qns";
 
 const EnumArray<LogLevel, quill::LogLevel> LogLevelArray{

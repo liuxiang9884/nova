@@ -7,5 +7,5 @@ json_console_sink_name = "nova.json"
 json_file_sink_name = "/tmp/nova.json"
 backend_thread_name = "log_demo"
 backend_cpu_affinity = 5
-format_pattern = "%(log_level_short_code)%(time) %(process_id):%(thread_id) %(file_name):%(caller_function):%(line_number)] %(message)"
+format_pattern = "%(log_level_short_code)%(time) %(process_id):%(thread_id) %(file_name):%(caller_function):%(line_number)] %(message) %(tags)"
 timestamp_pattern = "%Y-%m-%d %H:%M:%S.%Qns"

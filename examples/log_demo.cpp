@@ -39,16 +39,12 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] const char** argv) {
   fmt::println("backend_cpu_affinity = {}", log_config.backend_cpu_affinity());
   fmt::println("timestamp_pattern = {}", log_config.timestamp_pattern());
 
-  // nova::LogManager log_manager(log_config);
-  // auto logger = log_manager.logger();
   nova::InitializeLogging(log_config);
   for (auto i = 0; i < 10; i++) {
-    // LOG_INFO(logger, "Hello World!");
-    // LOG_WARNING(logger, "Hello World!");
     NOVA_INFO("Hello World!");
-    sleep(1);
+    NOVA_INFO_TAGS(TAG_PERFORMANCE, "let's go!");
+    // sleep(1);
   }
 
-  // nova::ShutdownLogging();
   return 0;
 }

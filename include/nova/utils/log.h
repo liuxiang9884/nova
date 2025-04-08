@@ -193,4 +193,39 @@ void InitializeLogging(const LogConfig& config = LogConfig{});
 #define NOVA_CRITICAL(format, ...) \
   LOG_CRITICAL(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
 
+// log with tags
+#define NOVA_TRACE_TAGS(format, ...)                                  \
+  LOG_TRACE_L1_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
+                    ##__VA_ARGS__)
+
+#define NOVA_DEBUG_TAGS(tags, format, ...)                         \
+  LOG_DEBUG_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
+                 ##__VA_ARGS__)
+
+#define NOVA_INFO_TAGS(tags, format, ...) \
+  LOG_INFO_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, ##__VA_ARGS__)
+
+#define NOVA_WARN_TAGS(tags, format, ...)                            \
+  LOG_WARNING_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
+                   ##__VA_ARGS__)
+
+#define NOVA_ERROR_TAGS(tags, format, ...)                         \
+  LOG_ERROR_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
+                 ##__VA_ARGS__)
+
+#define NOVA_CRITICAL_TAGS(tags, format, ...)                         \
+  LOG_CRITICAL_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
+                    ##__VA_ARGS__)
+
+#define TAG_MODULE "module"
+#define TAG_FUNCTION "function"
+#define TAG_EVENT "event"
+#define TAG_ERROR "error"
+#define TAG_PERFORMANCE "performance"
+#define TAG_SECURITY "security"
+#define TAG_NETWORK "network"
+#define TAG_DATABASE "database"
+#define TAG_CACHE "cache"
+#define TAG_CONFIG "config"
+
 #endif  // LOG_H
