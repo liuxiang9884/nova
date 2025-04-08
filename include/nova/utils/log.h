@@ -49,11 +49,11 @@ class LogConfig {
     file_sink_name_ = name;
   }
 
-  void set_console_sink(std::string_view name) {
+  void set_console_sink_name(std::string_view name) {
     console_sink_name_ = name;
   }
 
-  void set_json_file_sink(std::string_view name) {
+  void set_json_file_sink_name(std::string_view name) {
     json_file_sink_name_ = name;
   }
 
