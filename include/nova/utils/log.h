@@ -98,11 +98,11 @@ class LogConfig {
   }
 
   [[nodiscard]] const std::string& json_file_sink_name() const noexcept {
-    return json_console_sink_name_;
+    return json_file_sink_name_;
   }
 
   [[nodiscard]] const std::string& json_console_sink_name() const noexcept {
-    return json_file_sink_name_;
+    return json_console_sink_name_;
   }
 
   [[nodiscard]] const std::string& backend_thread_name() const noexcept {
