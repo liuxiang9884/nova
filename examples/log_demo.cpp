@@ -30,8 +30,10 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] const char** argv) {
   nova::LogConfig log_config;
   log_config.FromToml(log_node);
   fmt::println("log_level = {}", static_cast<int32_t>(log_config.log_level()));
-  fmt::println("log_file = {}", log_config.log_file());
+  fmt::println("file_sink_name = {}", log_config.file_sink_name());
   fmt::println("console_sink_name = {}", log_config.console_sink_name());
+  fmt::println("json_file_sink_name = {}", log_config.json_file_sink_name());
+  fmt::println("json_console_sink_name = {}", log_config.json_console_sink_name());
   fmt::println("backend_thread_name = {}", log_config.backend_thread_name());
   fmt::println("format_pattern = {}", log_config.format_pattern());
   fmt::println("backend_cpu_affinity = {}", log_config.backend_cpu_affinity());
@@ -46,12 +48,6 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] const char** argv) {
     NOVA_INFO("Hello World!");
     sleep(1);
   }
-  std::cout << nova::MaxEnumValue<nova::LogLevel>() << std::endl;
-
-  std::cout << static_cast<int32_t>(nova::LogLevel::kLogCritical) << std::endl;
-
-  std::cout << log_config.log_file() << std::endl;
-  std::cout << log_config.backend_thread_name() << std::endl;
 
   // nova::ShutdownLogging();
   return 0;

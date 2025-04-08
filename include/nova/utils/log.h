@@ -17,9 +17,6 @@
 
 namespace nova {
 
-class LogConfig;
-class LogManager;
-
 enum LogLevel : uint8_t {
   kLogTrace,
   kLogDebug,
@@ -48,12 +45,20 @@ class LogConfig {
 
   LogConfig();
 
-  void set_log_file(std::string_view file) {
-    log_file_ = file;
+  void set_file_sink_name(std::string_view name) {
+    file_sink_name_ = name;
   }
 
-  void set_console_sink_name(std::string_view name) {
+  void set_console_sink(std::string_view name) {
     console_sink_name_ = name;
+  }
+
+  void set_json_file_sink(std::string_view name) {
+    json_file_sink_name_ = name;
+  }
+
+  void set_json_console_sink_name(std::string_view name) {
+    json_console_sink_name_ = name;
   }
 
   void set_log_level(std::string_view level) {
@@ -84,12 +89,20 @@ class LogConfig {
     return log_level_;
   }
 
-  [[nodiscard]] const std::string& log_file() const noexcept {
-    return log_file_;
+  [[nodiscard]] const std::string& file_sink_name() const noexcept {
+    return file_sink_name_;
   }
 
   [[nodiscard]] const std::string& console_sink_name() const noexcept {
     return console_sink_name_;
+  }
+
+  [[nodiscard]] const std::string& json_file_sink_name() const noexcept {
+    return json_console_sink_name_;
+  }
+
+  [[nodiscard]] const std::string& json_console_sink_name() const noexcept {
+    return json_file_sink_name_;
   }
 
   [[nodiscard]] const std::string& backend_thread_name() const noexcept {
@@ -111,7 +124,9 @@ class LogConfig {
  private:
   LogLevel log_level_;
   std::string console_sink_name_;
-  std::string log_file_;
+  std::string file_sink_name_;
+  std::string json_console_sink_name_;
+  std::string json_file_sink_name_;
   std::string backend_thread_name_;
   uint16_t backend_cpu_affinity_;
   std::string format_pattern_;
@@ -155,28 +170,27 @@ class LogManager {
   NovaLogger* logger_{nullptr};
 };
 
-
 extern LogManager kLogManager;
 void InitializeLogging(const LogConfig& config = LogConfig{});
 
 }  // namespace nova
 
 #define NOVA_TRACE(format, ...) \
-LOG_TRACE_L1(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+  LOG_TRACE_L1(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
 
 #define NOVA_DEBUG(format, ...) \
   LOG_DEBUG(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
 
 #define NOVA_INFO(format, ...) \
-LOG_INFO(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+  LOG_INFO(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
 
 #define NOVA_WARNING(format, ...) \
-LOG_WARNING(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+  LOG_WARNING(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
 
 #define NOVA_ERROR(format, ...) \
-LOG_ERROR(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+  LOG_ERROR(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
 
 #define NOVA_CRITICAL(format, ...) \
-LOG_CRITICAL(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+  LOG_CRITICAL(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
 
 #endif  // LOG_H
