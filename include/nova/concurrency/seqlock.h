@@ -11,8 +11,22 @@
 #include "nova/common/macros.h"
 
 namespace nova {
+
+namespace detail {
+// 使用constexpr函数计算需要的填充大小
 template <typename T>
-class SeqLock {
+constexpr std::size_t calculate_padding_size() {
+  // 基础大小：T的大小 + std::atomic<std::size_t>的大小 +
+  // 可能的alignas引起的额外空间
+  const std::size_t base_size =
+      sizeof(T) + sizeof(std::atomic<std::size_t>) + 2 * kCacheLineSize;
+  // 计算需要补齐的字节数
+  return (kCacheLineSize - (base_size % kCacheLineSize)) % kCacheLineSize;
+}
+}  // namespace detail
+
+template <typename T>
+class alignas(kCacheLineSize) SeqLock {
  public:
   static_assert(std::is_nothrow_copy_assignable_v<T>,
                 "T must satisfy is_nothrow_copy_assignable");
@@ -45,6 +59,20 @@ class SeqLock {
 
  private:
   alignas(kCacheLineSize) T value_;
-  std::atomic<std::size_t> seq_ = 0;
+  alignas(kCacheLineSize) std::atomic<std::size_t> seq_ = 0;
+
+  // 使用编译时计算的填充大小
+  static constexpr std::size_t kPaddingSize =
+      detail::calculate_padding_size<T>();
+  char padding_[kPaddingSize] = {};
 };
+
+// 验证几种常见类型的 SeqLock 大小是缓存行大小的整数倍
+static_assert(sizeof(SeqLock<int>) % kCacheLineSize == 0,
+              "SeqLock<int> size must be a multiple of cache line size");
+static_assert(sizeof(SeqLock<int64_t>) % kCacheLineSize == 0,
+              "SeqLock<int64_t> size must be a multiple of cache line size");
+static_assert(sizeof(SeqLock<double>) % kCacheLineSize == 0,
+              "SeqLock<double> size must be a multiple of cache line size");
+
 }  // namespace nova
