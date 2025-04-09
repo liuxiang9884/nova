@@ -28,7 +28,10 @@ message(STATUS "Headers: ${HEADERS}")
 message(STATUS "Sources: ${SOURCES}")
 
 add_library(nova ${SOURCES}
-        include/nova/concurrency/spinlock.h)
+        include/nova/concurrency/spinlock.h
+        include/nova/concurrency/seqlock.h
+        include/nova/common/hardware.h
+        include/nova/common/macros.h)
 target_include_directories(nova PUBLIC ${NOVA_INCLUDE} ${VCPKG_INCLUDE})
 target_compile_options(nova PRIVATE -Wno-gnu-zero-variadic-macro-arguments)
 
