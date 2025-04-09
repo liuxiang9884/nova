@@ -2,8 +2,7 @@
 // Created by liuxiang on 2025/4/1.
 //
 
-#ifndef ENUM_H
-#define ENUM_H
+#pragma once
 
 #include <array>
 
@@ -54,4 +53,3 @@ class EnumArray {
 
 }  // namespace nova
 
-#endif  // ENUM_H

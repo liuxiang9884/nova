@@ -2,8 +2,7 @@
 // Created by liuxiang on 2025/3/31.
 //
 
-#ifndef FORMAT_TOML_H
-#define FORMAT_TOML_H
+#pragma once
 
 #include <iostream>
 #include <string>
@@ -36,4 +35,3 @@ struct fmt::formatter<toml::date_time> {
   }
 };
 
-#endif  // FORMAT_TOML_H

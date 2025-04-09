@@ -2,8 +2,7 @@
 // Created by liuxiang on 2025/3/31.
 //
 
-#ifndef LOG_H
-#define LOG_H
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -232,5 +231,3 @@ void PreallocateLogging();
 #define TAG_DATABASE "database"
 #define TAG_CACHE "cache"
 #define TAG_CONFIG "config"
-
-#endif  // LOG_H
