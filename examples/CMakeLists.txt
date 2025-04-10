@@ -14,3 +14,8 @@ target_link_libraries(CLI11_demo PRIVATE CLI11::CLI11 fmt::fmt-header-only nova)
 add_executable(log_demo log_demo.cpp)
 target_include_directories(log_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
 target_link_libraries(log_demo PRIVATE ${THIRD_PARTY_LIBS} nova)
+
+#seqlock_demo
+add_executable(seqlock_demo seqlock_demo.cpp)
+target_include_directories(seqlock_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
+target_link_libraries(seqlock_demo PRIVATE nova)
