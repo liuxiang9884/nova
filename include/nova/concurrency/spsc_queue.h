@@ -30,7 +30,7 @@ class SPSCQueue {
 
   SPSCQueue(SPSCQueue&) = default;
 
-  SPSCQueue(const SPSCQueue&& other) : head_(0), tail_(0) {
+  SPSCQueue(const SPSCQueue&& other) noexcept : head_(0), tail_(0) {
   };
 
   SPSCQueue& operator=(const SPSCQueue&) = default;
@@ -138,11 +138,11 @@ class SPSCQueue {
  private:
   using AtomicIndexType = std::atomic<uint64_t>;
   using StorageType = typename std::aligned_storage<sizeof(T), alignof(T)>::type;
-  char pad0_[kCacheLineSize];
+  char pad0_[kCacheLineSize] = {0};
   alignas(kCacheLineSize) StorageType slots_[Capacity];
   alignas(kCacheLineSize) AtomicIndexType head_;
   alignas(kCacheLineSize) AtomicIndexType tail_;
-  char pad1_[kCacheLineSize - sizeof(AtomicIndexType)];
+  char pad1_[kCacheLineSize - sizeof(AtomicIndexType)] = {0};
 };
 
 } // namespace nova
