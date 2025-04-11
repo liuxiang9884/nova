@@ -49,4 +49,11 @@ class alignas(kCacheLineSize) SeqLock {
   alignas(kCacheLineSize) std::atomic<std::size_t> seq_ = 0;
 };
 
+static_assert(sizeof(SeqLock<int>) % kCacheLineSize == 0,
+              "SeqLock<int> size must be a multiple of cache line size");
+static_assert(sizeof(SeqLock<int64_t>) % kCacheLineSize == 0,
+              "SeqLock<int64_t> size must be a multiple of cache line size");
+static_assert(sizeof(SeqLock<double>) % kCacheLineSize == 0,
+              "SeqLock<double> size must be a multiple of cache line size");
+
 }  // namespace nova

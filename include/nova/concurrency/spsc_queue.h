@@ -5,9 +5,8 @@
 #pragma once
 
 #include <atomic>
-#include <type_traits>
-
 #include <cassert>
+#include <type_traits>
 
 #include "nova/common/hardware.h"
 
@@ -24,14 +23,13 @@ class SPSCQueue {
 
   explicit SPSCQueue() : head_(0), tail_(0) {
     assert(alignof(SPSCQueue<T, Capacity>) >= kCacheLineSize);
-    assert(reinterpret_cast<char*>(&tail_) - reinterpret_cast<char*>(&head_)
-               >= static_cast<size_t>(kCacheLineSize));
+    assert(reinterpret_cast<char*>(&tail_) - reinterpret_cast<char*>(&head_) >=
+           static_cast<size_t>(kCacheLineSize));
   };
 
   SPSCQueue(SPSCQueue&) = default;
 
-  SPSCQueue(const SPSCQueue&& other) noexcept : head_(0), tail_(0) {
-  };
+  SPSCQueue(SPSCQueue&&) noexcept : head_(0), tail_(0) {};
 
   SPSCQueue& operator=(const SPSCQueue&) = default;
 
@@ -42,30 +40,30 @@ class SPSCQueue {
   }
 
   template <typename... Args>
-  void Emplace(Args&& ... args) noexcept(
-  std::is_nothrow_constructible<T, Args && ...>::value) {
-    static_assert(std::is_constructible<T, Args&& ...>::value,
+  void Emplace(Args&&... args) noexcept(
+      std::is_nothrow_constructible<T, Args&&...>::value) {
+    static_assert(std::is_constructible<T, Args&&...>::value,
                   "T must be constructable with Args&&...");
     const auto current = head_.load(std::memory_order_relaxed);
     auto next = ((current + 1) & (Capacity - 1));
     while (next == tail_.load(std::memory_order_acquire)) {
     };
 
-    new(&slots_[current]) T(std::forward<Args>(args)...);
+    new (&slots_[current]) T(std::forward<Args>(args)...);
     head_.store(next, std::memory_order_release);
   }
 
   template <typename... Args>
-  bool TryEmplace(Args&& ... args) noexcept(
-  std::is_nothrow_constructible<T, Args && ...>::value) {
-    static_assert(std::is_constructible<T, Args&& ...>::value,
+  bool TryEmplace(Args&&... args) noexcept(
+      std::is_nothrow_constructible<T, Args&&...>::value) {
+    static_assert(std::is_constructible<T, Args&&...>::value,
                   "T must be constructable with Args&&...");
 
     const auto current = head_.load(std::memory_order_relaxed);
     auto next = ((current + 1) & (Capacity - 1));
 
     if (next != tail_.load(std::memory_order_acquire)) {
-      new(&slots_[current]) T(std::forward<Args>(args)...);
+      new (&slots_[current]) T(std::forward<Args>(args)...);
       head_.store(next, std::memory_order_release);
       return true;
     }
@@ -74,30 +72,28 @@ class SPSCQueue {
   }
 
   void Push(const T& val) noexcept(
-  std::is_nothrow_copy_constructible<T>::value) {
+      std::is_nothrow_copy_constructible<T>::value) {
     static_assert(std::is_copy_constructible<T>::value,
                   "T must be copy constructable");
     Emplace(val);
   }
 
-  template <typename P, typename =
-  typename std::enable_if<std::is_constructible<T, P&&>::value>::type>
-  void Push(P&& val) noexcept(
-  std::is_nothrow_constructible<T, P&&>::value) {
+  template <typename P, typename = typename std::enable_if<
+                            std::is_constructible<T, P&&>::value>::type>
+  void Push(P&& val) noexcept(std::is_nothrow_constructible<T, P&&>::value) {
     Emplace(std::forward<P>(val));
   }
 
   bool TryPush(const T& val) noexcept(
-  std::is_nothrow_copy_constructible<T>::value) {
+      std::is_nothrow_copy_constructible<T>::value) {
     static_assert(std::is_copy_constructible<T>::value,
                   "T must be copy constructable");
     return TryEmplace(val);
   }
 
-  template <typename P, typename =
-  typename std::enable_if<std::is_constructible<T, P&&>::value>::type>
-  bool TryPush(P&& val) noexcept(
-  std::is_nothrow_constructible<T, P&&>::value) {
+  template <typename P, typename = typename std::enable_if<
+                            std::is_constructible<T, P&&>::value>::type>
+  bool TryPush(P&& val) noexcept(std::is_nothrow_constructible<T, P&&>::value) {
     return TryEmplace(std::forward<P>(val));
   }
 
@@ -120,7 +116,7 @@ class SPSCQueue {
 
   [[nodiscard]] std::size_t size() const noexcept {
     int ret = static_cast<int>(head_.load(std::memory_order_acquire) -
-        tail_.load(std::memory_order_acquire));
+                               tail_.load(std::memory_order_acquire));
     if (ret < 0) {
       ret += Capacity;
     }
@@ -137,7 +133,8 @@ class SPSCQueue {
 
  private:
   using AtomicIndexType = std::atomic<uint64_t>;
-  using StorageType = typename std::aligned_storage<sizeof(T), alignof(T)>::type;
+  using StorageType =
+      typename std::aligned_storage<sizeof(T), alignof(T)>::type;
   char pad0_[kCacheLineSize] = {0};
   alignas(kCacheLineSize) StorageType slots_[Capacity];
   alignas(kCacheLineSize) AtomicIndexType head_;
@@ -145,5 +142,4 @@ class SPSCQueue {
   char pad1_[kCacheLineSize - sizeof(AtomicIndexType)] = {0};
 };
 
-} // namespace nova
-
+}  // namespace nova
