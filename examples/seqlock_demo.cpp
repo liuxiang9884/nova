@@ -23,9 +23,8 @@ struct Order {
 };
 
 int main() {
-
   static_assert(sizeof(nova::SeqLock<int>) % nova::kCacheLineSize == 0,
-              "SeqLock<int> size must be a multiple of cache line size");
+                "SeqLock<int> size must be a multiple of cache line size");
   static_assert(sizeof(nova::SeqLock<int64_t>) % nova::kCacheLineSize == 0,
                 "SeqLock<int64_t> size must be a multiple of cache line size");
   static_assert(sizeof(nova::SeqLock<double>) % nova::kCacheLineSize == 0,
@@ -33,5 +32,12 @@ int main() {
 
   std::cout << "order_size: " << sizeof(Order) << std::endl;
   std::cout << "seq_order_size: " << sizeof(nova::SeqLock<Order>) << std::endl;
+  std::cout << "seq_int_size: " << sizeof(nova::SeqLock<int32_t>) << std::endl;
+
+  std::array<nova::SeqLock<Order>, 8> orders{};
+  const auto ptr1 = std::bit_cast<uint8_t*>(&orders[3].value());
+  const auto ptr2 = std::bit_cast<uint8_t*>(&orders[5].seq());
+  std::cout << "ptr2 - ptr1: " << (ptr2 - ptr1) << std::endl;
+
   return 0;
 }

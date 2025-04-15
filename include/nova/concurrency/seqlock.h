@@ -35,7 +35,7 @@ class alignas(kCacheLineSize) SeqLock {
     return copy;
   }
 
-  NOVA_DEBUG_NOINLINE void store(const T &desired) noexcept {
+  NOVA_DEBUG_NOINLINE void store(const T& desired) noexcept {
     std::size_t seq0 = seq_.load(std::memory_order_relaxed);
     seq_.store(seq0 + 1, std::memory_order_release);
     std::atomic_signal_fence(std::memory_order_acq_rel);
@@ -44,16 +44,18 @@ class alignas(kCacheLineSize) SeqLock {
     seq_.store(seq0 + 2, std::memory_order_release);
   }
 
+  const T& value() const noexcept {
+    return value_;
+  }
+
+  const std::atomic<uint64_t>& seq() const noexcept {
+    return seq_;
+  }
+
  private:
   alignas(kCacheLineSize) T value_;
-  alignas(kCacheLineSize) std::atomic<std::size_t> seq_ = 0;
+  alignas(kCacheLineSize) std::atomic<uint64_t> seq_ = 0;
 };
 
-static_assert(sizeof(SeqLock<int>) % kCacheLineSize == 0,
-              "SeqLock<int> size must be a multiple of cache line size");
-static_assert(sizeof(SeqLock<int64_t>) % kCacheLineSize == 0,
-              "SeqLock<int64_t> size must be a multiple of cache line size");
-static_assert(sizeof(SeqLock<double>) % kCacheLineSize == 0,
-              "SeqLock<double> size must be a multiple of cache line size");
 
 }  // namespace nova
