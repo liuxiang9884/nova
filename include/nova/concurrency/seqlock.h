@@ -22,7 +22,7 @@ class alignas(kCacheLineSize) SeqLock {
 
   SeqLock() = default;
 
-  NOVA_DEBUG_NOINLINE T load() const noexcept {
+  NOVA_DEBUG_NOINLINE T Load() const noexcept {
     T copy;
     uint64_t seq0, seq1;
     do {
@@ -35,7 +35,7 @@ class alignas(kCacheLineSize) SeqLock {
     return copy;
   }
 
-  NOVA_DEBUG_NOINLINE void store(const T& desired) noexcept {
+  NOVA_DEBUG_NOINLINE void Store(const T& desired) noexcept {
     const uint64_t seq0 = seq_.load(std::memory_order_relaxed);
     seq_.store(seq0 + 1, std::memory_order_release);
     std::atomic_signal_fence(std::memory_order_acq_rel);
@@ -59,7 +59,7 @@ class alignas(kCacheLineSize) SeqLock {
 
 template <typename T>
 class alignas(kCacheLineSize) DoubleBufferSeqLock {
-  public:
+ public:
   static_assert(std::is_nothrow_copy_assignable_v<T>,
                 "T must satisfy is_nothrow_copy_assignable");
   static_assert(std::is_trivially_copy_assignable_v<T>,
@@ -67,7 +67,7 @@ class alignas(kCacheLineSize) DoubleBufferSeqLock {
 
   DoubleBufferSeqLock() = default;
 
-  NOVA_DEBUG_NOINLINE T load() const noexcept {
+  NOVA_DEBUG_NOINLINE T Load() const noexcept {
     T copy;
     uint64_t seq0, seq1;
 
@@ -83,7 +83,7 @@ class alignas(kCacheLineSize) DoubleBufferSeqLock {
     return copy;
   }
 
-  NOVA_DEBUG_NOINLINE void store(const T& desired) noexcept {
+  NOVA_DEBUG_NOINLINE void Store(const T& desired) noexcept {
     bool active = active_.load(std::memory_order_relaxed);
     const uint64_t seq0 = seq_.load(std::memory_order_relaxed);
     seq_.store(seq0 + 1, std::memory_order_release);
@@ -96,10 +96,77 @@ class alignas(kCacheLineSize) DoubleBufferSeqLock {
     seq_.store(seq0 + 2, std::memory_order_release);
   }
 
-  private:
+ private:
   alignas(kCacheLineSize) T buffer_[2];
   alignas(kCacheLineSize) std::atomic<bool> active_{false};
   alignas(kCacheLineSize) std::atomic<uint64_t> seq_{0};
+};
+
+template <typename T>
+class alignas(kCacheLineSize) MRSWSeqLock {
+ public:
+  static_assert(std::is_nothrow_copy_assignable_v<T>,
+                "T must satisfy is_nothrow_copy_assignable");
+  static_assert(std::is_trivially_copy_assignable_v<T>,
+                "T must satisfy is_trivially_copy_assignable");
+
+  MRSWSeqLock() = default;
+
+  NOVA_DEBUG_NOINLINE T Load() const noexcept {
+    T copy;
+    std::size_t seq0, seq1;
+    do {
+      seq0 = seq_.load(std::memory_order_acquire);
+      std::atomic_signal_fence(std::memory_order_acq_rel);
+      copy = value_;
+      std::atomic_signal_fence(std::memory_order_acq_rel);
+      seq1 = seq_.load(std::memory_order_acquire);
+    } while (seq0 != seq1 || seq0 & 1);
+    return copy;
+  }
+
+  NOVA_DEBUG_NOINLINE void Store(const T& desired) noexcept {
+    std::size_t seq0 = seq_.load(std::memory_order_relaxed);
+    seq_.store(seq0 + 1, std::memory_order_release);
+    std::atomic_signal_fence(std::memory_order_acq_rel);
+    value_ = desired;
+    std::atomic_signal_fence(std::memory_order_acq_rel);
+    seq_.store(seq0 + 2, std::memory_order_release);
+  }
+
+  template <typename F>
+  NOVA_DEBUG_NOINLINE void Visit(F&& visitor) const noexcept {
+    std::size_t seq0, seq1;
+    do {
+      seq0 = seq_.load(std::memory_order_acquire);
+      std::atomic_signal_fence(std::memory_order_acq_rel);
+      visitor(value_);
+      std::atomic_signal_fence(std::memory_order_acq_rel);
+      seq1 = seq_.load(std::memory_order_acquire);
+    } while (seq0 != seq1 || seq0 & 1);
+  }
+
+  template <typename F>
+  NOVA_DEBUG_NOINLINE void Update(F&& updater) noexcept {
+    std::size_t seq0 = seq_.load(std::memory_order_relaxed);
+    seq_.store(seq0 + 1, std::memory_order_release);
+    std::atomic_signal_fence(std::memory_order_acq_rel);
+    updater(value_);
+    std::atomic_signal_fence(std::memory_order_acq_rel);
+    seq_.store(seq0 + 2, std::memory_order_release);
+  }
+
+  const T& value() const noexcept {
+    return value_;
+  }
+
+  const std::atomic<std::size_t>& seq() const noexcept {
+    return seq_;
+  }
+
+ private:
+  alignas(kCacheLineSize) T value_;
+  alignas(kCacheLineSize) std::atomic<std::size_t> seq_ = 0;
 };
 
 }  // namespace nova

@@ -39,5 +39,6 @@ int main() {
   const auto ptr2 = std::bit_cast<uint8_t*>(&orders[5].seq());
   std::cout << "ptr2 - ptr1: " << (ptr2 - ptr1) << std::endl;
 
+
   return 0;
 }
