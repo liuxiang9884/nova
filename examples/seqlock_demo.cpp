@@ -2,7 +2,11 @@
 // Created by liuxiang on 2025/4/10.
 //
 
+#include <chrono>
 #include <iostream>
+#include <random>
+#include <thread>
+#include <vector>
 
 #include "nova/concurrency/seqlock.h"
 
@@ -22,6 +26,42 @@ struct Order {
   uint64_t reject_time;
 };
 
+void reader(const nova::MRSWSeqLock<Order>& order, int id) {
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<> dis(1, 100);
+
+  for (int i = 0; i < 5; ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(dis(gen)));
+
+    order.Visit([id](const Order& order) {
+      std::cout << "Reader " << id
+                << " sees order: strategy_id=" << order.strategy_id
+                << ", order_id=" << order.order_id << std::endl;
+    });
+  }
+}
+
+void writer(nova::MRSWSeqLock<Order>& order, int id) {
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<> dis(1, 100);
+
+  for (int i = 0; i < 3; ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(dis(gen)));
+
+    Order new_order;
+    new_order.strategy_id = id;
+    new_order.order_id = i + 1;
+
+    order.Update([&new_order](Order& order) { order = new_order; });
+
+    std::cout << "Writer " << id
+              << " updated order: strategy_id=" << new_order.strategy_id
+              << ", order_id=" << new_order.order_id << std::endl;
+  }
+}
+
 int main() {
   static_assert(sizeof(nova::SeqLock<int>) % nova::kCacheLineSize == 0,
                 "SeqLock<int> size must be a multiple of cache line size");
@@ -34,11 +74,24 @@ int main() {
   std::cout << "seq_order_size: " << sizeof(nova::SeqLock<Order>) << std::endl;
   std::cout << "seq_int_size: " << sizeof(nova::SeqLock<int32_t>) << std::endl;
 
-  std::array<nova::SeqLock<Order>, 8> orders{};
-  const auto ptr1 = std::bit_cast<uint8_t*>(&orders[3].value());
-  const auto ptr2 = std::bit_cast<uint8_t*>(&orders[5].seq());
-  std::cout << "ptr2 - ptr1: " << (ptr2 - ptr1) << std::endl;
+  nova::MRSWSeqLock<Order> order;
 
+  Order initial_order;
+  initial_order.strategy_id = 0;
+  initial_order.order_id = 0;
+  order.Store(initial_order);
+
+  std::vector<std::thread> threads;
+
+  for (int i = 0; i < 3; ++i) {
+    threads.emplace_back(reader, std::ref(order), i);
+  }
+
+  threads.emplace_back(writer, std::ref(order), 1);
+
+  for (auto& thread : threads) {
+    thread.join();
+  }
 
   return 0;
 }
