@@ -26,7 +26,7 @@ struct Order {
   uint64_t reject_time;
 };
 
-void reader(const nova::MRSWSeqLock<Order>& order, int id) {
+void Reader(const nova::MRSWSeqLock<Order>& order, int id) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> dis(1, 100);
@@ -42,7 +42,7 @@ void reader(const nova::MRSWSeqLock<Order>& order, int id) {
   }
 }
 
-void writer(nova::MRSWSeqLock<Order>& order, int id) {
+void Writer(nova::MRSWSeqLock<Order>& order, int id) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> dis(1, 100);
@@ -50,7 +50,7 @@ void writer(nova::MRSWSeqLock<Order>& order, int id) {
   for (int i = 0; i < 3; ++i) {
     std::this_thread::sleep_for(std::chrono::milliseconds(dis(gen)));
 
-    Order new_order;
+    Order new_order{};
     new_order.strategy_id = id;
     new_order.order_id = i + 1;
 
@@ -82,12 +82,13 @@ int main() {
   order.Store(initial_order);
 
   std::vector<std::thread> threads;
+  threads.reserve(3);
 
   for (int i = 0; i < 3; ++i) {
-    threads.emplace_back(reader, std::ref(order), i);
+    threads.emplace_back(Reader, std::ref(order), i);
   }
 
-  threads.emplace_back(writer, std::ref(order), 1);
+  threads.emplace_back(Writer, std::ref(order), 1);
 
   for (auto& thread : threads) {
     thread.join();
