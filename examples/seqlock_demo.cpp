@@ -64,10 +64,11 @@ void Writer(nova::MRSWSeqLock<Order>& order, int id) {
   }
 }
 
-void DoubleBufferMRSWSeqLockDemo() {
-  fmt::println("\n=== DoubleBufferMRSWSeqLock Demo ===");
+template <template <typename> class SeqLockType>
+void SeqLockDemo(const std::string& lock_type_name) {
+  fmt::println("\n=== {} Demo ===", lock_type_name);
 
-  nova::DoubleBufferMRSWSeqLock<Order> order;
+  SeqLockType<Order> order;
 
   Order initial_order{};
   initial_order.strategy_id = 100;
@@ -118,9 +119,9 @@ void DoubleBufferMRSWSeqLockDemo() {
                current_order.strategy_id, current_order.order_id,
                current_order.price, current_order.quantity);
 
-  fmt::println("\n=== Multi-threaded Test for DoubleBufferMRSWSeqLock ===");
+  fmt::println("\n=== Multi-threaded Test for {} ===", lock_type_name);
 
-  nova::DoubleBufferMRSWSeqLock<Order> shared_order;
+  SeqLockType<Order> shared_order;
 
   initial_order = Order{};
   initial_order.strategy_id = 200;
@@ -129,8 +130,7 @@ void DoubleBufferMRSWSeqLockDemo() {
   initial_order.quantity = 100;
   shared_order.Store(initial_order);
 
-  auto reader_func = [](const nova::DoubleBufferMRSWSeqLock<Order>& order,
-                        int id) {
+  auto reader_func = [](const SeqLockType<Order>& order, int id) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(10, 50);
@@ -151,7 +151,7 @@ void DoubleBufferMRSWSeqLockDemo() {
     }
   };
 
-  auto writer_func = [](nova::DoubleBufferMRSWSeqLock<Order>& order, int id) {
+  auto writer_func = [](SeqLockType<Order>& order, int id) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(100, 200);
@@ -188,7 +188,7 @@ void DoubleBufferMRSWSeqLockDemo() {
   };
 
   std::vector<std::thread> mt_threads;
-  mt_threads.reserve(3);
+  mt_threads.reserve(4);
 
   for (int i = 0; i < 3; ++i) {
     mt_threads.emplace_back(reader_func, std::ref(shared_order), i);
@@ -238,7 +238,9 @@ int main() {
     thread.join();
   }
 
-  DoubleBufferMRSWSeqLockDemo();
+  // Run demo with both SeqLock implementations
+  SeqLockDemo<nova::MRSWSeqLock>("MRSWSeqLock");
+  SeqLockDemo<nova::DoubleBufferMRSWSeqLock>("DoubleBufferMRSWSeqLock");
 
   return 0;
 }
