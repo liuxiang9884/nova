@@ -359,4 +359,123 @@ class alignas(kCacheLineSize) MRMWSeqLock {
   alignas(kCacheLineSize) std::atomic<uint64_t> seq_ = 0;
 };
 
+template <typename T>
+class alignas(kCacheLineSize) DoubleBufferMRMWSeqLock {
+ public:
+  static_assert(std::is_nothrow_copy_assignable_v<T>,
+                "T must satisfy is_nothrow_copy_assignable");
+  static_assert(std::is_trivially_copy_assignable_v<T>,
+                "T must satisfy is_trivially_copy_assignable");
+
+  DoubleBufferMRMWSeqLock() = default;
+
+  NOVA_DEBUG_NOINLINE T Load() const noexcept {
+    T copy;
+    uint64_t seq0, seq1;
+    do {
+      seq0 = seq_.load(std::memory_order_relaxed);
+      std::atomic_thread_fence(std::memory_order_acquire);
+
+      const bool active_buffer = (seq0 >> 1) & 1;
+      copy = buffers_[active_buffer];
+
+      std::atomic_thread_fence(std::memory_order_release);
+      seq1 = seq_.load(std::memory_order_relaxed);
+    } while (seq0 != seq1 || seq0 & 1);
+    return copy;
+  }
+
+  NOVA_DEBUG_NOINLINE void Store(const T& desired) noexcept {
+    while (true) {
+      uint64_t seq0 = seq_.load(std::memory_order_acquire);
+      if (seq0 & 1) {
+        continue;
+      }
+
+      if (!seq_.compare_exchange_weak(seq0, seq0 + 1, std::memory_order_acq_rel,
+                                      std::memory_order_acquire)) {
+        continue;
+      }
+
+      const bool active_buffer = (seq0 >> 1) & 1;
+      const bool target_buffer = !active_buffer;
+
+      buffers_[target_buffer] = desired;
+
+      seq_.store(seq0 + 2, std::memory_order_release);
+      break;
+    }
+  }
+
+  template <typename F, typename R = std::invoke_result_t<F, const T&>>
+  NOVA_DEBUG_NOINLINE R Visit(F&& visitor) const noexcept {
+    static_assert(noexcept(visitor(std::declval<const T&>())),
+                  "Visitor function passed to Visit must be noexcept");
+
+    uint64_t seq0, seq1;
+    if constexpr (std::is_void_v<R>) {
+      do {
+        seq0 = seq_.load(std::memory_order_relaxed);
+        std::atomic_thread_fence(std::memory_order_acquire);
+
+        const bool active_buffer = (seq0 >> 1) & 1;
+        visitor(buffers_[active_buffer]);
+
+        std::atomic_thread_fence(std::memory_order_release);
+        seq1 = seq_.load(std::memory_order_relaxed);
+      } while (seq0 != seq1 || seq0 & 1);
+    } else {
+      R result;
+      do {
+        seq0 = seq_.load(std::memory_order_relaxed);
+        std::atomic_thread_fence(std::memory_order_acquire);
+
+        const bool active_buffer = (seq0 >> 1) & 1;
+        result = visitor(buffers_[active_buffer]);
+
+        std::atomic_thread_fence(std::memory_order_release);
+        seq1 = seq_.load(std::memory_order_relaxed);
+      } while (seq0 != seq1 || seq0 & 1);
+      return result;
+    }
+  }
+
+  template <typename F, typename R = std::invoke_result_t<F, T&>>
+  NOVA_DEBUG_NOINLINE R Update(F&& updater) noexcept {
+    static_assert(noexcept(updater(std::declval<T&>())),
+                  "Updater function passed to Update must be noexcept");
+
+    while (true) {
+      uint64_t seq0 = seq_.load(std::memory_order_acquire);
+      if (seq0 & 1) {
+        continue;
+      }
+
+      if (!seq_.compare_exchange_weak(seq0, seq0 + 1, std::memory_order_acq_rel,
+                                      std::memory_order_acquire)) {
+        continue;
+      }
+
+      const bool active_buffer = (seq0 >> 1) & 1;
+      const bool target_buffer = !active_buffer;
+
+      buffers_[target_buffer] = buffers_[active_buffer];
+
+      if constexpr (std::is_void_v<R>) {
+        updater(buffers_[target_buffer]);
+        seq_.store(seq0 + 2, std::memory_order_release);
+        return;
+      } else {
+        R result = updater(buffers_[target_buffer]);
+        seq_.store(seq0 + 2, std::memory_order_release);
+        return result;
+      }
+    }
+  }
+
+ private:
+  alignas(kCacheLineSize) T buffers_[2];
+  alignas(kCacheLineSize) std::atomic<uint64_t> seq_ = 0;
+};
+
 }  // namespace nova
