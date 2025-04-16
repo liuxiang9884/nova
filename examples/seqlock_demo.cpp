@@ -206,38 +206,46 @@ void SeqLockDemo(const std::string& lock_type_name) {
                current_order.price, current_order.quantity);
 }
 
-int main() {
-  static_assert(sizeof(nova::SeqLock<int>) % nova::kCacheLineSize == 0,
-                "SeqLock<int> size must be a multiple of cache line size");
-  static_assert(sizeof(nova::SeqLock<int64_t>) % nova::kCacheLineSize == 0,
-                "SeqLock<int64_t> size must be a multiple of cache line size");
-  static_assert(sizeof(nova::SeqLock<double>) % nova::kCacheLineSize == 0,
-                "SeqLock<double> size must be a multiple of cache line size");
+void CheckSeqLockAlignas() {
+  static_assert(sizeof(nova::MRSWSeqLock<int>) % nova::kCacheLineSize == 0,
+                "MRSWSeqLock<int> size must be a multiple of cache line size");
+  static_assert(
+      sizeof(nova::MRSWSeqLock<int64_t>) % nova::kCacheLineSize == 0,
+      "MRSWSeqLock<int64_t> size must be a multiple of cache line size");
+  static_assert(
+      sizeof(nova::MRSWSeqLock<double>) % nova::kCacheLineSize == 0,
+      "MRSWSeqLock<double> size must be a multiple of cache line size");
+
+  static_assert(
+      sizeof(nova::DoubleBufferMRSWSeqLock<int>) % nova::kCacheLineSize == 0,
+      "DoubleBufferMRSWSeqLock<int> size must be a multiple of cache line "
+      "size");
+  static_assert(
+      sizeof(nova::DoubleBufferMRSWSeqLock<int64_t>) % nova::kCacheLineSize ==
+          0,
+      "DoubleBufferMRSWSeqLock<int64_t> size must be a multiple of cache line "
+      "size");
+  static_assert(
+      sizeof(nova::DoubleBufferMRSWSeqLock<double>) % nova::kCacheLineSize == 0,
+      "DoubleBufferMRSWSeqLock<double> size must be a multiple of cache line "
+      "size");
 
   fmt::println("order_size: {}", sizeof(Order));
-  fmt::println("seq_order_size: {}", sizeof(nova::SeqLock<Order>));
-  fmt::println("seq_int_size: {}", sizeof(nova::SeqLock<int32_t>));
+  fmt::println("MRSWSeqLock<Order> size: {}", sizeof(nova::MRSWSeqLock<Order>));
+  fmt::println("DoubleBufferMRSWSeqLock<Order> size: {}",
+               sizeof(nova::DoubleBufferMRSWSeqLock<Order>));
 
-  nova::MRSWSeqLock<Order> order;
+  const std::array<nova::DoubleBufferMRSWSeqLock<Order>, 8> orders{};
+  const auto ptr1 = reinterpret_cast<const uint8_t*>(orders[3].buffers());
+  const auto ptr2 = reinterpret_cast<const uint8_t*>(&orders[6].seq());
+  fmt::println("orders size: {}", sizeof(orders));
+  fmt::println(
+      "address distance between order[6].seq() and order[3].buffers() : {}",
+      ptr2 - ptr1);
+}
 
-  Order initial_order{};
-  initial_order.strategy_id = 0;
-  initial_order.order_id = 0;
-  order.Store(initial_order);
-
-  std::vector<std::thread> threads;
-  threads.reserve(3);
-
-  for (int i = 0; i < 3; ++i) {
-    threads.emplace_back(Reader, std::ref(order), i);
-  }
-
-  threads.emplace_back(Writer, std::ref(order), 1);
-
-  for (auto& thread : threads) {
-    thread.join();
-  }
-
+int main() {
+  CheckSeqLockAlignas();
   // Run demo with both SeqLock implementations
   SeqLockDemo<nova::MRSWSeqLock>("MRSWSeqLock");
   SeqLockDemo<nova::DoubleBufferMRSWSeqLock>("DoubleBufferMRSWSeqLock");
