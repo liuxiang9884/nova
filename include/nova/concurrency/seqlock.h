@@ -89,6 +89,9 @@ class alignas(kCacheLineSize) MRSWSeqLock {
 
   template <typename F, typename R = std::invoke_result_t<F, const T&>>
   NOVA_DEBUG_NOINLINE R Visit(F&& visitor) const noexcept {
+    static_assert(noexcept(visitor(std::declval<const T&>())),
+                  "Visitor function passed to Visit must be noexcept");
+
     uint64_t seq0, seq1;
     if constexpr (std::is_void_v<R>) {
       do {
@@ -113,6 +116,9 @@ class alignas(kCacheLineSize) MRSWSeqLock {
 
   template <typename F, typename R = std::invoke_result_t<F, T&>>
   NOVA_DEBUG_NOINLINE R Update(F&& updater) noexcept {
+    static_assert(noexcept(updater(std::declval<T&>())),
+                  "Updater function passed to Update must be noexcept");
+
     uint64_t seq0 = seq_.load(std::memory_order_relaxed);
     seq_.store(seq0 + 1, std::memory_order_relaxed);
 

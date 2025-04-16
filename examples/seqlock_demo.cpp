@@ -8,6 +8,9 @@
 #include <thread>
 #include <vector>
 
+#include <fmt/core.h>
+#include <fmt/format.h>
+
 #include "nova/concurrency/seqlock.h"
 
 struct Order {
@@ -34,10 +37,9 @@ void Reader(const nova::MRSWSeqLock<Order>& order, int id) {
   for (int i = 0; i < 5; ++i) {
     std::this_thread::sleep_for(std::chrono::milliseconds(dis(gen)));
 
-    order.Visit([id](const Order& order) {
-      std::cout << "Reader " << id
-                << " sees order: strategy_id=" << order.strategy_id
-                << ", order_id=" << order.order_id << std::endl;
+    order.Visit([id](const Order& order) noexcept {
+      fmt::println("Reader {} sees order: strategy_id={}, order_id={}", id,
+                   order.strategy_id, order.order_id);
     });
   }
 }
@@ -54,11 +56,10 @@ void Writer(nova::MRSWSeqLock<Order>& order, int id) {
     new_order.strategy_id = id;
     new_order.order_id = i + 1;
 
-    order.Update([&new_order](Order& order) { order = new_order; });
+    order.Update([&new_order](Order& order) noexcept { order = new_order; });
 
-    std::cout << "Writer " << id
-              << " updated order: strategy_id=" << new_order.strategy_id
-              << ", order_id=" << new_order.order_id << std::endl;
+    fmt::println("Writer {} updated order: strategy_id={}, order_id={}", id,
+                 new_order.strategy_id, new_order.order_id);
   }
 }
 
@@ -70,9 +71,9 @@ int main() {
   static_assert(sizeof(nova::SeqLock<double>) % nova::kCacheLineSize == 0,
                 "SeqLock<double> size must be a multiple of cache line size");
 
-  std::cout << "order_size: " << sizeof(Order) << std::endl;
-  std::cout << "seq_order_size: " << sizeof(nova::SeqLock<Order>) << std::endl;
-  std::cout << "seq_int_size: " << sizeof(nova::SeqLock<int32_t>) << std::endl;
+  fmt::println("order_size: {}", sizeof(Order));
+  fmt::println("seq_order_size: {}", sizeof(nova::SeqLock<Order>));
+  fmt::println("seq_int_size: {}", sizeof(nova::SeqLock<int32_t>));
 
   nova::MRSWSeqLock<Order> order;
 
