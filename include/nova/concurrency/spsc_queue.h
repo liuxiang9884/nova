@@ -12,134 +12,135 @@
 
 namespace nova {
 
-template <typename T, std::size_t Capacity>
-class SPSCQueue {
- public:
-  using ValueType = T;
+template <typename T>
+using StaticMappedType = T;
 
-  static_assert(Capacity >= 2, "Capacity must more than 2");
+template <typename T, std::size_t Capacity>
+  requires std::is_standard_layout_v<T> && std::is_trivial_v<T> &&
+           std::is_trivially_copyable_v<T> &&
+           std::is_default_constructible_v<T> &&
+           std::is_copy_constructible_v<T> && std::is_move_constructible_v<T>
+class alignas(nova::kCacheLineSize) StaticSPSCQueue {
+ public:
+  static_assert(Capacity >= 2, "Capacity must be at least 2");
   static_assert((Capacity & (Capacity - 1)) == 0,
                 "Capacity must be a power of 2");
 
-  explicit SPSCQueue() : head_(0), tail_(0) {
-    assert(alignof(SPSCQueue<T, Capacity>) >= kCacheLineSize);
-    assert(reinterpret_cast<char*>(&tail_) - reinterpret_cast<char*>(&head_) >=
-           static_cast<size_t>(kCacheLineSize));
-  };
+  StaticSPSCQueue() = default;
 
-  SPSCQueue(SPSCQueue&) = default;
+  ~StaticSPSCQueue() = default;
 
-  SPSCQueue(SPSCQueue&&) noexcept : head_(0), tail_(0) {};
+  StaticSPSCQueue(const StaticSPSCQueue &) = delete;
 
-  SPSCQueue& operator=(const SPSCQueue&) = default;
+  StaticSPSCQueue(StaticSPSCQueue &&) = delete;
 
-  ~SPSCQueue() {
-    while (Front()) {
-      Pop();
-    }
+  StaticSPSCQueue &operator=(const StaticSPSCQueue &) = delete;
+
+  StaticSPSCQueue &operator=(StaticSPSCQueue &&) = delete;
+
+  std::size_t size() const noexcept {
+    const auto head = head_.load(std::memory_order_relaxed);
+    const auto tail = tail_.load(std::memory_order_relaxed);
+    return head > tail ? head - tail : head + (Capacity - tail);
   }
 
   template <typename... Args>
-  void Emplace(Args&&... args) noexcept(
-      std::is_nothrow_constructible<T, Args&&...>::value) {
-    static_assert(std::is_constructible<T, Args&&...>::value,
-                  "T must be constructable with Args&&...");
+  void Emplace(Args &&...args) noexcept(
+      std::is_nothrow_constructible_v<T, Args &&...>) {
+    static_assert(std::is_constructible_v<T, Args &&...>,
+                  "T must be constructible with Args&&...");
     const auto current = head_.load(std::memory_order_relaxed);
-    auto next = ((current + 1) & (Capacity - 1));
-    while (next == tail_.load(std::memory_order_acquire)) {
-    };
-
-    new (&slots_[current]) T(std::forward<Args>(args)...);
+    const auto next = (current + 1) & kMask;
+    while (next == cached_tail_) {
+      cached_tail_ = tail_.load(std::memory_order_acquire);
+    }
+    new (&data_[current]) T(std::forward<Args>(args)...);
     head_.store(next, std::memory_order_release);
   }
 
   template <typename... Args>
-  bool TryEmplace(Args&&... args) noexcept(
-      std::is_nothrow_constructible<T, Args&&...>::value) {
-    static_assert(std::is_constructible<T, Args&&...>::value,
-                  "T must be constructable with Args&&...");
-
+  bool TryEmplace(Args &&...args) noexcept(
+      std::is_nothrow_constructible_v<T, Args &&...>) {
+    static_assert(std::is_constructible_v<T, Args &&...>,
+                  "T must be constructible with Args&&...");
     const auto current = head_.load(std::memory_order_relaxed);
-    auto next = ((current + 1) & (Capacity - 1));
-
-    if (next != tail_.load(std::memory_order_acquire)) {
-      new (&slots_[current]) T(std::forward<Args>(args)...);
-      head_.store(next, std::memory_order_release);
-      return true;
+    const auto next = (current + 1) & kMask;
+    if (next == cached_tail_) {
+      cached_tail_ = tail_.load(std::memory_order_acquire);
+      if (next == cached_tail_) {
+        return false;
+      }
     }
-
-    return false;
+    new (&data_[current]) T(std::forward<Args>(args)...);
+    head_.store(next, std::memory_order_release);
+    return true;
   }
 
-  void Push(const T& val) noexcept(
-      std::is_nothrow_copy_constructible<T>::value) {
-    static_assert(std::is_copy_constructible<T>::value,
-                  "T must be copy constructable");
-    Emplace(val);
-  }
-
-  template <typename P, typename = typename std::enable_if<
-                            std::is_constructible<T, P&&>::value>::type>
-  void Push(P&& val) noexcept(std::is_nothrow_constructible<T, P&&>::value) {
-    Emplace(std::forward<P>(val));
-  }
-
-  bool TryPush(const T& val) noexcept(
-      std::is_nothrow_copy_constructible<T>::value) {
-    static_assert(std::is_copy_constructible<T>::value,
-                  "T must be copy constructable");
-    return TryEmplace(val);
-  }
-
-  template <typename P, typename = typename std::enable_if<
-                            std::is_constructible<T, P&&>::value>::type>
-  bool TryPush(P&& val) noexcept(std::is_nothrow_constructible<T, P&&>::value) {
-    return TryEmplace(std::forward<P>(val));
-  }
-
-  T* Front() noexcept {
-    const auto tail = tail_.load(std::memory_order_relaxed);
-    if (head_.load(std::memory_order_acquire) == tail) {
-      return nullptr;
+  [[nodiscard]] T *Front() noexcept {
+    const auto current = tail_.load(std::memory_order_relaxed);
+    if (current == cached_head_) {
+      cached_head_ = head_.load(std::memory_order_acquire);
+      if (current == cached_head_) {
+        return nullptr;
+      }
     }
-    return reinterpret_cast<T*>(&slots_[tail]);
+    return &data_[current];
   }
 
+  /**
+   * Removes the front element from the queue.
+   * PRECONDITION: Front() must have been called and returned non-nullptr.
+   * Using this method when the queue is empty leads to undefined behavior.
+   */
   void Pop() noexcept {
-    static_assert(std::is_nothrow_destructible<T>::value,
-                  "T must be nothrow destructible");
-    const auto tail = tail_.load(std::memory_order_relaxed);
-    (*reinterpret_cast<T*>(&slots_[tail])).~T();
-    auto next = ((tail + 1) & (Capacity - 1));
+    const auto current = tail_.load(std::memory_order_relaxed);
+    assert(head_.load(std::memory_order_acquire) != current &&
+           "pop can only be called when front() is non-nullptr(queue is not "
+           "empty)");
+    data_[current].~T();
+    const auto next = (current + 1) & kMask;
     tail_.store(next, std::memory_order_release);
   }
 
-  [[nodiscard]] std::size_t size() const noexcept {
-    int ret = static_cast<int>(head_.load(std::memory_order_acquire) -
-                               tail_.load(std::memory_order_acquire));
-    if (ret < 0) {
-      ret += Capacity;
+  bool TryPop(T &value) noexcept {
+    auto current = tail_.load(std::memory_order_relaxed);
+    if (current == cached_head_) {
+      cached_head_ = head_.load(std::memory_order_acquire);
+      if (current == cached_head_) {
+        return false;
+      }
     }
-    return ret;
+
+    value = data_[current];
+    data_[current].~T();
+    const auto next = (current + 1) & kMask;
+    tail_.store(next, std::memory_order_release);
+    return true;
   }
 
-  [[nodiscard]] bool IsEmpty() const {
+  bool empty() const noexcept {
     return size() == 0;
   }
 
-  static constexpr std::size_t capacity() {
-    return Capacity;
+  bool full() const noexcept {
+    return size() == Capacity;
   }
 
  private:
-  using AtomicIndexType = std::atomic<uint64_t>;
-  using StorageType =
-      typename std::aligned_storage<sizeof(T), alignof(T)>::type;
-  char pad0_[kCacheLineSize] = {0};
-  alignas(kCacheLineSize) StorageType slots_[Capacity];
-  alignas(kCacheLineSize) AtomicIndexType head_;
-  alignas(kCacheLineSize) AtomicIndexType tail_;
-  char pad1_[kCacheLineSize - sizeof(AtomicIndexType)] = {0};
+  static constexpr std::size_t kMask = Capacity - 1;
+  T data_[Capacity];
+  alignas(nova::kCacheLineSize) std::atomic<std::size_t> head_{0};
+  alignas(nova::kCacheLineSize) std::size_t cached_tail_{0};
+  alignas(nova::kCacheLineSize) std::atomic<std::size_t> tail_{0};
+  alignas(nova::kCacheLineSize) std::size_t cached_head_{0};
+};
+
+template <typename T>
+class alignas(nova::kCacheLineSize) SPSCQueue {
+ public:
+  // SPSCQueue 实现...
+ private:
+  // SPSCQueue 私有成员...
 };
 
 }  // namespace nova
