@@ -161,6 +161,14 @@ class alignas(nova::kCacheLineSize) SPSCQueue {
     std::allocator_traits<Allocator>::deallocate(*this, data_, capacity());
   }
 
+  SPSCQueue(const SPSCQueue &) = delete;
+
+  SPSCQueue(SPSCQueue &&) = delete;
+
+  SPSCQueue &operator=(const SPSCQueue &) = delete;
+
+  SPSCQueue &operator=(SPSCQueue &&) = delete;
+
   template <typename... Args>
   void Emplace(Args &&...args) noexcept(
       std::is_nothrow_constructible_v<T, Args &&...>) {
