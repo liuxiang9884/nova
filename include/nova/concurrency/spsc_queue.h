@@ -113,7 +113,7 @@ class alignas(nova::kCacheLineSize) StaticSPSCQueue {
       }
     }
 
-    value = data_[current];
+    value = std::move(data_[current]);
     data_[current].~T();
     const auto next = (current + 1) & kMask;
     tail_.store(next, std::memory_order_release);
@@ -248,7 +248,7 @@ class alignas(nova::kCacheLineSize) SPSCQueue {
       }
     }
 
-    value = data_[current];
+    value = std::move(data_[current]);
     data_[current].~T();
     const auto next = (current + 1) & mask_;
     tail_.store(next, std::memory_order_release);
