@@ -124,9 +124,21 @@ class alignas(nova::kCacheLineSize) StaticSPSCQueue {
     Emplace(value);
   }
 
+  template <typename P, typename = typename std::enable_if_t<
+                            std::is_constructible_v<T, P &&>>>
+  void Push(P &&v) noexcept(std::is_nothrow_constructible<T, P &&>::value) {
+    Emplace(std::forward<P>(v));
+  }
+
   bool TryPush(const T &value) noexcept(
       std::is_nothrow_copy_constructible_v<T>) {
     return TryEmplace(value);
+  }
+
+  template <typename P, typename = typename std::enable_if_t<
+                            std::is_constructible_v<T, P &&>>>
+  bool TryPush(P &&v) noexcept(std::is_nothrow_constructible<T, P &&>::value) {
+    return TryEmplace(std::forward<P>(v));
   }
 
   bool Empty() const noexcept {
@@ -245,6 +257,17 @@ class alignas(nova::kCacheLineSize) SPSCQueue {
 
   void Push(const T &value) noexcept(std::is_nothrow_copy_constructible_v<T>) {
     Emplace(value);
+  }
+
+  template <typename P, typename = typename std::enable_if_t<
+                            std::is_constructible_v<T, P &&>>>
+  void Push(P &&v) noexcept(std::is_nothrow_constructible<T, P &&>::value) {
+    Emplace(std::forward<P>(v));
+  }
+
+  bool TryPush(const T &value) noexcept(
+      std::is_nothrow_copy_constructible_v<T>) {
+    return TryEmplace(value);
   }
 
   template <typename P, typename = typename std::enable_if_t<
