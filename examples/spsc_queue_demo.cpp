@@ -147,7 +147,7 @@ void ProducerConsumerDemo() {
 
   nova::StaticSPSCQueue<TradeData, 32> trade_queue;
 
-  const int NUM_TRADES = 100;
+  constexpr int NUM_TRADES = 100;
   std::atomic<bool> producer_done(false);
   std::atomic<int> trades_processed(0);
 
@@ -156,7 +156,7 @@ void ProducerConsumerDemo() {
     std::cout << "Producer: Starting to generate trade data..." << std::endl;
 
     for (int i = 0; i < NUM_TRADES; ++i) {
-      TradeData trade;
+      TradeData trade{};
       trade.timestamp =
           std::chrono::system_clock::now().time_since_epoch().count();
       trade.instrument_id = 1000 + (i % 10);  // 10 different instruments

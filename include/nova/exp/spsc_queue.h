@@ -154,7 +154,7 @@ class SPSCQueueBase {
 
  protected:
   template <typename... Args>
-  void emplace_impl(Args &&...args) noexcept(
+  void EmplaceImpl(Args &&...args) noexcept(
       std::is_nothrow_constructible_v<T, Args &&...>) {
     static_assert(std::is_constructible_v<T, Args &&...>,
                   "T must be constructible with Args&&...");
@@ -172,7 +172,7 @@ class SPSCQueueBase {
   }
 
   template <typename... Args>
-  bool try_emplace_impl(Args &&...args) noexcept(
+  bool TryEmplaceImpl(Args &&...args) noexcept(
       std::is_nothrow_constructible_v<T, Args &&...>) {
     static_assert(std::is_constructible_v<T, Args &&...>,
                   "T must be constructible with Args&&...");
@@ -244,7 +244,7 @@ class alignas(nova::kCacheLineSize) StaticSPSCQueue
   template <typename... Args>
   void Emplace(Args &&...args) noexcept(
       std::is_nothrow_constructible_v<T, Args &&...>) {
-    this->emplace_impl(std::forward<Args>(args)...);
+    this->EmplaceImpl(std::forward<Args>(args)...);
   }
 
   /**
@@ -254,7 +254,7 @@ class alignas(nova::kCacheLineSize) StaticSPSCQueue
   template <typename... Args>
   bool TryEmplace(Args &&...args) noexcept(
       std::is_nothrow_constructible_v<T, Args &&...>) {
-    return this->try_emplace_impl(std::forward<Args>(args)...);
+    return this->TryEmplaceImpl(std::forward<Args>(args)...);
   }
 
  private:
@@ -320,7 +320,7 @@ class alignas(nova::kCacheLineSize) SPSCQueue
   template <typename... Args>
   void Emplace(Args &&...args) noexcept(
       std::is_nothrow_constructible_v<T, Args &&...>) {
-    this->emplace_impl(std::forward<Args>(args)...);
+    this->EmplaceImpl(std::forward<Args>(args)...);
   }
 
   /**
@@ -330,7 +330,7 @@ class alignas(nova::kCacheLineSize) SPSCQueue
   template <typename... Args>
   bool TryEmplace(Args &&...args) noexcept(
       std::is_nothrow_constructible_v<T, Args &&...>) {
-    return this->try_emplace_impl(std::forward<Args>(args)...);
+    return this->TryEmplaceImpl(std::forward<Args>(args)...);
   }
 
  private:
