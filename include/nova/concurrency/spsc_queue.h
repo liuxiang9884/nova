@@ -162,15 +162,16 @@ template <typename T, typename Allocator = std::allocator<T>>
 class alignas(nova::kCacheLineSize) SPSCQueue {
  public:
   explicit SPSCQueue(std::size_t n, Allocator allocator = Allocator{})
-      : Allocator{allocator},
+      : allocator_{allocator},
         mask_{std::bit_ceil(n) - 1},
-        data_{std::allocator_traits<Allocator>::allocate(*this, capacity())} {}
+        data_{std::allocator_traits<Allocator>::allocate(allocator_,
+                                                         capacity())} {}
 
   ~SPSCQueue() {
     while (Front()) {
       Pop();
     }
-    std::allocator_traits<Allocator>::deallocate(*this, data_, capacity());
+    std::allocator_traits<Allocator>::deallocate(allocator_, data_, capacity());
   }
 
   SPSCQueue(const SPSCQueue &) = delete;
@@ -295,6 +296,7 @@ class alignas(nova::kCacheLineSize) SPSCQueue {
   }
 
  private:
+  Allocator allocator_ [[no_unique_address]];
   std::size_t mask_{0};
   T *data_{nullptr};
   alignas(nova::kCacheLineSize) std::atomic<std::size_t> head_{0};
