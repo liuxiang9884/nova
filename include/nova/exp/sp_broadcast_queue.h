@@ -286,7 +286,7 @@ class alignas(nova::kCacheLineSize) SPBroadcastQueue
   /**
    * Get the capacity of the queue.
    */
-  std::size_t capacity() const noexcept {
+  [[nodiscard]] std::size_t capacity() const noexcept {
     return mask_ + 1;
   }
 
@@ -301,7 +301,7 @@ class alignas(nova::kCacheLineSize) SPBroadcastQueue
 
  private:
   // Return mask for index calculations
-  std::size_t mask() const noexcept {
+  [[nodiscard]] std::size_t mask() const noexcept {
     return mask_;
   }
 
