@@ -24,3 +24,8 @@ target_link_libraries(seqlock_demo PRIVATE fmt::fmt-header-only nova)
 add_executable(spsc_queue_demo spsc_queue_demo.cpp)
 target_include_directories(spsc_queue_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
 target_link_libraries(spsc_queue_demo PRIVATE fmt::fmt-header-only nova)
+
+#sp_broadcast_queue_demo
+add_executable(sp_broadcast_queue_demo sp_broadcast_queue_demo.cpp)
+target_include_directories(sp_broadcast_queue_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
+target_link_libraries(sp_broadcast_queue_demo PRIVATE fmt::fmt-header-only nova)
