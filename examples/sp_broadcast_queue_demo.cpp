@@ -555,7 +555,7 @@ void ExpBroadcastQueueDemo() {
             << std::endl;
 
   // Create producer threads - one for each queue type
-  std::thread static_producer([&static_queue, &producer_done]() {
+  std::thread static_producer([&static_queue]() {
     // Generate and broadcast messages
     for (size_t i = 0; i < NUM_MESSAGES; ++i) {
       // Create market data

@@ -10,11 +10,11 @@
 #include <type_traits>
 #include <utility>
 
+#include "nova/common/macros.h"
 #include "nova/common/hardware.h"
 
-namespace nova {
 
-namespace exp {
+namespace nova::exp {
 
 namespace detail {
 
@@ -26,9 +26,9 @@ namespace detail {
  * @tparam Derived The derived class (CRTP pattern)
  * @tparam T Type of the elements stored in the queue
  */
-template <typename Derived, typename T>
+template <typename DerivedType, typename T>
 class SPBroadcastQueueBase {
- protected:
+ public:
   using SizeType = std::size_t;
   using PositionType = uint64_t;
 
@@ -41,6 +41,7 @@ class SPBroadcastQueueBase {
   SPBroadcastQueueBase& operator=(SPBroadcastQueueBase&&) = delete;
 
  public:
+
   /**
    * Get the current producer position (number of elements ever produced).
    */
@@ -48,6 +49,13 @@ class SPBroadcastQueueBase {
     return current_.load(std::memory_order_acquire);
   }
 
+  NOVA_FORCE_INLINE const DerivedType* Derived() const {
+    return static_cast<const DerivedType*>(this);
+  }
+
+  NOVA_FORCE_INLINE DerivedType* Derived() {
+    return static_cast<DerivedType*>(this);
+  }
   /**
    * Get the number of elements available for reading from the given position.
    */
@@ -74,14 +82,14 @@ class SPBroadcastQueueBase {
    * overflow.
    */
   [[nodiscard]] bool WillOverflow(PositionType pos) const noexcept {
-    return Current() - pos >= static_cast<const Derived*>(this)->capacity() - 1;
+    return Current() - pos >= Derived()->capacity() - 1;
   }
 
   /**
    * Get the index in the circular buffer for a given sequence number.
    */
   [[nodiscard]] SizeType Idx(PositionType pos) const noexcept {
-    return pos & static_cast<const Derived*>(this)->mask();
+    return pos & Derived()->mask();
   }
 
   /**
@@ -89,21 +97,21 @@ class SPBroadcastQueueBase {
    * position.
    */
   [[nodiscard]] SizeType Turn(PositionType pos) const noexcept {
-    return pos / static_cast<const Derived*>(this)->capacity();
+    return pos / Derived()->capacity();
   }
 
   /**
    * Get a copy of the value at the specified position.
    */
   [[nodiscard]] T Value(PositionType pos) const noexcept {
-    return *static_cast<const Derived*>(this)->element(pos);
+    return *Derived()->element(pos);
   }
 
   /**
    * Get a reference to the value at the specified position.
    */
   [[nodiscard]] const T& Ref(PositionType pos) const noexcept {
-    return *static_cast<const Derived*>(this)->element(pos);
+    return *Derived()->element(pos);
   }
 
   /**
@@ -137,14 +145,14 @@ class SPBroadcastQueueBase {
    * Push a copy of an element to the queue.
    */
   void Push(const T& value) noexcept(std::is_nothrow_copy_constructible_v<T>) {
-    static_cast<Derived*>(this)->template Emplace<const T&>(value);
+    Derived()->template Emplace<const T&>(value);
   }
 
   /**
    * Push a moved element to the queue.
    */
   void Push(T&& value) noexcept(std::is_nothrow_move_constructible_v<T>) {
-    static_cast<Derived*>(this)->template Emplace<T&&>(std::move(value));
+    Derived()->template Emplace<T&&>(std::move(value));
   }
 
  protected:
@@ -159,7 +167,7 @@ class SPBroadcastQueueBase {
     const auto next = current + 1;
 
     // Construct the object at the current slot
-    new (static_cast<Derived*>(this)->element(current))
+    new (Derived()->element(current))
         T(std::forward<Args>(args)...);
 
     // Update current_ to make the new element visible to consumers
@@ -319,5 +327,4 @@ class alignas(nova::kCacheLineSize) SPBroadcastQueue
   alignas(nova::kCacheLineSize) T* data_{nullptr};
 };
 
-}  // namespace exp
-}  // namespace nova
+} // namespace nova::exp
