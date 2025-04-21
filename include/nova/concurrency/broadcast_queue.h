@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <type_traits>
 
 #include "nova/common/hardware.h"
@@ -13,9 +14,9 @@ namespace nova {
 // a single producer, unblocking bounded broadcast queue
 template <typename T, std::size_t Capacity>
 class SPBroadcastQueue {
-public:
+ public:
   static_assert(std::is_nothrow_copy_assignable<T>::value ||
-                std::is_nothrow_move_assignable<T>::value,
+                    std::is_nothrow_move_assignable<T>::value,
                 "T must be nothrow copy or move assignable");
 
   static_assert(std::is_nothrow_destructible<T>::value,
@@ -27,13 +28,13 @@ public:
   SPBroadcastQueue() : current_(0) {}
 
   template <typename... Args>
-  void Emplace(Args&& ... args) noexcept {
-    static_assert(std::is_nothrow_constructible<T, Args&& ...>::value,
+  void Emplace(Args&&... args) noexcept {
+    static_assert(std::is_nothrow_constructible<T, Args&&...>::value,
                   "T must be nothrow constructible with Args&& ...");
     const auto current = current_.load(std::memory_order_acquire);
     auto next = current + 1;
-    auto& slot =slots_[Idx(current)];
-    new(&slot) T(std::forward<Args>(args)...);
+    auto& slot = slots_[Idx(current)];
+    new (&slot) T(std::forward<Args>(args)...);
     current_.store(next, std::memory_order_release);
   }
 
@@ -96,8 +97,9 @@ public:
     return i / Capacity;
   }
 
-private:
-  using StorageType = typename std::aligned_storage<sizeof(T), alignof(T)>::type;
+ private:
+  using StorageType =
+      typename std::aligned_storage<sizeof(T), alignof(T)>::type;
   std::size_t mask_ = Capacity - 1;
   using AtomicIndexType = std::atomic<uint64_t>;
   char pad0_[kCacheLineSize] = {0};
@@ -110,9 +112,9 @@ private:
 // a multiple producer, unblocking bounded broadcast queue
 template <typename T, std::size_t Capacity>
 class MPBroadcastQueue {
-public:
+ public:
   static_assert(std::is_nothrow_copy_assignable<T>::value ||
-                std::is_nothrow_move_assignable<T>::value,
+                    std::is_nothrow_move_assignable<T>::value,
                 "T must be nothrow copy or move assignable");
 
   static_assert(std::is_nothrow_destructible<T>::value,
@@ -124,8 +126,8 @@ public:
   MPBroadcastQueue() : current_(0) {}
 
   template <typename... Args>
-  void Emplace(Args&& ... args) noexcept {
-    static_assert(std::is_nothrow_constructible<T, Args&& ...>::value,
+  void Emplace(Args&&... args) noexcept {
+    static_assert(std::is_nothrow_constructible<T, Args&&...>::value,
                   "T must be nothrow constructible with Args&& ...");
     const auto current = current_.fetch_add(1);
     auto& slot = slots_[Idx(current)];
@@ -188,8 +190,7 @@ public:
     return i / Capacity;
   }
 
-
-private:
+ private:
   std::size_t mask_ = Capacity - 1;
 
   struct Slot {
@@ -198,10 +199,10 @@ private:
     }
 
     template <typename... Args>
-    void Construct(Args&& ... args) noexcept {
-      static_assert(std::is_nothrow_constructible<T, Args&& ...>::value,
+    void Construct(Args&&... args) noexcept {
+      static_assert(std::is_nothrow_constructible<T, Args&&...>::value,
                     "T must be nothrow constructible with Args&&...");
-      new(&storage) T(std::forward<Args>(args)...);
+      new (&storage) T(std::forward<Args>(args)...);
     }
 
     void Destroy() noexcept {
@@ -225,4 +226,4 @@ private:
   char pad1_[kCacheLineSize - sizeof(AtomicIndexType)] = {0};
 };
 
-} //
+}  // namespace nova
