@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "nova/concurrency/sp_broadcast_queue.h"
+#include "nova/exp/sp_broadcast_queue.h"
 
 // Data structure for broadcasting
 struct MarketData {
@@ -193,8 +194,7 @@ void BroadcastQueueDemo() {
   constexpr size_t NUM_CONSUMERS = 3;
   constexpr size_t NUM_MESSAGES = 100;
 
-  std::cout << "\n---------- Broadcast Queue Demo ----------\n"
-            << std::endl;
+  std::cout << "\n---------- Broadcast Queue Demo ----------\n" << std::endl;
 
   // Create dynamic broadcast queue
   nova::SPBroadcastQueue<MarketData> queue(REQUESTED_CAPACITY);
@@ -393,8 +393,291 @@ void BroadcastQueueDemo() {
   }
 }
 
+// Demo for the experimental unified interface broadcast queue
+void ExpBroadcastQueueDemo() {
+  constexpr size_t QUEUE_CAPACITY = 1024;
+  constexpr size_t NUM_CONSUMERS = 3;
+  constexpr size_t NUM_MESSAGES = 100;
+
+  std::cout << "\n---------- Experimental Broadcast Queue Demo ----------\n"
+            << std::endl;
+
+  // Create static broadcast queue from experimental namespace
+  nova::exp::StaticSPBroadcastQueue<MarketData, QUEUE_CAPACITY> static_queue;
+
+  // Create dynamic broadcast queue from experimental namespace
+  nova::exp::SPBroadcastQueue<MarketData> dynamic_queue(QUEUE_CAPACITY / 2);
+
+  std::cout << "Created queues with unified interface:" << std::endl;
+  std::cout << "  - Static queue capacity: " << static_queue.capacity()
+            << std::endl;
+  std::cout << "  - Dynamic queue capacity: " << dynamic_queue.capacity()
+            << std::endl;
+
+  // Atomic variables for synchronization
+  std::atomic<bool> producer_done{false};
+  std::atomic<size_t> static_consumers_ready{0};
+  std::atomic<size_t> dynamic_consumers_ready{0};
+
+  // Statistics for both queue types
+  std::vector<ConsumerStats> static_stats(NUM_CONSUMERS);
+  std::vector<ConsumerStats> dynamic_stats(NUM_CONSUMERS);
+
+  // Initialize consumer statistics
+  for (size_t i = 0; i < NUM_CONSUMERS; ++i) {
+    static_stats[i].consumer_id = static_cast<int>(i);
+    static_stats[i].messages_processed = 0;
+    static_stats[i].last_position = 0;
+    static_stats[i].average_latency_us = 0.0;
+
+    dynamic_stats[i].consumer_id = static_cast<int>(i);
+    dynamic_stats[i].messages_processed = 0;
+    dynamic_stats[i].last_position = 0;
+    dynamic_stats[i].average_latency_us = 0.0;
+  }
+
+  // Create static queue consumer threads
+  std::vector<std::thread> static_consumers;
+  for (size_t i = 0; i < NUM_CONSUMERS; ++i) {
+    static_consumers.emplace_back([&static_queue, &producer_done,
+                                   &static_consumers_ready, &static_stats,
+                                   i]() {
+      ConsumerStats& consumer_stat = static_stats[i];
+      uint64_t position = 0;  // Each consumer has its own reading position
+      double total_latency = 0.0;
+
+      // Notify main thread that consumer is ready
+      static_consumers_ready++;
+
+      // Consumer logic
+      while (!producer_done || !static_queue.Empty(position)) {
+        if (!static_queue.Empty(position)) {
+          // Get data
+          MarketData data = static_queue.Pop(position);
+
+          // Calculate latency
+          int64_t now = GetCurrentTimestamp();
+          int64_t latency = now - data.timestamp;
+
+          // Update statistics
+          total_latency += latency;
+          consumer_stat.messages_processed++;
+          consumer_stat.last_position = position;
+
+          // Output every 10 messages to avoid excessive output
+          if (consumer_stat.messages_processed % 10 == 0 && i == 0) {
+            std::cout << "Static consumer " << i << " processed: ";
+            data.Print();
+          }
+        } else {
+          // Brief sleep when no new data
+          std::this_thread::yield();
+        }
+      }
+
+      // Calculate average latency
+      if (consumer_stat.messages_processed > 0) {
+        consumer_stat.average_latency_us =
+            total_latency / consumer_stat.messages_processed;
+      }
+    });
+  }
+
+  // Create dynamic queue consumer threads
+  std::vector<std::thread> dynamic_consumers;
+  for (size_t i = 0; i < NUM_CONSUMERS; ++i) {
+    dynamic_consumers.emplace_back([&dynamic_queue, &producer_done,
+                                    &dynamic_consumers_ready, &dynamic_stats,
+                                    i]() {
+      ConsumerStats& consumer_stat = dynamic_stats[i];
+      uint64_t position = 0;  // Each consumer has its own reading position
+      double total_latency = 0.0;
+
+      // Notify main thread that consumer is ready
+      dynamic_consumers_ready++;
+
+      // Consumer logic
+      while (!producer_done || !dynamic_queue.Empty(position)) {
+        if (!dynamic_queue.Empty(position)) {
+          // Demonstrate unified interface with different methods
+          MarketData data;
+          if (i == 0) {
+            // First consumer uses Pop
+            data = dynamic_queue.Pop(position);
+          } else {
+            // Other consumers use TryPop
+            if (!dynamic_queue.TryPop(position, data)) {
+              std::this_thread::yield();
+              continue;
+            }
+          }
+
+          // Calculate latency
+          int64_t now = GetCurrentTimestamp();
+          int64_t latency = now - data.timestamp;
+
+          // Update statistics
+          total_latency += latency;
+          consumer_stat.messages_processed++;
+          consumer_stat.last_position = position;
+
+          // Output every 10 messages to avoid excessive output
+          if (consumer_stat.messages_processed % 10 == 0 && i == 0) {
+            std::cout << "Dynamic consumer " << i << " processed: ";
+            data.Print();
+          }
+        } else {
+          // Brief sleep when no new data
+          std::this_thread::yield();
+        }
+      }
+
+      // Calculate average latency
+      if (consumer_stat.messages_processed > 0) {
+        consumer_stat.average_latency_us =
+            total_latency / consumer_stat.messages_processed;
+      }
+    });
+  }
+
+  // Wait for all consumers to be ready
+  while (static_consumers_ready < NUM_CONSUMERS ||
+         dynamic_consumers_ready < NUM_CONSUMERS) {
+    std::this_thread::yield();
+  }
+
+  std::cout
+      << "Starting experimental broadcast queue demo with unified interface"
+      << std::endl;
+  std::cout << "  - " << NUM_CONSUMERS << " consumers for static queue"
+            << std::endl;
+  std::cout << "  - " << NUM_CONSUMERS << " consumers for dynamic queue"
+            << std::endl;
+
+  // Create producer threads - one for each queue type
+  std::thread static_producer([&static_queue, &producer_done]() {
+    // Generate and broadcast messages
+    for (size_t i = 0; i < NUM_MESSAGES; ++i) {
+      // Create market data
+      MarketData data{.timestamp = GetCurrentTimestamp(),
+                      .instrument_id = static_cast<int32_t>(1000 + (i % 5)),
+                      .price = 100.0 + (i % 10) * 0.05,
+                      .volume = static_cast<int32_t>(10 + (i % 5) * 10),
+                      .side = (i % 2 == 0) ? 'B' : 'A'};
+
+      // Publish to static queue
+      static_queue.Push(data);
+
+      if (i % 20 == 0) {
+        std::cout << "Static producer published: ";
+        data.Print();
+      }
+
+      // Simulate production interval
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    std::cout << "Static producer finished publishing " << NUM_MESSAGES
+              << " messages" << std::endl;
+  });
+
+  std::thread dynamic_producer([&dynamic_queue, &producer_done]() {
+    // Generate and broadcast messages with slight delay to differentiate from
+    // static
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    for (size_t i = 0; i < NUM_MESSAGES; ++i) {
+      // Create market data
+      MarketData data{.timestamp = GetCurrentTimestamp(),
+                      .instrument_id = static_cast<int32_t>(
+                          2000 + (i % 5)),  // Different range to distinguish
+                      .price = 200.0 + (i % 10) * 0.05,
+                      .volume = static_cast<int32_t>(20 + (i % 5) * 10),
+                      .side = (i % 2 == 0) ? 'B' : 'A'};
+
+      // Use Emplace sometimes to demonstrate unified interface
+      if (i % 3 == 0) {
+        dynamic_queue.Emplace(data.timestamp, data.instrument_id, data.price,
+                              data.volume, data.side);
+
+        if (i % 20 == 0) {
+          std::cout << "Dynamic producer emplaced item " << i << std::endl;
+        }
+      } else {
+        // Publish to dynamic queue
+        dynamic_queue.Push(data);
+
+        if (i % 20 == 0) {
+          std::cout << "Dynamic producer published: ";
+          data.Print();
+        }
+      }
+
+      // Simulate production interval
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    std::cout << "Dynamic producer finished publishing " << NUM_MESSAGES
+              << " messages" << std::endl;
+    producer_done = true;  // Signal all consumers to finish when done
+  });
+
+  // Wait for producers to finish
+  static_producer.join();
+  dynamic_producer.join();
+
+  // Wait for all consumers to finish
+  for (auto& consumer : static_consumers) {
+    consumer.join();
+  }
+
+  for (auto& consumer : dynamic_consumers) {
+    consumer.join();
+  }
+
+  // Output statistics
+  std::cout << "\nExperimental static broadcast queue results:" << std::endl;
+  for (const auto& stat : static_stats) {
+    stat.Print();
+  }
+
+  std::cout << "\nExperimental dynamic broadcast queue results:" << std::endl;
+  for (const auto& stat : dynamic_stats) {
+    stat.Print();
+  }
+
+  // Check if all messages were received
+  bool all_static_received = true;
+  bool all_dynamic_received = true;
+
+  for (const auto& stat : static_stats) {
+    if (stat.messages_processed != NUM_MESSAGES) {
+      all_static_received = false;
+      std::cout << "Warning: Static consumer " << stat.consumer_id
+                << " only processed " << stat.messages_processed << "/"
+                << NUM_MESSAGES << " messages" << std::endl;
+    }
+  }
+
+  for (const auto& stat : dynamic_stats) {
+    if (stat.messages_processed != NUM_MESSAGES) {
+      all_dynamic_received = false;
+      std::cout << "Warning: Dynamic consumer " << stat.consumer_id
+                << " only processed " << stat.messages_processed << "/"
+                << NUM_MESSAGES << " messages" << std::endl;
+    }
+  }
+
+  if (all_static_received && all_dynamic_received) {
+    std::cout
+        << "Success: All consumers received all messages from both queue types"
+        << std::endl;
+  }
+}
+
 int main() {
   StaticBroadcastQueueDemo();
   BroadcastQueueDemo();
+  ExpBroadcastQueueDemo();  // Add the experimental demo
   return 0;
 }
