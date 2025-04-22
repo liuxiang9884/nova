@@ -10,9 +10,8 @@
 #include <type_traits>
 #include <utility>
 
-#include "nova/common/macros.h"
 #include "nova/common/hardware.h"
-
+#include "nova/common/macros.h"
 
 namespace nova::exp {
 
@@ -23,7 +22,7 @@ namespace detail {
  * implementations. This queue allows one producer to broadcast messages to
  * multiple consumers. Each consumer maintains its own reading position.
  *
- * @tparam Derived The derived class (CRTP pattern)
+ * @tparam DerivedType The derived class (CRTP pattern)
  * @tparam T Type of the elements stored in the queue
  */
 template <typename DerivedType, typename T>
@@ -41,7 +40,6 @@ class SPBroadcastQueueBase {
   SPBroadcastQueueBase& operator=(SPBroadcastQueueBase&&) = delete;
 
  public:
-
   /**
    * Get the current producer position (number of elements ever produced).
    */
@@ -167,8 +165,7 @@ class SPBroadcastQueueBase {
     const auto next = current + 1;
 
     // Construct the object at the current slot
-    new (Derived()->element(current))
-        T(std::forward<Args>(args)...);
+    new (Derived()->element(current)) T(std::forward<Args>(args)...);
 
     // Update current_ to make the new element visible to consumers
     current_.store(next, std::memory_order_release);
@@ -327,4 +324,4 @@ class alignas(nova::kCacheLineSize) SPBroadcastQueue
   alignas(nova::kCacheLineSize) T* data_{nullptr};
 };
 
-} // namespace nova::exp
+}  // namespace nova::exp

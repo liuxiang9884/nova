@@ -385,7 +385,7 @@ class alignas(nova::kCacheLineSize) SPBroadcastQueue {
    * @param pos Consumer position
    * @return true if empty for the given consumer
    */
-  [[nodiscard]] bool IsEmpty(uint64_t pos) const noexcept {
+  [[nodiscard]] bool Empty(uint64_t pos) const noexcept {
     return Available(pos) == 0;
   }
 
