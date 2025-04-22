@@ -254,12 +254,8 @@ class alignas(nova::kCacheLineSize) StaticSPBroadcastQueue
  * @tparam T Type of elements stored in the queue
  * @tparam Allocator Allocator type for memory management
  */
+
 template <typename T, typename Allocator = std::allocator<T>>
-  requires std::is_standard_layout_v<T> && std::is_trivial_v<T> &&
-               std::is_trivially_copyable_v<T> &&
-               std::is_default_constructible_v<T> &&
-               std::is_copy_constructible_v<T> &&
-               std::is_move_constructible_v<T>
 class alignas(nova::kCacheLineSize) SPBroadcastQueue
     : private Allocator,
       public detail::SPBroadcastQueueBase<SPBroadcastQueue<T, Allocator>, T> {

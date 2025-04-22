@@ -4,7 +4,7 @@ include(cmake/settings.cmake)
 
 project(nova VERSION 0.1.0 LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 include(cmake/package.cmake)
 
 if (MSVC)
