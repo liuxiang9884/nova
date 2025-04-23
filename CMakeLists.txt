@@ -34,7 +34,9 @@ target_compile_options(nova PRIVATE -Wno-gnu-zero-variadic-macro-arguments)
 add_executable(nova_demo main.cpp)
 target_link_libraries(nova_demo PRIVATE nova)
 
-add_subdirectory(examples)
+if (PROJECT_IS_TOP_LEVEL)
+    add_subdirectory(examples)
+endif ()
 
 
 
