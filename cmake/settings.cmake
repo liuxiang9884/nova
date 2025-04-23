@@ -4,4 +4,4 @@ set(VCPKG_INCLUDE "$ENV{HOME}/vcpkg/installed/arm64-osx/include")
 set(CMAKE_TOOLCHAIN_FILE ${VCPKG_ROOT} CACHE STRING "Vcpkg toolchain file")
 
 #nova
-set(NOVA_INCLUDE "${CMAKE_SOURCE_DIR}/include")
+set(NOVA_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/include")
