@@ -5,3 +5,7 @@ build*
 .idea
 .vscode
 verbose
+CMakePresets.json
+vcpkg_installed
+vcpkg-configuration.json
+vcpkg.json
