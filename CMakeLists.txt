@@ -36,6 +36,7 @@ target_link_libraries(nova_demo PRIVATE nova)
 
 if (PROJECT_IS_TOP_LEVEL)
     add_subdirectory(examples)
+    add_subdirectory(test)
 endif ()
 
 

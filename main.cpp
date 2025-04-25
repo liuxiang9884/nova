@@ -4,7 +4,7 @@ int main() {
   std::cout << "Hello World!\n";
   std::cout << "123456789012345678901234567890123456789012345678901234567890123"
                "45678901234567890\n";
-  std::cout << std::hardware_destructive_interference_size << std::endl;
+  // std::cout << std::hardware_destructive_interference_size << std::endl;
   return 0;
 
 
