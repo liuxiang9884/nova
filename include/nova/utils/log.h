@@ -27,12 +27,14 @@ enum LogLevel : uint8_t {
 
 constexpr quill::QueueType kDefaultLogQueueType =
     quill::QueueType::BoundedDropping;
-constexpr uint32_t kDefaultLogInitialQueueCapacity = 1024 * 1024;
+constexpr std::size_t kDefaultLogInitialQueueCapacity = 1024 * 1024;
 constexpr uint32_t kDefaultLogBlockingQueueRetryIntervalNs = 800;
+constexpr uint32_t kDefaultLogUnboundedQueueMaxCapacity =
+    2ull * 1024u * 1024u * 1024u;
 #ifdef WIN32
-constexpr bool kLogEnableHugePages = false;
+constexpr auto kDefaultLogHugePagesPolicy = quill::HugePagesPolicy::Try;
 #else
-constexpr bool kLogEnableHugePages = true;
+constexpr auto kDefaultLogHugePagesPolicy = quill::HugePagesPolicy::Always;
 #endif
 
 class LogConfig {
@@ -143,11 +145,14 @@ class LogManager {
 
   struct NovaFrontendOptions {
     static constexpr quill::QueueType queue_type = kDefaultLogQueueType;
-    static constexpr uint32_t initial_queue_capacity =
+    static constexpr std::size_t initial_queue_capacity =
         kDefaultLogInitialQueueCapacity;
     static constexpr uint32_t blocking_queue_retry_interval_ns =
         kDefaultLogBlockingQueueRetryIntervalNs;
-    static constexpr bool huge_pages_enabled = kLogEnableHugePages;
+    static constexpr std::size_t unbounded_queue_max_capacity =
+        kDefaultLogUnboundedQueueMaxCapacity;
+    static constexpr quill::HugePagesPolicy huge_pages_policy =
+      kDefaultLogHugePagesPolicy;
   };
 
   using NovaFrontend = quill::FrontendImpl<NovaFrontendOptions>;
