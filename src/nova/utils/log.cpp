@@ -59,7 +59,7 @@ class NovaJsonSinkBase : public quill::detail::JsonSink<SinkType> {
   using quill::detail::JsonSink<SinkType>::JsonSink;
 
   void generate_json_message_impl(
-      quill::v8::MacroMetadata const* log_metadata, uint64_t log_timestamp,
+      quill::MacroMetadata const* log_metadata, uint64_t log_timestamp,
       std::string_view thread_id, std::string_view thread_name,
       std::string const& process_id,
       [[maybe_unused]] std::string_view logger_name,
@@ -94,7 +94,7 @@ class NovaJsonFileSink final : public NovaJsonSinkBase<quill::FileSink> {
                                           std ::move(notifier), do_fopen) {}
 
   void generate_json_message(
-      quill::v8::MacroMetadata const* log_metadata, uint64_t log_timestamp,
+      quill::MacroMetadata const* log_metadata, uint64_t log_timestamp,
       std::string_view thread_id, std::string_view thread_name,
       std::string const& process_id,
       [[maybe_unused]] std::string_view logger_name,
@@ -118,7 +118,7 @@ class NovaJsonConsoleSink : public NovaJsonSinkBase<quill::StreamSink> {
       : NovaJsonSinkBase<quill ::StreamSink>("stdout", nullptr) {}
 
   void generate_json_message(
-      quill::v8::MacroMetadata const* log_metadata, uint64_t log_timestamp,
+      quill::MacroMetadata const* log_metadata, uint64_t log_timestamp,
       std::string_view thread_id, std::string_view thread_name,
       std::string const& process_id,
       [[maybe_unused]] std::string_view logger_name,
