@@ -32,9 +32,9 @@ constexpr uint32_t kDefaultLogBlockingQueueRetryIntervalNs = 800;
 constexpr uint32_t kDefaultLogUnboundedQueueMaxCapacity =
     2ull * 1024u * 1024u * 1024u;
 #ifdef WIN32
-constexpr auto kDefaultLogHugePagesPolicy = quill::HugePagesPolicy::Try;
+constexpr auto kDefaultLogHugePagesPolicy = quill::HugePagesPolicy::Never;
 #else
-constexpr auto kDefaultLogHugePagesPolicy = quill::HugePagesPolicy::Always;
+constexpr auto kDefaultLogHugePagesPolicy = quill::HugePagesPolicy::Try;
 #endif
 
 class LogConfig {

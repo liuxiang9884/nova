@@ -12,7 +12,6 @@
 #include <fmt/format.h>
 #include <toml++/toml.h>
 
-#include "nova/utils/enum.h"
 #include "nova/utils/log.h"
 
 namespace fs = std::filesystem;
