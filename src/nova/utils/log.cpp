@@ -37,7 +37,7 @@ constexpr std::string_view kDefaultLogLevelString = "trace";
 #endif
 constexpr std::string_view kDefaultLogConsoleSinkName = "nova_console";
 constexpr std::string_view kDefaultLogFileSinkName = "/tmp/nova.log";
-constexpr std::string_view kDefaultLogJsonConsoleSinkName = "nova_console.json";
+constexpr std::string_view kDefaultLogJsonConsoleSinkName;
 constexpr std::string_view kDefaultLogJsonFileSinkName;
 constexpr std::string_view kDefaultLogBackendThreadName;
 constexpr uint16_t kDefaultLogBackendCpuAffinity =

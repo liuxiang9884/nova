@@ -16,7 +16,8 @@
     export PATH=$VCPKG_ROOT:$PATH
 ```
 若要讓此變更在會話之間永久完成，請將 命令新增 export 至殼層的配置檔腳本（例如 ~/.bashrc 或 ~/.zshrc）
-###使用
+
+使用manifest模式
 1. 建立清單
 ```bash
     vcpkg new --application
@@ -34,4 +35,19 @@
 
 ```bash
     vcpkg install
+```
+
+4. 已经安装的packages
+```
+cli11
+fmt
+magic-enum
+quill
+tomlplusplus
+```
+
+使用经典模式
+
+```bash
+    vcpkg install cli11 fmt magic-enum quill tomlplusplus
 ```
