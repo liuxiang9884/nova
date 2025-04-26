@@ -9,6 +9,8 @@ include(cmake/package.cmake)
 
 if (MSVC)
     add_compile_options(/W4)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(-Wall -Wextra -Wpedantic -Wno-interference-size)
 else ()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif ()
