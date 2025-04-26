@@ -48,7 +48,7 @@ class EnumArray {
   }
 
  private:
-  std::array<ValueType, kMaxEnumValue> values_;
+  std::array<ValueType, kSize> values_;
 };
 
 }  // namespace nova
