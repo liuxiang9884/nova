@@ -2,6 +2,7 @@ cmake-*
 .cache
 .git
 build*
+!build.sh
 .idea
 .vscode
 verbose
