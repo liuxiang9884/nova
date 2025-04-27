@@ -17,7 +17,7 @@
 ```
 若要讓此變更在會話之間永久完成，請將 命令新增 export 至殼層的配置檔腳本（例如 ~/.bashrc 或 ~/.zshrc）
 
-使用manifest模式
+## 使用manifest模式
 1. 建立清單
 ```bash
     vcpkg new --application
@@ -46,8 +46,17 @@ quill
 tomlplusplus
 ```
 
-使用经典模式
+## 使用经典模式
 
 ```bash
     vcpkg install cli11 fmt magic-enum quill tomlplusplus
 ```
+
+## 构建
+```bash
+    cd your_path/nova
+    chmod a+x build.sh
+    ./build.sh
+```
+默认分别建立build/debug和build/release两个folder，分别执行debug和release编译。
+也可以指定debug或者release参数进行编译。
