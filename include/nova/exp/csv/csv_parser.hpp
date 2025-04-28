@@ -155,18 +155,14 @@ class StreamParser : public IBasicCSVParser {
   ~StreamParser() = default;
 
   void Next(size_t bytes) {
-    if (Eof()) {
-      return;
-    }
+    if (Eof()) { return; }
     ResetDataPtr();
-    data_ptr_->data_ptr = std::make_shared<std::string>();
+    this -> data_ptr_->data_ptr = std::make_shared<std::string>();
     if (source_size_ == 0) {
       auto start = source_.tellg();
       source_.seekg(0, std::ios::end);
       auto end = source_.tellg();
-      source_size_ = end - start;
-      source_.seekg(start);
-
+      source_.seekg(0, std::ios::beg);
       source_size_ = end - start;
     }
 
@@ -177,15 +173,15 @@ class StreamParser : public IBasicCSVParser {
     stream_pos_ = source_.tellg();
     ((std::string*)(data_ptr_->data_ptr.get()))->assign(buffer.get(), length);
 
-    data_ptr_->data = *((std::string*)(data_ptr_->data_ptr.get()));
+    this ->data_ptr_->data = *((std::string*)(data_ptr_->data_ptr.get()));
 
-    current_row_ = CSVRow(data_ptr_);
+    this->current_row_ = CSVRow(this->data_ptr_);
     size_t remainder = Parse();
     if (stream_pos_ == source_size_ || NoChunk()) {
       eof_ = true;
       EndFeed();
     } else {
-      stream_pos_ -= (length - remainder);
+      this->stream_pos_ -= (length - remainder);
     }
   }
 

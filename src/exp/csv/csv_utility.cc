@@ -33,18 +33,7 @@ CSVReader operator ""_csv(const char* in, size_t n) ;
 /** A shorthand for csv::parse_no_header() */
 CSVReader operator ""_csv_no_header(const char* in, size_t n) ;
 
-/**
- *  Find the position of a column in a CSV file or CSV_NOT_FOUND otherwise
- *
- *  @param[in] filename  Path to CSV file
- *  @param[in] col_name  Column whose position we should resolve
- *  @param[in] format    Format of the CSV file
- */
-int GetColPos(std::string_view filename, std::string_view col_name, 
-    const CSVFormat& format) {
-    CSVReader reader(filename, format);
-    return reader.IndexOf(col_name);
-}
+
 
 /** Get basic information about a CSV file
  *  @include programs/csv_info.cpp

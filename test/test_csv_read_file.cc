@@ -5,8 +5,8 @@
 
 TEST(CSVReadFileTest, GetColPositon) {
     int pos = GetColPos(
-        "/home/lianyun/desktop/nova/data/examples/csv/20250424.csv", 
-        "證券代號"
+        "/home/lianyun/desktop/nova/data/examples/csv/20230614.csv", 
+        "股票代號"
     );
     EXPECT_EQ(pos, 1);
    
@@ -26,7 +26,7 @@ TEST(CSVReadFileTest, CSVColNamesOverwrite) {
     for (auto& format_in : formats) {
         // Set up the CSVReader
         format_in.ColNames(column_names);
-        CSVReader reader(std::string_view("/home/lianyun/desktop/nova/data/examples/csv/20250424.csv"), format_in);
+        CSVReader reader(std::string_view("/home/lianyun/desktop/nova/data/examples/csv/20250614.csv"), format_in);
 
         // Assert that column names weren't overwritten
         CSVFormat format_out = reader.GetFormat();

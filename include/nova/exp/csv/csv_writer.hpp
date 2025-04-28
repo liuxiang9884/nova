@@ -8,9 +8,13 @@
 #include <type_traits>
 #include <vector>
 
+#include "csv_datatype.hpp"
+
 static int DECIMAL_PLACES = 5;
 
-
+inline static void SetDecimalPlaces(int precision) {
+    DECIMAL_PLACES = precision;
+}
 
 /**
  * Calculate the absolute value of a number
@@ -68,8 +72,7 @@ int NumDigits(T x)
 
 
 /** to_string() for unsigned integers */
-template<typename T,
-    std::enable_if_t<std::is_unsigned<T>::value, int> = 0>
+template<typename T, std::enable_if_t<std::is_unsigned<T>::value, int> = 0 >
 inline std::string ToString(T value) {
     std::string digits_reverse = "";
 
@@ -84,10 +87,7 @@ inline std::string ToString(T value) {
 }
 
 /** to_string() for signed integers */
-template<
-    typename T,
-    std::enable_if_t<std::is_integral<T>::value && std::is_signed<T>::value, int> = 0
->
+template<typename T, std::enable_if_t<std::is_integral<T>::value && std::is_signed<T>::value, int> = 0 >
 inline std::string ToString(T value) {
     if (value >= 0)
         return ToString((size_t)value);
@@ -95,7 +95,50 @@ inline std::string ToString(T value) {
     return "-" + ToString((size_t)(value * -1));
 }
 
-template<class OutputStream, char Delim, char Quote, bool Flush>
+template<typename T, std::enable_if_t<std::is_floating_point<T>::value, int> = 0>
+inline std::string ToString(T value) {
+#ifdef __clang__
+    return std::to_string(value);
+#else
+    std::string result = "";
+
+    T integral_part;
+    T fractional_part = std::abs(std::modf(value, &integral_part));
+    integral_part = std::abs(integral_part);
+
+    // Integral part
+    if (value < 0) result = "-";
+
+    if (integral_part == 0) {
+        result += "0";
+    }
+    else {
+        for (int n_digits = NumDigits(integral_part); n_digits > 0; n_digits --) {
+            int digit = (int)(std::fmod(integral_part, Pow10(n_digits)) / Pow10(n_digits - 1));
+            result += (char)('0' + digit);
+        }
+    }
+
+    // Decimal part
+    result += ".";
+
+    if (fractional_part > 0) {
+        fractional_part *= (T)(Pow10(DECIMAL_PLACES));
+        for (int n_digits = DECIMAL_PLACES; n_digits > 0; n_digits--) {
+            int digit = (int)(std::fmod(fractional_part, Pow10(n_digits)) / Pow10(n_digits - 1));
+            result += (char)('0' + digit);
+        }
+    }
+    else {
+        result += "0";
+    }
+
+    return result;
+#endif
+}
+
+
+template<class OutputStream, char Delim, char Quote, bool IsFlush>
 class DelimWriter {
 public:
     /** Construct a DelimWriter over the specified output stream
@@ -104,8 +147,8 @@ public:
      *  @param  _quote_minimal Limit field quoting to only when necessary
     */
 
-    DelimWriter(OutputStream& _out, bool _quote_minimal = true)
-        : out(_out), quote_minimal(_quote_minimal) {};
+    DelimWriter(OutputStream& out, bool quote_minimal = true)
+        : out_(out), quote_minimal_(quote_minimal) {};
 
     /** Construct a DelimWriter over the file
      *
@@ -117,7 +160,7 @@ public:
      *
      */
     ~DelimWriter() {
-        out.flush();
+        out_.flush();
     }
 
     /** Format a sequence of strings and write to CSV according to RFC 4180
@@ -131,8 +174,8 @@ public:
     template<typename T, size_t Size>
     DelimWriter& operator<<(const std::array<T, Size>& record) {
         for (size_t i = 0; i < Size; i++) {
-            out << CSVEscape(record[i]);
-            if (i + 1 != Size) out << Delim;
+            out_ << CSVEscape(record[i]);
+            if (i + 1 != Size) out_ << Delim;
         }
 
         EndOut();
@@ -142,7 +185,7 @@ public:
     /** @copydoc operator<< */
     template<typename... T>
     DelimWriter& operator<<(const std::tuple<T...>& record) {
-        this->write_tuple<0, T...>(record);
+        this->WriteTuple<0, T...>(record);
         return *this;
     }
 
@@ -151,18 +194,15 @@ public:
      * 
      * @copydoc operator<<
      */
-    template<
-        typename T, typename Alloc, template <typename, typename> class Container,
-
-        // Avoid conflicting with tuples with two elements
-        csv::enable_if_t<std::is_class<Alloc>::value, int> = 0
-    >
+    template<typename T, typename Alloc, template <typename, typename> class Container,
+    // Avoid conflicting with tuples with two elements
+    std::enable_if_t<std::is_class<Alloc>::value, int> = 0>
         DelimWriter& operator<<(const Container<T, Alloc>& record) {
         const size_t ilen = record.size();
         size_t i = 0;
         for (const auto& field : record) {
-            out << CSVEscape(field);
-            if (i + 1 != ilen) out << Delim;
+            out_ << CSVEscape(field);
+            if (i + 1 != ilen) out_ << Delim;
             i++;
         }
 
@@ -174,37 +214,30 @@ public:
      *
      */
     void Flush() {
-        out.flush();
+        out_.flush();
     }
 
 private:
-    template<
-        typename T,
-        csv::enable_if_t<
-            !std::is_convertible<T, std::string>::value
-            && !std::is_convertible<T, csv::string_view>::value
-        , int> = 0
-    >
+    template< typename T, std::enable_if_t<
+        !std::is_convertible<T, std::string>::value
+        && !std::is_convertible<T, std::string_view>::value , int> = 0>
     std::string CSVEscape(T in) {
         return ToString(in);
     }
 
     template<
         typename T,
-        csv::enable_if_t<
-            std::is_convertible<T, std::string>::value
-            || std::is_convertible<T, csv::string_view>::value
-        , int> = 0
-    >
+        std::enable_if_t<std::is_convertible<T, std::string>::value
+        || std::is_convertible<T, std::string_view>::value, int> = 0>
     std::string CSVEscape(T in) {
-        IF_CONSTEXPR(std::is_convertible<T, csv::string_view>::value) {
-            return _CSVEscape(in);
+        if constexpr(std::is_convertible<T, std::string_view>::value) {
+            return CSVEscape(std::string_view(in));
         }
         
-        return _CSVEscape(std::string(in));
+        return CSVEscape(std::string(in));
     }
 
-    std::string _CSVEscape(csv::string_view in) {
+    std::string CSVEscape(std::string_view in) {
         /** Format a string to be RFC 4180-compliant
          *  @param[in]  in              String to be CSV-formatted
          *  @param[out] quote_minimal   Only quote fields if necessary.
@@ -222,7 +255,7 @@ private:
         }
 
         if (!quote_escape) {
-            if (quote_minimal) return std::string(in);
+            if (quote_minimal_) return std::string(in);
             else {
                 std::string ret(1, Quote);
                 ret += in.data();
@@ -245,17 +278,19 @@ private:
 
     /** Recurisve template for writing std::tuples */
     template<size_t Index = 0, typename... T>
-    typename std::enable_if<Index < sizeof...(T), void>::type WriteTuple(const std::tuple<T...>& record) {
-        out << CSVEscape(std::get<Index>(record));
+    typename std::enable_if<Index < sizeof...(T), void>::type 
+    WriteTuple(const std::tuple<T...>& record) {
+        out_ << CSVEscape(std::get<Index>(record));
 
-        IF_CONSTEXPR (Index + 1 < sizeof...(T)) out << Delim;
+        if constexpr (Index + 1 < sizeof...(T)) out_ << Delim;
 
         this->WriteTuple<Index + 1>(record);
     }
 
     /** Base case for writing std::tuples */
     template<size_t Index = 0, typename... T>
-    typename std::enable_if<Index == sizeof...(T), void>::type WriteTuple(const std::tuple<T...>& record) {
+    typename std::enable_if<Index == sizeof...(T), void>::type 
+    WriteTuple(const std::tuple<T...>& record) {
         (void)record;
         EndOut();
     }
@@ -263,7 +298,7 @@ private:
     /** Ends a line in 'out' and flushes, if Flush is true.*/
     void EndOut() {
         out_ << '\n';
-        IF_CONSTEXPR(Flush) out.flush();
+        if constexpr (IsFlush) out_.flush();
     }
 
     OutputStream & out_;
@@ -288,8 +323,8 @@ using CSVWriter = DelimWriter<OutputStream, ',', '"', Flush>;
  *  @note Use `csv::make_tsv_writer()` to in instatiate this class over
  *        an actual output stream.
  */
-template<class OutputStream, bool Flush = true>
-using TSVWriter = DelimWriter<OutputStream, '\t', '"', Flush>;
+template<class OutputStream, bool IsFlush = true>
+using TSVWriter = DelimWriter<OutputStream, '\t', '"', IsFlush>;
 
 /** Return a csv::CSVWriter over the output stream */
 template<class OutputStream>

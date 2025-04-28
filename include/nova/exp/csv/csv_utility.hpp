@@ -10,6 +10,19 @@
 CSVReader Parse(std::string_view in, CSVFormat format = CSVFormat());
 CSVReader ParseNoHeader(std::string_view in);
 
+/**
+ *  Find the position of a column in a CSV file or CSV_NOT_FOUND otherwise
+ *
+ *  @param[in] filename  Path to CSV file
+ *  @param[in] col_name  Column whose position we should resolve
+ *  @param[in] format    Format of the CSV file
+ */
+inline int GetColPos(std::string_view filename, std::string_view col_name, 
+  const CSVFormat& format = CSVFormat::GuessCSV()) {
+  CSVReader reader(filename, format);
+  return reader.IndexOf(col_name);
+}
+
 struct CSVFileInfo {
   std::string filename;               /**< Filename */
   std::vector<std::string> col_names; /**< CSV column names */
@@ -71,11 +84,6 @@ inline CSVReader ParseNoHeader(std::string_view in) {
 ///@{
 std::unordered_map<std::string, DataType> csv_data_types(const std::string&);
 CSVFileInfo GetFileInfo(const std::string& filename);
-
-int GetColPos(std::string_view filename, std::string_view col_name,
-    const CSVFormat& format = CSVFormat::GuessCSV());
-///@}
-
 
 // constexpr const int UNINITIALIZED_FIELD = -1;
 
