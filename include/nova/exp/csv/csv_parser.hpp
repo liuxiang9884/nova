@@ -156,14 +156,14 @@ class StreamParser : public IBasicCSVParser {
 
   void Next(size_t bytes) {
     if (Eof()) { return; }
-    ResetDataPtr();
+    this->ResetDataPtr();
     this -> data_ptr_->data_ptr = std::make_shared<std::string>();
     if (source_size_ == 0) {
       auto start = source_.tellg();
       source_.seekg(0, std::ios::end);
       auto end = source_.tellg();
       source_.seekg(0, std::ios::beg);
-      source_size_ = end - start;
+      source_size_ = static_cast<size_t>(end - start);
     }
 
     size_t length = std::min(source_size_ - stream_pos_, bytes);
@@ -171,9 +171,8 @@ class StreamParser : public IBasicCSVParser {
     source_.seekg(stream_pos_, std::ios::beg);
     source_.read(buffer.get(), length);
     stream_pos_ = source_.tellg();
-    ((std::string*)(data_ptr_->data_ptr.get()))->assign(buffer.get(), length);
-
-    this ->data_ptr_->data = *((std::string*)(data_ptr_->data_ptr.get()));
+    std::static_pointer_cast<std::string>(data_ptr_->data_ptr)->assign(buffer.get(), length);
+    this->data_ptr_->data = *((std::string*)(this->data_ptr_->data_ptr.get()));
 
     this->current_row_ = CSVRow(this->data_ptr_);
     size_t remainder = Parse();

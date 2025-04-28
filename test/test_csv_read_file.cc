@@ -4,11 +4,12 @@
 #include "nova/exp/csv/csv_utility.hpp"
 
 TEST(CSVReadFileTest, GetColPositon) {
+    auto format = CSVFormat::GuessCSV();
     int pos = GetColPos(
-        "/home/lianyun/desktop/nova/data/examples/csv/20230614.csv", 
+        "/home/lianyun/nova/data/examples/csv/20230614.csv", 
         "股票代號"
     );
-    EXPECT_EQ(pos, 1);
+    EXPECT_EQ(pos, 2);
    
 };
 
@@ -26,7 +27,7 @@ TEST(CSVReadFileTest, CSVColNamesOverwrite) {
     for (auto& format_in : formats) {
         // Set up the CSVReader
         format_in.ColNames(column_names);
-        CSVReader reader(std::string_view("/home/lianyun/desktop/nova/data/examples/csv/20250614.csv"), format_in);
+        CSVReader reader(std::string_view("/home/lianyun/nova/data/examples/csv/ints_comments.csv"), format_in);
 
         // Assert that column names weren't overwritten
         CSVFormat format_out = reader.GetFormat();

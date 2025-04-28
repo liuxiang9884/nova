@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "nova/exp/csv/csv_parser.hpp"
+#include "nova/exp/csv/mmap.hpp"
 
 ParseFlagMap MakeParseFlags(char delimiter) {
   std::array<ParseFlags, 256> ret = {};
@@ -50,96 +51,99 @@ WhitespaceMap MakeWsFlags(const std::vector<char>& flags) {
 
 size_t GetFileSize(std::string_view filename) {
   std::ifstream infile(std::string(filename), std::ios::binary);
+  if (!infile) {
+    throw std::runtime_error("Cannot open file " + std::string(filename));
+  }
   const auto start = infile.tellg();
   infile.seekg(0, std::ios::end);
   const auto end = infile.tellg();
   return end - start;
 }
 
-struct MmapSource {
-  void* data;
-  size_t size;
-  int fd;
+// struct MmapSource {
+//   void* data;
+//   size_t size;
+//   int fd;
 
-  const char* begin() const {
-    return static_cast<const char*>(data);
-  }
-  const char* end() const {
-    return static_cast<const char*>(data) + size;
-  }
+//   const char* begin() const {
+//     return static_cast<const char*>(data);
+//   }
+//   const char* end() const {
+//     return static_cast<const char*>(data) + size;
+//   }
 
-  ~MmapSource() {
-    if (data && data != MAP_FAILED) {
-      munmap(data, size);
-    }
-    if (fd != -1) {
-      close(fd);
-    }
-  }
-  std::string_view Str() const {
-    auto str = std::string_view(static_cast<const char*>(data), size);
-    // std::cout << "MmapSource::Str() data: " << str << std::endl;
-    return str;
-    // std::string str = std::string(begin(), end());
-    // return str;
-  }
-};
+//   ~MmapSource() {
+//     if (data && data != MAP_FAILED) {
+//       munmap(data, size);
+//     }
+//     if (fd != -1) {
+//       close(fd);
+//     }
+//   }
+//   std::string_view Str() const {
+//     auto str = std::string_view(static_cast<const char*>(data), size);
+//     // std::cout << "MmapSource::Str() data: " << str << std::endl;
+//     return str;
+//     // std::string str = std::string(begin(), end());
+//     // return str;
+//   }
+// };
 
-MmapSource MakeMmapSoure(std::string_view filename, size_t start, size_t length) {
-  MmapSource result = {nullptr, 0, -1};
-  std::string path(filename);
-  result.fd = open(path.c_str(), O_RDONLY);
-  if (result.fd == -1) {
-    std::cerr << "Error opening file\n";
-    return result;
-  }
+// MmapSource MakeMmapSoure(std::string_view filename, size_t start, size_t length) {
+//   MmapSource result = {nullptr, 0, -1};
+//   std::string path(filename);
+//   result.fd = open(path.c_str(), O_RDONLY);
+//   if (result.fd == -1) {
+//     std::cerr << "Error opening file\n";
+//     return result;
+//   }
 
-  struct stat sb;
-  // fstat(result.fd, &sb);
-  if (fstat(result.fd, &sb) == -1) {  // 檢查 fstat 返回值
-    std::cerr << "Error getting file stats\n";
-    close(result.fd);
-    result.fd = -1;
-    return result;
-  }
+//   struct stat sb;
+//   // fstat(result.fd, &sb);
+//   if (fstat(result.fd, &sb) == -1) {  // 檢查 fstat 返回值
+//     std::cerr << "Error getting file stats\n";
+//     close(result.fd);
+//     result.fd = -1;
+//     return result;
+//   }
 
-  if (start >= static_cast<size_t>(sb.st_size)) {
-    std::cerr << "Start position beyond file size\n";
-    close(result.fd);
-    result.fd = -1;
-    return result;
-  }
-  result.size = std::min(static_cast<size_t>(sb.st_size - start), length);
-  if (result.size == 0) { 
-    close(result.fd);
-    result.fd = -1;
-    return result;
-  }
+//   if (start >= static_cast<size_t>(sb.st_size)) {
+//     std::cerr << "Start position beyond file size\n";
+//     close(result.fd);
+//     result.fd = -1;
+//     return result;
+//   }
+//   result.size = std::min(static_cast<size_t>(sb.st_size - start), length);
+//   if (result.size == 0) { 
+//     close(result.fd);
+//     result.fd = -1;
+//     return result;
+//   }
 
-  result.data = mmap(nullptr, result.size, PROT_READ, MAP_PRIVATE, result.fd, start);
-  if (result.data == MAP_FAILED) {
-    std::cerr << "Error mapping file\n";
-    close(result.fd);
-    result.fd = -1;
-    result.data = nullptr;
-  }
+//   result.data = mmap(nullptr, result.size, PROT_READ, MAP_PRIVATE, result.fd, start);
+//   if (result.data == MAP_FAILED) {
+//     std::cerr << "Error mapping file\n";
+//     close(result.fd);
+//     result.fd = -1;
+//     result.data = nullptr;
+//   }
 
-  return result;
-}
+//   return result;
+// }
 
 std::string GetCSVHead(std::string_view filename, size_t file_size) {
   const size_t bytes = 500000;
 
   std::error_code error;
   size_t length = std::min((size_t)file_size, bytes);
-  // auto mmap = mio::make_mmap_source(std::string(filename), 0, length, error);
-  auto mmap = MakeMmapSoure(filename, 0, length);
+  auto mmap = MakeMmapSource(std::string(filename), 0, length, error);
+  // auto mmap = MakeMmapSoure(filename, 0, length);
 
   if (error) {
     throw std::runtime_error("Cannot open file " + std::string(filename));
   }
 
-  return std::string(mmap.begin(), mmap.end());
+  return std::string(mmap.Begin(), mmap.End());
 }
 
 std::string GetCSVHead(std::string_view filename) {
@@ -324,9 +328,9 @@ inline void IBasicCSVParser::ResetDataPtr() {
 inline void IBasicCSVParser::TrimUtf8Bom() {
   auto& data = this->data_ptr_->data;
 
-  if (!this->unicode_bom_scan_ && data.size() >= 3) {
-    if (data[0] == '\xEF' && data[1] == '\xBB' && data[2] == '\xBF') {
-      this->data_pos_ += 3;  // Remove BOM from input string
+  if (data[0] == '\xEF' && data[1] == '\xBB' && data[2] == '\xBF') {
+    this->data_pos_ += 3;  // Remove BOM from input string
+    if (!this->unicode_bom_scan_ && data.size() >= 3) {
       this->utf8_bom_ = true;
     }
 
@@ -343,17 +347,16 @@ inline void MmapParser::Next(size_t bytes = 1024 * 1024) {
   // Create memory map
   size_t length = std::min(this->source_size_ - this->mmap_pos_, bytes);
   std::error_code error;
-  this->data_ptr_->data_ptr = std::make_shared<MmapSource>(
-      MakeMmapSoure(this->filename_, this->mmap_pos_, length));
+  this->data_ptr_->data_ptr = std::make_shared<BasicMmapSource<char>>(
+      MakeMmapSource(this->filename_, this->mmap_pos_, length, error));
   this->mmap_pos_ += length;
   if (error) throw error;
 
-  auto mmap_ptr = static_cast<MmapSource*>(this->data_ptr_->data_ptr.get());
+  auto mmap_ptr = static_cast<BasicMmapSource<char>*>(this->data_ptr_->data_ptr.get());
 
   // Create string view
-  this->data_ptr_->data = mmap_ptr->Str();
+  this->data_ptr_->data = std::string_view(mmap_ptr->Begin(), mmap_ptr->Length());
   
-
   // Parse
   this->current_row_ = CSVRow(this->data_ptr_);
   size_t remainder = this->Parse();
