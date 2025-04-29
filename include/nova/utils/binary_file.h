@@ -21,20 +21,56 @@ namespace nova {
 
 class BinaryFile {
  public:
-  enum class SeekOrigin { Begin, Current, End };
+  // File open modes as an enum
+  enum class OpenMode {
+    // Basic modes
+    // Open for reading
+    kReadOnly = std::ios::binary | std::ios::in,
+    // Open for writing
+    kWriteOnly = std::ios::binary | std::ios::out,
+    // Open for reading and writing (file must exist)
+    kReadWrite = std::ios::binary | std::ios::in | std::ios::out,
 
-  constexpr static auto kDefaultOpenMode =
-      std::ios::binary | std::ios::in | std::ios::out;
+    // Combined modes
+    // Open for appending at the end
+    kAppend = std::ios::binary | std::ios::out | std::ios::app,
+    // Open for reading and appending
+    kReadAppend =
+        std::ios::binary | std::ios::in | std::ios::out | std::ios::app,
+    // Create new or truncate existing file
+    kTruncate = std::ios::binary | std::ios::out | std::ios::trunc,
+    // Open for reading and writing, truncate if exists
+    kReadWriteTruncate =
+        std::ios::binary | std::ios::in | std::ios::out | std::ios::trunc,
+
+    // Special modes
+    // Open and seek to end
+    kAtEnd = std::ios::binary | std::ios::in | std::ios::out | std::ios::ate,
+    // Open read-only and seek to end
+    kReadAtEnd =
+        std::ios::binary | std::ios::in | std::ios::out | std::ios::ate,
+    // Create new file, fail if exists
+    kExclusiveCreate = std::ios::binary | std::ios::out | std::ios::trunc
+  };
 
   explicit BinaryFile(const std::string& file_path,
-                      std::ios_base::openmode mode = kDefaultOpenMode) {
+                      OpenMode mode = OpenMode::kReadOnly) {
+    Open(file_path, mode);
+  }
+
+  explicit BinaryFile(const std::string& file_path,
+                      std::ios_base::openmode mode) {
     Open(file_path, mode);
   }
 
   explicit BinaryFile() = default;
 
   void Open(const std::string& file_path,
-            std::ios_base::openmode mode = kDefaultOpenMode) {
+            OpenMode mode = OpenMode::kReadWrite) {
+    Open(file_path, static_cast<std::ios_base::openmode>(mode));
+  }
+
+  void Open(const std::string& file_path, std::ios_base::openmode mode) {
     file_.open(file_path, mode);
     if (!file_.is_open()) {
       throw std::runtime_error("Failed to open file: " + file_path);

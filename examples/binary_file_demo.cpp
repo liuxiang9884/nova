@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -23,25 +24,194 @@ int main() {
   std::cout << "BinaryFile Demo" << std::endl;
   std::cout << "==============" << std::endl << std::endl;
 
+  namespace fs = std::filesystem;
+
   try {
-    // Basic file operations
+    // Basic file operations with different modes
     {
-      std::cout << "1. Basic file operations:" << std::endl;
+      std::cout << "1. File open modes:" << std::endl;
 
-      // Create a binary file
-      nova::BinaryFile file("test_data.bin", std::ios::binary | std::ios::in |
-                                                 std::ios::out |
-                                                 std::ios::trunc);
+      // Clean up existing test files
+      const char* test_files[] = {"test_ro.bin",    "test_wo.bin",
+                                  "test_rw.bin",    "test_append.bin",
+                                  "test_trunc.bin", "test_ate.bin"};
+      for (const auto& file : test_files) {
+        if (fs::exists(file)) {
+          fs::remove(file);
+        }
+      }
 
-      std::cout << "  - File created successfully" << std::endl;
-      std::cout << "  - IsOpen(): " << (file.IsOpen() ? "true" : "false")
-                << std::endl;
+      // 1. Read-only mode (will fail if file doesn't exist)
+      std::cout << "  - ReadOnly mode: ";
+      try {
+        nova::BinaryFile file("test_ro.bin",
+                              nova::BinaryFile::OpenMode::kReadOnly);
+        std::cout << "Opened successfully (unexpected)" << std::endl;
+      } catch (const std::exception&) {
+        std::cout << "Failed as expected (file doesn't exist)" << std::endl;
+      }
 
-      // Close the file
-      file.Close();
-      std::cout << "  - File closed" << std::endl;
-      std::cout << "  - IsOpen() after Close(): "
-                << (file.IsOpen() ? "true" : "false") << std::endl;
+      // 2. Write-only mode (creates file if doesn't exist)
+      {
+        std::cout << "  - WriteOnly mode: ";
+        try {
+          nova::BinaryFile file("test_wo.bin",
+                                nova::BinaryFile::OpenMode::kWriteOnly);
+          file.Write("Test data", 9);
+          std::cout << "Created and wrote to file successfully" << std::endl;
+        } catch (const std::exception& e) {
+          std::cout << "Failed: " << e.what() << std::endl;
+        }
+      }
+
+      // 3. Read-Write mode (only opens existing files)
+      {
+        std::cout << "  - ReadWrite mode on existing file: ";
+        try {
+          nova::BinaryFile file("test_wo.bin",
+                                nova::BinaryFile::OpenMode::kReadWrite);
+          std::cout << "Opened successfully" << std::endl;
+
+          char buffer[10];
+          file.Read(buffer, 9);
+          buffer[9] = '\0';
+          std::cout << "    Read data: " << buffer << std::endl;
+
+          file.SeekWriteCursor(0);
+          file.Write("New data!", 9);
+          std::cout << "    Wrote new data" << std::endl;
+        } catch (const std::exception& e) {
+          std::cout << "Failed: " << e.what() << std::endl;
+        }
+      }
+
+      // 4. Append mode (creates file if needed, always writes at end)
+      {
+        std::cout << "  - Append mode: ";
+        try {
+          nova::BinaryFile file("test_append.bin",
+                                nova::BinaryFile::OpenMode::kAppend);
+          file.Write("First append", 12);
+          file.Write(" - Second append", 16);
+          std::cout << "Appended data successfully" << std::endl;
+        } catch (const std::exception& e) {
+          std::cout << "Failed: " << e.what() << std::endl;
+        }
+
+        // Read the appended data
+        try {
+          nova::BinaryFile file("test_append.bin",
+                                nova::BinaryFile::OpenMode::kReadOnly);
+          char buffer[50];
+          file.Read(buffer, 28);
+          buffer[28] = '\0';
+          std::cout << "    Read appended data: " << buffer << std::endl;
+        } catch (const std::exception& e) {
+          std::cout << "    Failed to read: " << e.what() << std::endl;
+        }
+      }
+
+      // 5. ReadAppend mode (read and append to existing file)
+      {
+        std::cout << "  - ReadAppend mode: ";
+        try {
+          nova::BinaryFile file("test_append.bin",
+                                nova::BinaryFile::OpenMode::kReadAppend);
+          char buffer[50];
+          file.Read(buffer, 28);
+          buffer[28] = '\0';
+          std::cout << "Read existing data" << std::endl;
+          std::cout << "    Content: " << buffer << std::endl;
+
+          // Append more data (should go to the end regardless of current
+          // position)
+          file.Write(" - Third append", 15);
+          std::cout << "    Appended more data" << std::endl;
+        } catch (const std::exception& e) {
+          std::cout << "Failed: " << e.what() << std::endl;
+        }
+      }
+
+      // 6. Truncate mode (creates or empties existing file)
+      {
+        std::cout << "  - Truncate mode: ";
+        try {
+          // First put some data
+          {
+            nova::BinaryFile file("test_trunc.bin",
+                                  nova::BinaryFile::OpenMode::kWriteOnly);
+            file.Write("Original data", 13);
+          }
+
+          // Now truncate and write new data
+          nova::BinaryFile file("test_trunc.bin",
+                                nova::BinaryFile::OpenMode::kTruncate);
+          file.Write("Truncated data", 14);
+          std::cout << "Truncated and wrote new data" << std::endl;
+
+          // Read back to verify
+          file.SeekReadCursor(0);
+          char buffer[20];
+          file.Read(buffer, 14);
+          buffer[14] = '\0';
+          std::cout << "    Content after truncate: " << buffer << std::endl;
+        } catch (const std::exception& e) {
+          std::cout << "Failed: " << e.what() << std::endl;
+        }
+      }
+
+      // 7. ReadWriteTruncate mode (read/write with truncation)
+      {
+        std::cout << "  - ReadWriteTruncate mode: ";
+        try {
+          nova::BinaryFile file("test_rw.bin",
+                                nova::BinaryFile::OpenMode::kReadWriteTruncate);
+          file.Write("ReadWriteTruncate test", 21);
+          std::cout << "Created and wrote to file" << std::endl;
+
+          // Read back the data
+          file.SeekReadCursor(0);
+          char buffer[30];
+          file.Read(buffer, 21);
+          buffer[21] = '\0';
+          std::cout << "    Content: " << buffer << std::endl;
+        } catch (const std::exception& e) {
+          std::cout << "Failed: " << e.what() << std::endl;
+        }
+      }
+
+      // 8. AtEnd mode (open and position at end)
+      {
+        std::cout << "  - AtEnd mode: ";
+        try {
+          // First create a file with data
+          {
+            nova::BinaryFile file("test_ate.bin",
+                                  nova::BinaryFile::OpenMode::kWriteOnly);
+            file.Write("Initial data for AtEnd mode", 26);
+          }
+
+          // Open with AtEnd
+          nova::BinaryFile file("test_ate.bin",
+                                nova::BinaryFile::OpenMode::kAtEnd);
+          std::cout << "Opened with cursor at end" << std::endl;
+          std::cout << "    Current position: " << file.CurrentReadCursor()
+                    << std::endl;
+
+          // We're at the end, so add more data
+          file.Write(" - Added at end", 15);
+
+          // Read the whole file from beginning
+          file.SeekReadCursor(0);
+          char buffer[50];
+          file.Read(buffer, 41);
+          buffer[41] = '\0';
+          std::cout << "    Full content: " << buffer << std::endl;
+        } catch (const std::exception& e) {
+          std::cout << "Failed: " << e.what() << std::endl;
+        }
+      }
+
       std::cout << std::endl;
     }
 
@@ -49,9 +219,8 @@ int main() {
     {
       std::cout << "2. Writing basic types:" << std::endl;
 
-      nova::BinaryFile file("test_data.bin", std::ios::binary | std::ios::in |
-                                                 std::ios::out |
-                                                 std::ios::trunc);
+      nova::BinaryFile file("test_data.bin",
+                            nova::BinaryFile::OpenMode::kTruncate);
 
       // Write basic types
       int32_t intVal = 42;
@@ -78,7 +247,8 @@ int main() {
     {
       std::cout << "3. Reading basic types:" << std::endl;
 
-      nova::BinaryFile file("test_data.bin", std::ios::binary | std::ios::in);
+      nova::BinaryFile file("test_data.bin",
+                            nova::BinaryFile::OpenMode::kReadOnly);
 
       // Read individual values with different methods
       int32_t intVal = file.ReadAs<int32_t>();
@@ -100,9 +270,8 @@ int main() {
     {
       std::cout << "4. Writing arrays:" << std::endl;
 
-      nova::BinaryFile file("test_array.bin", std::ios::binary | std::ios::in |
-                                                  std::ios::out |
-                                                  std::ios::trunc);
+      nova::BinaryFile file("test_array.bin",
+                            nova::BinaryFile::OpenMode::kTruncate);
 
       // Create an array of floats
       float values[5] = {1.1f, 2.2f, 3.3f, 4.4f, 5.5f};
@@ -123,45 +292,12 @@ int main() {
       std::cout << std::endl;
     }
 
-    // Reading arrays
-    {
-      std::cout << "5. Reading arrays:" << std::endl;
-
-      nova::BinaryFile file("test_array.bin", std::ios::binary | std::ios::in);
-
-      // Read float array
-      float values[5];
-      file.BatchRead(values, 5);
-
-      std::cout << "  - Read float array: ";
-      for (int i = 0; i < 5; i++) {
-        std::cout << values[i];
-        if (i < 4) std::cout << ", ";
-      }
-      std::cout << std::endl;
-
-      // Read integer vector individual values
-      std::vector<int> intVector(5);
-      for (int i = 0; i < 5; i++) {
-        intVector[i] = file.ReadAs<int>();
-      }
-
-      std::cout << "  - Read int vector: ";
-      for (size_t i = 0; i < intVector.size(); i++) {
-        std::cout << intVector[i];
-        if (i < intVector.size() - 1) std::cout << ", ";
-      }
-      std::cout << std::endl;
-      std::cout << std::endl;
-    }
-
     // Using generic buffer read/write
     {
-      std::cout << "6. Generic buffer read/write:" << std::endl;
+      std::cout << "5. Generic buffer read/write:" << std::endl;
 
-      nova::BinaryFile file("test_buffer.bin", std::ios::binary | std::ios::in |
-                                                   std::ios::out |
-                                                   std::ios::trunc);
+      nova::BinaryFile file("test_buffer.bin",
+                            nova::BinaryFile::OpenMode::kReadWriteTruncate);
 
       // Create a generic buffer
       const char* text = "This is a test of generic buffer operations";
@@ -205,10 +341,10 @@ int main() {
 
     // Seeking and cursor positions
     {
-      std::cout << "7. Seeking and cursor positions:" << std::endl;
+      std::cout << "6. Seeking and cursor positions:" << std::endl;
 
       nova::BinaryFile file("test_data.bin",
-                            std::ios::binary | std::ios::in | std::ios::out);
+                            nova::BinaryFile::OpenMode::kReadWrite);
 
       // Get initial position
       auto initialPos = file.CurrentReadCursor();
@@ -245,11 +381,10 @@ int main() {
 
     // Using custom structures
     {
-      std::cout << "8. Using custom structures:" << std::endl;
+      std::cout << "7. Using custom structures:" << std::endl;
 
-      nova::BinaryFile file("test_struct.bin", std::ios::binary | std::ios::in |
-                                                   std::ios::out |
-                                                   std::ios::trunc);
+      nova::BinaryFile file("test_struct.bin",
+                            nova::BinaryFile::OpenMode::kReadWriteTruncate);
 
       // Create points
       Point p1 = {1.0f, 2.0f, 3.0f};
@@ -281,11 +416,10 @@ int main() {
 
     // Multiple value read/write
     {
-      std::cout << "9. Multiple value read/write:" << std::endl;
+      std::cout << "8. Multiple value read/write:" << std::endl;
 
-      nova::BinaryFile file("test_multi.bin", std::ios::binary | std::ios::in |
-                                                  std::ios::out |
-                                                  std::ios::trunc);
+      nova::BinaryFile file("test_multi.bin",
+                            nova::BinaryFile::OpenMode::kReadWriteTruncate);
 
       // Write multiple values at once
       int a = 123;
@@ -316,9 +450,10 @@ int main() {
 
     // File state checks
     {
-      std::cout << "10. File state checks:" << std::endl;
+      std::cout << "9. File state checks:" << std::endl;
 
-      nova::BinaryFile file("test_data.bin", std::ios::binary | std::ios::in);
+      nova::BinaryFile file("test_data.bin",
+                            nova::BinaryFile::OpenMode::kReadOnly);
 
       // Check initial states
       std::cout << "  - Initial state: Good()="
