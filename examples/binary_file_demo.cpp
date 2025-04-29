@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -154,9 +155,57 @@ int main() {
       std::cout << std::endl;
     }
 
+    // Using generic buffer read/write
+    {
+      std::cout << "6. Generic buffer read/write:" << std::endl;
+
+      nova::BinaryFile file("test_buffer.bin", std::ios::binary | std::ios::in |
+                                                   std::ios::out |
+                                                   std::ios::trunc);
+
+      // Create a generic buffer
+      const char* text = "This is a test of generic buffer operations";
+      size_t textLength = strlen(text) + 1;  // Include null terminator
+
+      // Write the buffer
+      file.Write(text, textLength);
+      std::cout << "  - Wrote text buffer: \"" << text << "\"" << std::endl;
+
+      // Reset position
+      file.SeekReadCursor(0);
+
+      // Read the buffer
+      char buffer[100];
+      file.Read(buffer, textLength);
+
+      std::cout << "  - Read text buffer: \"" << buffer << "\"" << std::endl;
+
+      // Using generic buffer for binary data
+      uint8_t binaryData[10] = {0x01, 0x02, 0x03, 0x04, 0x05,
+                                0x06, 0x07, 0x08, 0x09, 0x0A};
+      file.SeekWriteCursor(0);
+      file.Write(binaryData, sizeof(binaryData));
+
+      std::cout << "  - Wrote binary buffer of " << sizeof(binaryData)
+                << " bytes" << std::endl;
+
+      // Reset position and read
+      file.SeekReadCursor(0);
+      uint8_t readBuffer[10];
+      file.Read(readBuffer, sizeof(readBuffer));
+
+      std::cout << "  - Read binary buffer: ";
+      for (size_t i = 0; i < sizeof(readBuffer); i++) {
+        std::cout << "0x" << std::hex << static_cast<int>(readBuffer[i]);
+        if (i < sizeof(readBuffer) - 1) std::cout << ", ";
+      }
+      std::cout << std::dec << std::endl;
+      std::cout << std::endl;
+    }
+
     // Seeking and cursor positions
     {
-      std::cout << "6. Seeking and cursor positions:" << std::endl;
+      std::cout << "7. Seeking and cursor positions:" << std::endl;
 
       nova::BinaryFile file("test_data.bin",
                             std::ios::binary | std::ios::in | std::ios::out);
@@ -196,7 +245,7 @@ int main() {
 
     // Using custom structures
     {
-      std::cout << "7. Using custom structures:" << std::endl;
+      std::cout << "8. Using custom structures:" << std::endl;
 
       nova::BinaryFile file("test_struct.bin", std::ios::binary | std::ios::in |
                                                    std::ios::out |
@@ -232,7 +281,7 @@ int main() {
 
     // Multiple value read/write
     {
-      std::cout << "8. Multiple value read/write:" << std::endl;
+      std::cout << "9. Multiple value read/write:" << std::endl;
 
       nova::BinaryFile file("test_multi.bin", std::ios::binary | std::ios::in |
                                                   std::ios::out |
@@ -267,7 +316,7 @@ int main() {
 
     // File state checks
     {
-      std::cout << "9. File state checks:" << std::endl;
+      std::cout << "10. File state checks:" << std::endl;
 
       nova::BinaryFile file("test_data.bin", std::ios::binary | std::ios::in);
 

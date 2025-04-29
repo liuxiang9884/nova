@@ -7,7 +7,6 @@
 #include <fstream>
 #include <stdexcept>
 #include <string>
-#include <string_view>
 
 #include "nova/common/macros.h"
 
@@ -64,6 +63,18 @@ class BinaryFile {
     return file_.is_open();
   }
 
+  // Read data from file into a buffer of specific size
+  void Read(void* buffer, std::size_t size) {
+    file_.read(static_cast<char*>(buffer), size);
+    ProcessError("Read buffer operation failed");
+  }
+
+  // Write data from buffer to file
+  void Write(const void* buffer, std::size_t size) {
+    file_.write(static_cast<const char*>(buffer), size);
+    ProcessError("Write buffer operation failed");
+  }
+
   template <typename T>
   T ReadAs() {
     T value;
@@ -74,7 +85,7 @@ class BinaryFile {
 
   // Read array into buffer
   template <typename T>
-  void BatchRead(T* buffer, size_t count = 1) {
+  void BatchRead(T* buffer, std::size_t count = 1) {
     file_.read(reinterpret_cast<char*>(buffer), sizeof(T) * count);
     ProcessError("BatchRead operation failed");
   }
