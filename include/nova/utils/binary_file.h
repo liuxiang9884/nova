@@ -27,8 +27,15 @@ class BinaryFile {
       std::ios::binary | std::ios::in | std::ios::out;
 
   explicit BinaryFile(const std::string& file_path,
-                      std::ios_base::openmode mode = kDefaultOpenMode)
-      : file_(file_path, mode) {
+                      std::ios_base::openmode mode = kDefaultOpenMode) {
+    Open(file_path, mode);
+  }
+
+  explicit BinaryFile() = default;
+
+  void Open(const std::string& file_path,
+            std::ios_base::openmode mode = kDefaultOpenMode) {
+    file_.open(file_path, mode);
     if (!file_.is_open()) {
       throw std::runtime_error("Failed to open file: " + file_path);
     }
