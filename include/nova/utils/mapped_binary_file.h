@@ -93,25 +93,8 @@ class MappedBinaryFile {
 
   void Open(const std::string& file_path, OpenMode mode,
             std::size_t initial_size, MapMode map_mode) {
-    int flags;
-    int prot;
-
-    switch (mode) {
-      case OpenMode::kReadOnly:
-        flags = O_RDONLY;
-        prot = PROT_READ;
-        break;
-      case OpenMode::kReadWrite:
-        flags = O_RDWR | O_CREAT;
-        prot = PROT_READ | PROT_WRITE;
-        break;
-      case OpenMode::kWriteOnly:
-        flags = O_WRONLY | O_CREAT;
-        prot = PROT_WRITE;
-        break;
-    }
-
-    fd_ = open(file_path.c_str(), flags, 0644);
+    auto [fd, prot] = OpenFile(file_path, mode);
+    fd_ = fd;
     if (fd_ == -1) {
       throw std::runtime_error("Failed to open file: " + file_path);
     }
@@ -263,6 +246,30 @@ class MappedBinaryFile {
   }
 
  private:
+  static std::pair<int, int> OpenFile(const std::string& file_path,
+                                      OpenMode mode) {
+    int flags;
+    int prot;
+
+    switch (mode) {
+      case OpenMode::kReadOnly:
+        flags = O_RDONLY;
+        prot = PROT_READ;
+        break;
+      case OpenMode::kReadWrite:
+        flags = O_RDWR | O_CREAT;
+        prot = PROT_READ | PROT_WRITE;
+        break;
+      case OpenMode::kWriteOnly:
+        flags = O_WRONLY | O_CREAT;
+        prot = PROT_WRITE;
+        break;
+    }
+
+    int fd = open(file_path.c_str(), flags, 0644);
+    return {fd, prot};
+  }
+
   int fd_{-1};                  // File descriptor
   void* data_{nullptr};         // Memory mapped address
   std::size_t size_{0};         // File size
