@@ -12,13 +12,6 @@
 
 namespace nova {
 
-// Default DEBUG_MODE
-#if !defined(NDEBUG)
-#define DEBUG_MODE 1
-#else
-#define DEBUG_MODE 0
-#endif
-
 class BinaryFile {
  public:
   // File open modes as an enum
@@ -235,7 +228,7 @@ class BinaryFile {
  private:
   // Helper function for error processing, only throws in debug mode
   NOVA_FORCE_INLINE void ProcessError(const char* message) const {
-    if constexpr (DEBUG_MODE) {
+    if constexpr (NOVA_DEBUG_MODE) {
       if (!file_) {
         throw std::runtime_error(message);
       }
