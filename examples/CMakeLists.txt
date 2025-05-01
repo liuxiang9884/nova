@@ -34,3 +34,8 @@ target_link_libraries(sp_broadcast_queue_demo PRIVATE fmt::fmt-header-only nova)
 add_executable(binary_file_demo binary_file_demo.cpp)
 target_include_directories(binary_file_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
 target_link_libraries(binary_file_demo PRIVATE fmt::fmt-header-only nova)
+
+#mapped_binary_file_demo
+add_executable(mapped_binary_file_demo mapped_binary_file_demo.cpp)
+target_include_directories(mapped_binary_file_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
+target_link_libraries(mapped_binary_file_demo PRIVATE fmt::fmt-header-only nova)
