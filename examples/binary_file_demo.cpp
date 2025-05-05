@@ -57,7 +57,7 @@ int main() {
         try {
           nova::BinaryFile file("test_wo.bin",
                                 nova::BinaryFile::OpenMode::kWriteOnly);
-          file.Write("Test data", 9);
+          file.WriteBuffer("Test data", 9);
           std::cout << "Created and wrote to file successfully" << std::endl;
         } catch (const std::exception& e) {
           std::cout << "Failed: " << e.what() << std::endl;
@@ -73,12 +73,12 @@ int main() {
           std::cout << "Opened successfully" << std::endl;
 
           char buffer[10];
-          file.Read(buffer, 9);
+          file.ReadBuffer(buffer, 9);
           buffer[9] = '\0';
           std::cout << "    Read data: " << buffer << std::endl;
 
           file.SeekWriteCursor(0);
-          file.Write("New data!", 9);
+          file.WriteBuffer("New data!", 9);
           std::cout << "    Wrote new data" << std::endl;
         } catch (const std::exception& e) {
           std::cout << "Failed: " << e.what() << std::endl;
@@ -91,8 +91,8 @@ int main() {
         try {
           nova::BinaryFile file("test_append.bin",
                                 nova::BinaryFile::OpenMode::kAppend);
-          file.Write("First append", 12);
-          file.Write(" - Second append", 16);
+          file.WriteBuffer("First append", 12);
+          file.WriteBuffer(" - Second append", 16);
           std::cout << "Appended data successfully" << std::endl;
         } catch (const std::exception& e) {
           std::cout << "Failed: " << e.what() << std::endl;
@@ -103,7 +103,7 @@ int main() {
           nova::BinaryFile file("test_append.bin",
                                 nova::BinaryFile::OpenMode::kReadOnly);
           char buffer[50];
-          file.Read(buffer, 28);
+          file.ReadBuffer(buffer, 28);
           buffer[28] = '\0';
           std::cout << "    Read appended data: " << buffer << std::endl;
         } catch (const std::exception& e) {
@@ -118,14 +118,14 @@ int main() {
           nova::BinaryFile file("test_append.bin",
                                 nova::BinaryFile::OpenMode::kReadAppend);
           char buffer[50];
-          file.Read(buffer, 28);
+          file.ReadBuffer(buffer, 28);
           buffer[28] = '\0';
           std::cout << "Read existing data" << std::endl;
           std::cout << "    Content: " << buffer << std::endl;
 
           // Append more data (should go to the end regardless of current
           // position)
-          file.Write(" - Third append", 15);
+          file.WriteBuffer(" - Third append", 15);
           std::cout << "    Appended more data" << std::endl;
         } catch (const std::exception& e) {
           std::cout << "Failed: " << e.what() << std::endl;
@@ -140,19 +140,19 @@ int main() {
           {
             nova::BinaryFile file("test_trunc.bin",
                                   nova::BinaryFile::OpenMode::kWriteOnly);
-            file.Write("Original data", 13);
+            file.WriteBuffer("Original data", 13);
           }
 
           // Now truncate and write new data
           nova::BinaryFile file("test_trunc.bin",
                                 nova::BinaryFile::OpenMode::kTruncate);
-          file.Write("Truncated data", 14);
+          file.WriteBuffer("Truncated data", 14);
           std::cout << "Truncated and wrote new data" << std::endl;
 
           // Read back to verify
           file.SeekReadCursor(0);
           char buffer[20];
-          file.Read(buffer, 14);
+          file.ReadBuffer(buffer, 14);
           buffer[14] = '\0';
           std::cout << "    Content after truncate: " << buffer << std::endl;
         } catch (const std::exception& e) {
@@ -166,13 +166,13 @@ int main() {
         try {
           nova::BinaryFile file("test_rw.bin",
                                 nova::BinaryFile::OpenMode::kReadWriteTruncate);
-          file.Write("ReadWriteTruncate test", 21);
+          file.WriteBuffer("ReadWriteTruncate test", 21);
           std::cout << "Created and wrote to file" << std::endl;
 
           // Read back the data
           file.SeekReadCursor(0);
           char buffer[30];
-          file.Read(buffer, 21);
+          file.ReadBuffer(buffer, 21);
           buffer[21] = '\0';
           std::cout << "    Content: " << buffer << std::endl;
         } catch (const std::exception& e) {
@@ -188,7 +188,7 @@ int main() {
           {
             nova::BinaryFile file("test_ate.bin",
                                   nova::BinaryFile::OpenMode::kWriteOnly);
-            file.Write("Initial data for AtEnd mode", 26);
+            file.WriteBuffer("Initial data for AtEnd mode", 26);
           }
 
           // Open with AtEnd
@@ -199,12 +199,12 @@ int main() {
                     << std::endl;
 
           // We're at the end, so add more data
-          file.Write(" - Added at end", 15);
+          file.WriteBuffer(" - Added at end", 15);
 
           // Read the whole file from beginning
           file.SeekReadCursor(0);
           char buffer[50];
-          file.Read(buffer, 41);
+          file.ReadBuffer(buffer, 41);
           buffer[41] = '\0';
           std::cout << "    Full content: " << buffer << std::endl;
         } catch (const std::exception& e) {
@@ -304,7 +304,7 @@ int main() {
       size_t textLength = strlen(text) + 1;  // Include null terminator
 
       // Write the buffer
-      file.Write(text, textLength);
+      file.WriteBuffer(text, textLength);
       std::cout << "  - Wrote text buffer: \"" << text << "\"" << std::endl;
 
       // Reset position
@@ -312,7 +312,7 @@ int main() {
 
       // Read the buffer
       char buffer[100];
-      file.Read(buffer, textLength);
+      file.ReadBuffer(buffer, textLength);
 
       std::cout << "  - Read text buffer: \"" << buffer << "\"" << std::endl;
 
@@ -320,7 +320,7 @@ int main() {
       uint8_t binaryData[10] = {0x01, 0x02, 0x03, 0x04, 0x05,
                                 0x06, 0x07, 0x08, 0x09, 0x0A};
       file.SeekWriteCursor(0);
-      file.Write(binaryData, sizeof(binaryData));
+      file.WriteBuffer(binaryData, sizeof(binaryData));
 
       std::cout << "  - Wrote binary buffer of " << sizeof(binaryData)
                 << " bytes" << std::endl;
@@ -328,7 +328,7 @@ int main() {
       // Reset position and read
       file.SeekReadCursor(0);
       uint8_t readBuffer[10];
-      file.Read(readBuffer, sizeof(readBuffer));
+      file.ReadBuffer(readBuffer, sizeof(readBuffer));
 
       std::cout << "  - Read binary buffer: ";
       for (size_t i = 0; i < sizeof(readBuffer); i++) {

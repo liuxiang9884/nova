@@ -100,13 +100,13 @@ class BinaryFile {
   }
 
   // Read data from file into a buffer of specific size
-  void Read(void* buffer, std::size_t size) {
+  void ReadBuffer(void* buffer, std::size_t size) {
     file_.read(static_cast<char*>(buffer), size);
     ProcessError("Read buffer operation failed");
   }
 
   // Write data from buffer to file
-  void Write(const void* buffer, std::size_t size) {
+  void WriteBuffer(const void* buffer, std::size_t size) {
     file_.write(static_cast<const char*>(buffer), size);
     ProcessError("Write buffer operation failed");
   }
@@ -114,7 +114,7 @@ class BinaryFile {
   template <typename T>
   T ReadAs() {
     T value;
-    file_.read(reinterpret_cast<char*>(&value), sizeof(T));
+    ReadBuffer(reinterpret_cast<char*>(&value), sizeof(T));
     ProcessError("ReadAs operation failed");
     return value;
   }
@@ -122,14 +122,14 @@ class BinaryFile {
   // Read array into buffer
   template <typename T>
   void BatchRead(T* buffer, std::size_t count = 1) {
-    file_.read(reinterpret_cast<char*>(buffer), sizeof(T) * count);
+    ReadBuffer(reinterpret_cast<char*>(buffer), sizeof(T) * count);
     ProcessError("BatchRead operation failed");
   }
 
   // Read a single variable
   template <typename T>
   void Read(T& value) {
-    file_.read(reinterpret_cast<char*>(&value), sizeof(T));
+    ReadBuffer(reinterpret_cast<char*>(&value), sizeof(T));
     ProcessError("Read operation failed");
   }
 
@@ -145,7 +145,7 @@ class BinaryFile {
   // Write array
   template <typename T>
   void BatchWrite(const T* data, std::size_t count = 1) {
-    file_.write(reinterpret_cast<const char*>(data), sizeof(T) * count);
+    WriteBuffer(reinterpret_cast<const char*>(data), sizeof(T) * count);
     ProcessError("Write operation failed");
   }
 
@@ -154,7 +154,7 @@ class BinaryFile {
   void Write(const T& value) {
     static_assert(std::is_trivially_copyable_v<T>,
                   "Only trivially copyable types can be written");
-    file_.write(reinterpret_cast<const char*>(&value), sizeof(T));
+    WriteBuffer(reinterpret_cast<const char*>(&value), sizeof(T));
     ProcessError("Write operation failed");
   }
 
@@ -166,7 +166,7 @@ class BinaryFile {
                   "Only trivially copyable types can be written");
 
     if (!data.empty()) {
-      file_.write(
+      WriteBuffer(
           reinterpret_cast<const char*>(data.data()),
           static_cast<std::streamsize>(data.size() * sizeof(value_type)));
       ProcessError("Container write operation failed");
@@ -186,7 +186,7 @@ class BinaryFile {
   void WriteAs(const T& value) {
     static_assert(std::is_trivially_copyable_v<T>,
                   "Only trivially copyable types can be written");
-    file_.write(reinterpret_cast<const char*>(&value), sizeof(T));
+    WriteBuffer(reinterpret_cast<const char*>(&value), sizeof(T));
     ProcessError("WriteAs operation failed");
   }
 
