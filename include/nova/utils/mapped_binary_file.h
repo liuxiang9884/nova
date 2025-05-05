@@ -82,7 +82,7 @@ class MappedBinaryFile {
 
   void Open(const std::string& file_path, OpenMode mode = OpenMode::kReadOnly,
             std::size_t initial_size = 0, MapMode map_mode = MapMode::kLazy) {
-    auto [flags, prot] = ProcessOpenMode(file_path, mode);
+    auto [flags, prot] = ProcessOpenMode(mode);
     fd_ = open(file_path.c_str(), flags, kDefaultFileMode);
     if (fd_ == -1) {
       throw std::runtime_error("Failed to open file: " + file_path);
