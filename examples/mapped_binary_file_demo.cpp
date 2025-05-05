@@ -32,7 +32,7 @@ void write_demo() {
     std::string text = "Hello, Memory Mapping!";
     uint32_t len = text.length();
     file.Write(len);
-    file.Write(text.c_str(), len);
+    file.WriteBuffer(text.c_str(), len);
 
     // Write struct
     Record record{1, 99.9, "Test Record"};
@@ -52,9 +52,9 @@ void write_demo() {
     char c = 'X';
     file.Write(a, b, c);
 
-    // Demonstrate using void* version of Write
+    // Demonstrate using WriteBuffer for raw memory
     char raw_buffer[10] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'};
-    file.Write(raw_buffer, 10);
+    file.WriteBuffer(raw_buffer, 10);
 
     std::cout << "Write demonstration completed\n";
   } catch (const std::exception& e) {
@@ -80,7 +80,7 @@ void read_demo() {
     // Read string
     uint32_t len = file.ReadAs<uint32_t>();
     std::vector<char> buffer(len + 1, '\0');
-    file.Read(buffer.data(), len);
+    file.ReadBuffer(buffer.data(), len);
     std::cout << "Read string: " << buffer.data() << std::endl;
 
     // Read struct
@@ -115,9 +115,9 @@ void read_demo() {
     std::cout << "Multiple read: " << a << ", " << b << ", '" << c << "'"
               << std::endl;
 
-    // Demonstrate using void* version of Read
+    // Demonstrate using ReadBuffer for raw memory
     char raw_buffer[11] = {0};
-    file.Read(raw_buffer, 10);
+    file.ReadBuffer(raw_buffer, 10);
     std::cout << "Raw buffer read: " << raw_buffer << std::endl;
 
   } catch (const std::exception& e) {
