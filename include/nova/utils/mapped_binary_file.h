@@ -33,7 +33,10 @@ class MappedBinaryFile {
     kPreload  // Preload all pages
   };
 
-  explicit MappedBinaryFile() : fd_(-1), data_(nullptr), size_(0) {}
+  // File permission constants
+  static constexpr mode_t kDefaultFileMode = 0644;  // rw-r--r--
+
+  explicit MappedBinaryFile() = default;
 
   explicit MappedBinaryFile(const std::string& file_path,
                             OpenMode mode = OpenMode::kReadOnly,
@@ -77,30 +80,16 @@ class MappedBinaryFile {
     return *this;
   }
 
-  // Helper function to determine if preload should be used
-  static bool ShouldUsePreload(size_t file_size) {
-    // Simple heuristic: use preload for files smaller than 64MB
-    constexpr size_t kPreloadThreshold = 64 * 1024 * 1024;
-    return file_size < kPreloadThreshold;
-  }
-
   void Open(const std::string& file_path, OpenMode mode = OpenMode::kReadOnly,
-            std::size_t initial_size = 0) {
-    // Automatically choose map mode based on file size
-    Open(file_path, mode, initial_size,
-         ShouldUsePreload(initial_size) ? MapMode::kPreload : MapMode::kLazy);
-  }
-
-  void Open(const std::string& file_path, OpenMode mode,
-            std::size_t initial_size, MapMode map_mode) {
-    auto [fd, prot] = OpenFile(file_path, mode);
-    fd_ = fd;
+            std::size_t initial_size = 0, MapMode map_mode = MapMode::kLazy) {
+    auto [flags, prot] = ProcessOpenMode(file_path, mode);
+    fd_ = open(file_path.c_str(), flags, kDefaultFileMode);
     if (fd_ == -1) {
       throw std::runtime_error("Failed to open file: " + file_path);
     }
 
     // Get or set file size
-    struct stat st;
+    struct stat st{};
     if (fstat(fd_, &st) == -1) {
       Close();
       throw std::runtime_error("Failed to get file stats");
@@ -108,7 +97,7 @@ class MappedBinaryFile {
 
     size_ = st.st_size;
     if (mode != OpenMode::kReadOnly && initial_size > size_) {
-      if (ftruncate(fd_, initial_size) == -1) {
+      if (ftruncate(fd_, static_cast<off_t>(initial_size)) == -1) {
         Close();
         throw std::runtime_error("Failed to resize file");
       }
@@ -145,7 +134,7 @@ class MappedBinaryFile {
     current_pos_ = 0;
   }
 
-  bool IsOpen() const {
+  [[nodiscard]] bool IsOpen() const {
     return fd_ != -1 && data_ != nullptr;
   }
 
@@ -229,11 +218,11 @@ class MappedBinaryFile {
     current_pos_ = pos;
   }
 
-  std::size_t Tell() const {
+  [[nodiscard]] std::size_t Tell() const {
     return current_pos_;
   }
 
-  std::size_t size() const {
+  [[nodiscard]] std::size_t size() const {
     return size_;
   }
 
@@ -241,15 +230,15 @@ class MappedBinaryFile {
     return data_;
   }
 
-  const void* data() const {
+  [[nodiscard]] const void* data() const {
     return data_;
   }
 
  private:
-  static std::pair<int, int> OpenFile(const std::string& file_path,
-                                      OpenMode mode) {
-    int flags;
-    int prot;
+  static std::pair<int, int> ProcessOpenMode(const std::string& file_path,
+                                             OpenMode mode) {
+    int flags = 0;
+    int prot = 0;
 
     switch (mode) {
       case OpenMode::kReadOnly:
@@ -266,8 +255,7 @@ class MappedBinaryFile {
         break;
     }
 
-    int fd = open(file_path.c_str(), flags, 0644);
-    return {fd, prot};
+    return {flags, prot};
   }
 
   int fd_{-1};                  // File descriptor
