@@ -101,13 +101,13 @@ class BinaryFile {
 
   // Read data from file into a buffer of specific size
   void ReadBuffer(void* buffer, std::size_t size) {
-    file_.read(static_cast<char*>(buffer), size);
+    file_.read(static_cast<char*>(buffer), static_cast<long>(size));
     ProcessError("Read buffer operation failed");
   }
 
   // Write data from buffer to file
   void WriteBuffer(const void* buffer, std::size_t size) {
-    file_.write(static_cast<const char*>(buffer), size);
+    file_.write(static_cast<const char*>(buffer), static_cast<long>(size));
     ProcessError("Write buffer operation failed");
   }
 
