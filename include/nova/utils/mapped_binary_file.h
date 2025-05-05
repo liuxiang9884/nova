@@ -239,8 +239,7 @@ class MappedBinaryFile {
   }
 
  private:
-  static std::pair<int, int> ProcessOpenMode(const std::string& file_path,
-                                             OpenMode mode) {
+  static std::pair<int, int> ProcessOpenMode(OpenMode mode) {
     int flags = 0;
     int prot = 0;
 
