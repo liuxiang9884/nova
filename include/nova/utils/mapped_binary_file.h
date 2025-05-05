@@ -222,6 +222,10 @@ class MappedBinaryFile {
     return current_pos_;
   }
 
+  [[nodiscard]] bool Eof() const {
+    return current_pos_ >= size_;
+  }
+
   [[nodiscard]] std::size_t size() const {
     return size_;
   }
