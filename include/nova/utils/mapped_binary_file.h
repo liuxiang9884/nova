@@ -163,18 +163,18 @@ class MappedBinaryFile {
   template <typename T>
   T ReadAs() {
     T value;
-    Read(&value, sizeof(T));
+    ReadImpl(&value, sizeof(T));
     return value;
   }
 
   template <typename T>
   void BatchRead(T* buffer, std::size_t count = 1) {
-    Read(buffer, sizeof(T) * count);
+    ReadImpl(buffer, sizeof(T) * count);
   }
 
   template <typename T>
   void Read(T& value) {
-    Read(&value, sizeof(T));
+    ReadImpl(&value, sizeof(T));
   }
 
   template <typename First, typename... Rest>
@@ -187,14 +187,22 @@ class MappedBinaryFile {
 
   template <typename T>
   void BatchWrite(const T* data, std::size_t count = 1) {
-    Write(data, sizeof(T) * count);
+    WriteImpl(data, sizeof(T) * count);
   }
 
   template <typename T>
   void Write(const T& value) {
     static_assert(std::is_trivially_copyable_v<T>,
                   "Only trivially copyable types can be written");
-    Write(&value, sizeof(T));
+    WriteImpl(&value, sizeof(T));
+  }
+
+  template <typename First, typename... Rest>
+  void Write(const First& first, const Rest&... rest) {
+    Write(first);
+    if constexpr (sizeof...(rest) > 0) {
+      Write(rest...);
+    }
   }
 
   template <typename Container>
@@ -204,7 +212,7 @@ class MappedBinaryFile {
                   "Only trivially copyable types can be written");
 
     if (!data.empty()) {
-      Write(data.data(), data.size() * sizeof(value_type));
+      WriteImpl(data.data(), data.size() * sizeof(value_type));
     }
   }
 
@@ -239,6 +247,15 @@ class MappedBinaryFile {
   }
 
  private:
+  // Private implementation methods to avoid template overload problems
+  NOVA_FORCE_INLINE void ReadImpl(void* buffer, std::size_t size) {
+    Read(buffer, size);
+  }
+
+  NOVA_FORCE_INLINE void WriteImpl(const void* buffer, std::size_t size) {
+    Write(buffer, size);
+  }
+
   static std::pair<int, int> ProcessOpenMode(OpenMode mode) {
     int flags = 0;
     int prot = 0;
