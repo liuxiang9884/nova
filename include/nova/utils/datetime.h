@@ -11,11 +11,7 @@
 #include <string_view>
 #include <tuple>
 
-// Configure header inclusion based on your project requirements
-// If fmt is a third-party library, ensure it's properly installed
-#ifdef HAVE_FMT
 #include <fmt/format.h>
-#endif
 
 // Check architecture to ensure emmintrin.h is only used on x86/x64
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || \
@@ -39,9 +35,12 @@ inline void CpuDelay(std::size_t delay) {
   for (std::size_t i = 0; i < delay; ++i) _mm_pause();
 #else
   // Alternative implementation for non-x86 architectures
-  volatile std::size_t i;
-  for (i = 0; i < delay * 50; ++i) {
-    // Empty loop to prevent compiler optimization
+  // Use a non-incrementing approach to avoid volatile increment warning
+  volatile std::size_t i = 0;
+  const std::size_t target = delay * 50;
+  while (i < target) {
+    // Empty block to prevent compiler optimization
+    i = i + 1;  // Assign instead of increment
   }
 #endif
 }
@@ -202,12 +201,7 @@ inline void MicrosecondToStr(char *str, const int64_t us,
   tp.tm_isdst = 0;
   strftime(tmp, sizeof(tmp), format, &tp);
 
-#ifdef HAVE_FMT
   fmt::format_to(str, "{}.{:06d}", tmp, decimal);
-#else
-  // Alternative implementation without fmt library
-  sprintf(str, "%s.%06ld", tmp, decimal);
-#endif
 }
 
 /**
@@ -228,13 +222,7 @@ inline void NanosecondToMilliStr(char *str, const int64_t ns,
   localtime_r(&second, &tp);
   tp.tm_isdst = 0;
   strftime(tmp, sizeof(tmp), format, &tp);
-
-#ifdef HAVE_FMT
   fmt::format_to(str, "{}.{:03d}", tmp, decimal);
-#else
-  // Alternative implementation without fmt library
-  sprintf(str, "%s.%03ld", tmp, decimal);
-#endif
 }
 
 /**
@@ -367,7 +355,8 @@ inline int64_t GetDateStartNanosecond(const int64_t date) {
  */
 union TimeFmt {
   int64_t val;
-  struct {
+  // Use a named struct to avoid GNU anonymous struct extension warning
+  struct TimeComponents {
     int8_t h1;
     int8_t h0;
     int8_t c1;
@@ -376,7 +365,7 @@ union TimeFmt {
     int8_t c2;
     int8_t s1;
     int8_t s0;
-  };
+  } components;
 };
 
 /**
@@ -393,9 +382,9 @@ inline std::tuple<int64_t, int64_t, int64_t> ParseTime(
   }
 
   auto ptr = reinterpret_cast<const TimeFmt *>(time.data());
-  auto hour = (ptr->h1 - '0') * 10 + (ptr->h0 - '0');
-  auto minute = (ptr->m1 - '0') * 10 + (ptr->m0 - '0');
-  auto second = (ptr->s1 - '0') * 10 + (ptr->s0 - '0');
+  auto hour = (ptr->components.h1 - '0') * 10 + (ptr->components.h0 - '0');
+  auto minute = (ptr->components.m1 - '0') * 10 + (ptr->components.m0 - '0');
+  auto second = (ptr->components.s1 - '0') * 10 + (ptr->components.s0 - '0');
   return {hour, minute, second};
 }
 
