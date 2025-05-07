@@ -146,6 +146,8 @@ class LogManager {
 
   void Initialize(const LogConfig& config);
 
+  static void Stop();
+
   struct NovaFrontendOptions {
     static constexpr quill::QueueType queue_type = kDefaultLogQueueType;
     static constexpr std::size_t initial_queue_capacity =
@@ -181,9 +183,12 @@ class LogManager {
   NovaLogger* logger_{nullptr};
 };
 
-extern LogManager kLogManager;
+extern LogManager& kLogManager;
 void InitializeLogging(const LogConfig& config = LogConfig{});
+
 void PreallocateLogging();
+
+void StopLogging();
 
 }  // namespace nova
 

@@ -18,7 +18,7 @@ namespace fs = std::filesystem;
 
 namespace nova {
 
-LogManager kLogManager = LogManager::Instance();
+LogManager& kLogManager = LogManager::Instance();
 
 void InitializeLogging(const LogConfig& config) {
   kLogManager.Initialize(config);
@@ -26,6 +26,10 @@ void InitializeLogging(const LogConfig& config) {
 
 void PreallocateLogging() {
   nova::LogManager::Preallocate();
+}
+
+void StopLogging() {
+  nova::LogManager::Stop();
 }
 
 #ifdef NDEBUG
@@ -228,7 +232,13 @@ void LogManager::InitializeFrontend() {
 }
 
 LogManager::~LogManager() {
-  quill::Backend::stop();
+  Stop();
+}
+
+void LogManager::Stop() {
+  if (quill::Backend::is_running()) {
+    quill::Backend::stop();
+  }
 }
 
 void LogManager::Initialize(const LogConfig& config) {
