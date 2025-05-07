@@ -26,8 +26,8 @@ enum LogLevel : uint8_t {
 };
 
 constexpr quill::QueueType kDefaultLogQueueType =
-    quill::QueueType::BoundedDropping;
-constexpr std::size_t kDefaultLogInitialQueueCapacity = 1024 * 1024;
+    quill::QueueType::BoundedBlocking;
+constexpr std::size_t kDefaultLogInitialQueueCapacity = 128 * 1024 * 1024;
 constexpr uint32_t kDefaultLogBlockingQueueRetryIntervalNs = 800;
 constexpr uint32_t kDefaultLogUnboundedQueueMaxCapacity =
     2ull * 1024u * 1024u * 1024u;
