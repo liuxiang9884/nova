@@ -227,6 +227,10 @@ void LogManager::InitializeFrontend() {
   logger_ = NovaFrontend::create_or_get_logger("logger", sinks, format_options);
 }
 
+LogManager::~LogManager() {
+  quill::Backend::stop();
+}
+
 void LogManager::Initialize(const LogConfig& config) {
   config_ = config;
   InitializeBackend();

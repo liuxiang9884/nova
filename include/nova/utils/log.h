@@ -136,6 +136,9 @@ class LogConfig {
 
 class LogManager {
  public:
+  LogManager() = default;
+  ~LogManager();
+
   static LogManager& Instance() {
     static LogManager instance;
     return instance;
@@ -152,7 +155,7 @@ class LogManager {
     static constexpr std::size_t unbounded_queue_max_capacity =
         kDefaultLogUnboundedQueueMaxCapacity;
     static constexpr quill::HugePagesPolicy huge_pages_policy =
-      kDefaultLogHugePagesPolicy;
+        kDefaultLogHugePagesPolicy;
   };
 
   using NovaFrontend = quill::FrontendImpl<NovaFrontendOptions>;
