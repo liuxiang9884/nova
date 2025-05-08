@@ -51,7 +51,7 @@
   }                                            \
   [[nodiscard]] type name() const {            \
     return name##_;                            \
-  }
+  }                                            \
 
 // Pass by reference
 #define DEFINE_PROPERTY(type, name, ...)   \
@@ -67,4 +67,4 @@
   }                                        \
   [[nodiscard]] const type& name() const { \
     return name##_;                        \
-  }
+  }                                        \
