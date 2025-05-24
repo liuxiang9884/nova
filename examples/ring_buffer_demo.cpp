@@ -1,10 +1,42 @@
 #include <cassert>
+#include <cstring>  // 添加string.h头文件
 #include <iostream>
 #include <string>
 
 #include "nova/base/ring_buffer.h"
 
 using namespace nova;
+
+// 用于测试的符合共享内存约束的类型
+struct SharedMemoryPoint {
+  float x, y, z;
+  int32_t timestamp;
+};
+
+struct SharedMemoryData {
+  int id;
+  double value;
+  char name[32];  // 使用固定大小数组替代std::string
+  bool active;
+};
+
+// 用于测试的固定大小字符串类型
+struct FixedString {
+  char data[32];
+
+  FixedString() {
+    data[0] = '\0';
+  }
+
+  FixedString(const char* str) {
+    strncpy(data, str, sizeof(data) - 1);
+    data[sizeof(data) - 1] = '\0';
+  }
+
+  const char* c_str() const {
+    return data;
+  }
+};
 
 void TestBasicOperations() {
   std::cout << "=== Testing Basic Operations ===" << std::endl;
@@ -33,26 +65,27 @@ void TestBasicOperations() {
 void TestIndexAccess() {
   std::cout << "\n=== Testing Index Access ===" << std::endl;
 
-  RingBuffer<std::string> buffer(4);  // Capacity will be 4
+  // 使用FixedString替代char[32]
+  RingBuffer<FixedString> buffer(4);  // Capacity will be 4
 
-  buffer.Push("Hello");
-  buffer.Push("World");
-  buffer.Push("Ring");
-  buffer.Push("Buffer");
+  buffer.Push(FixedString("Hello"));
+  buffer.Push(FixedString("World"));
+  buffer.Push(FixedString("Ring"));
+  buffer.Push(FixedString("Buffer"));
 
   std::cout << "Buffer contents by relative index (0 = latest):" << std::endl;
   for (size_t i = 0; i < buffer.Capacity(); ++i) {
-    std::cout << "  [" << i << "] = " << buffer[i] << std::endl;
+    std::cout << "  [" << i << "] = " << buffer[i].c_str() << std::endl;
   }
 
   std::cout << "\nBuffer contents by absolute position:" << std::endl;
   for (size_t i = 0; i < buffer.Capacity(); ++i) {
-    std::cout << "  At(" << i << ") = " << buffer.At(i) << std::endl;
+    std::cout << "  At(" << i << ") = " << buffer.At(i).c_str() << std::endl;
   }
 
   // Modify element by relative index
-  buffer[1] = "Modified";
-  std::cout << "After modifying index 1: " << buffer[1] << std::endl;
+  buffer[1] = FixedString("Modified");
+  std::cout << "After modifying index 1: " << buffer[1].c_str() << std::endl;
 }
 
 void TestOverwriting() {
@@ -176,38 +209,33 @@ void TestWrapAround() {
 void TestEmplace() {
   std::cout << "\n=== Testing Emplace ===" << std::endl;
 
-  // Test with string construction
-  RingBuffer<std::string> buffer(4);
+  // Test with SharedMemoryData
+  RingBuffer<SharedMemoryData> buffer(4);
 
-  // Use Emplace to construct strings directly
-  buffer.Emplace("Hello");
-  buffer.Emplace(5, 'A');  // Construct string with 5 'A's
-  buffer.Emplace("World");
+  // Use Emplace to construct data directly
+  buffer.Emplace(SharedMemoryData{1, 3.14, "Hello", true});
+  buffer.Emplace(SharedMemoryData{2, 2.718, "World", false});
 
-  std::cout << "After emplacing strings:" << std::endl;
-  for (size_t i = 0; i < 3; ++i) {
-    std::cout << "  [" << i << "] = \"" << buffer[i] << "\"" << std::endl;
+  std::cout << "After emplacing data:" << std::endl;
+  for (size_t i = 0; i < 2; ++i) {
+    const auto& data = buffer[i];
+    std::cout << "  [" << i << "] = Data(id=" << data.id
+              << ", value=" << data.value << ", name=" << data.name
+              << ", active=" << data.active << ")" << std::endl;
   }
 
-  // Test with custom struct
-  struct Point {
-    int x, y;
-    Point(int x_val, int y_val) : x(x_val), y(y_val) {}
-    Point() : x(0), y(0) {}
-  };
-
-  RingBuffer<Point> point_buffer(4);
+  // Test with SharedMemoryPoint
+  RingBuffer<SharedMemoryPoint> point_buffer(4);
 
   // Emplace points directly
-  point_buffer.Emplace(10, 20);
-  point_buffer.Emplace(30, 40);
-  point_buffer.Push(Point(50, 60));  // Compare with Push
+  point_buffer.Emplace(SharedMemoryPoint{10.0f, 20.0f, 30.0f, 1234567890});
+  point_buffer.Emplace(SharedMemoryPoint{40.0f, 50.0f, 60.0f, 1234567891});
 
   std::cout << "\nAfter emplacing points:" << std::endl;
-  for (size_t i = 0; i < 3; ++i) {
-    Point p = point_buffer[i];
-    std::cout << "  [" << i << "] = Point(" << p.x << ", " << p.y << ")"
-              << std::endl;
+  for (size_t i = 0; i < 2; ++i) {
+    const auto& p = point_buffer[i];
+    std::cout << "  [" << i << "] = Point(" << p.x << ", " << p.y << ", " << p.z
+              << ", ts=" << p.timestamp << ")" << std::endl;
   }
 }
 
@@ -291,38 +319,33 @@ void TestStaticOverwriting() {
 void TestStaticEmplace() {
   std::cout << "\n=== Testing Static Buffer Emplace ===" << std::endl;
 
-  // Test with string construction
-  StaticRingBuffer<std::string, 4> buffer;
+  // Test with SharedMemoryData
+  StaticRingBuffer<SharedMemoryData, 4> buffer;
 
-  // Use Emplace to construct strings directly
-  buffer.Emplace("Hello");
-  buffer.Emplace(5, 'A');  // Construct string with 5 'A's
-  buffer.Emplace("World");
+  // Use Emplace to construct data directly
+  buffer.Emplace(SharedMemoryData{1, 3.14, "Hello", true});
+  buffer.Emplace(SharedMemoryData{2, 2.718, "World", false});
 
-  std::cout << "After emplacing strings:" << std::endl;
+  std::cout << "After emplacing data:" << std::endl;
   for (size_t i = 0; i < buffer.WrittenCount(); ++i) {
-    std::cout << "  [" << i << "] = \"" << buffer[i] << "\"" << std::endl;
+    const auto& data = buffer[i];
+    std::cout << "  [" << i << "] = Data(id=" << data.id
+              << ", value=" << data.value << ", name=" << data.name
+              << ", active=" << data.active << ")" << std::endl;
   }
 
-  // Test with custom struct
-  struct Point {
-    int x, y;
-    Point(int x_val, int y_val) : x(x_val), y(y_val) {}
-    Point() : x(0), y(0) {}
-  };
-
-  StaticRingBuffer<Point, 4> point_buffer;
+  // Test with SharedMemoryPoint
+  StaticRingBuffer<SharedMemoryPoint, 4> point_buffer;
 
   // Emplace points directly
-  point_buffer.Emplace(10, 20);
-  point_buffer.Emplace(30, 40);
-  point_buffer.Push(Point(50, 60));  // Compare with Push
+  point_buffer.Emplace(SharedMemoryPoint{10.0f, 20.0f, 30.0f, 1234567890});
+  point_buffer.Emplace(SharedMemoryPoint{40.0f, 50.0f, 60.0f, 1234567891});
 
   std::cout << "\nAfter emplacing points:" << std::endl;
   for (size_t i = 0; i < point_buffer.WrittenCount(); ++i) {
-    Point p = point_buffer[i];
-    std::cout << "  [" << i << "] = Point(" << p.x << ", " << p.y << ")"
-              << std::endl;
+    const auto& p = point_buffer[i];
+    std::cout << "  [" << i << "] = Point(" << p.x << ", " << p.y << ", " << p.z
+              << ", ts=" << p.timestamp << ")" << std::endl;
   }
 }
 
@@ -403,58 +426,6 @@ void TestStaticDifferentSizes() {
             << std::endl;
 }
 
-void TestSharedMemoryCompatibility() {
-  std::cout << "\n=== Testing Shared Memory Compatibility ===" << std::endl;
-
-  // Example of compatible types for shared memory
-  struct PODStruct {
-    int id;
-    double value;
-    char name[32];  // Fixed-size array instead of std::string
-    bool active;
-  };
-
-  struct CompatiblePoint {
-    float x, y, z;
-    int32_t timestamp;
-  };
-
-  // These types are compatible with shared memory
-  StaticRingBuffer<int, 8> int_buffer;
-  StaticRingBuffer<PODStruct, 4> pod_buffer;
-  StaticRingBuffer<CompatiblePoint, 16> point_buffer;
-
-  std::cout << "int buffer: " << sizeof(int_buffer) << " bytes" << std::endl;
-  std::cout << "POD struct buffer: " << sizeof(pod_buffer) << " bytes"
-            << std::endl;
-  std::cout << "Point buffer: " << sizeof(point_buffer) << " bytes"
-            << std::endl;
-
-  // Test with POD struct
-  PODStruct data{42, 3.14, "test_data", true};
-  pod_buffer.Push(data);
-
-  std::cout << "Successfully pushed POD struct" << std::endl;
-  std::cout << "Retrieved: id=" << pod_buffer.Latest().id
-            << ", value=" << pod_buffer.Latest().value
-            << ", name=" << pod_buffer.Latest().name << std::endl;
-
-  // Examples of INCOMPATIBLE types (these would cause compile errors):
-  /*
-  struct BadStruct {
-    std::string name;      // Dynamic allocation - BAD
-    std::vector<int> data; // Dynamic allocation - BAD
-    int* ptr;              // Pointer member - BAD
-  };
-
-  // This would fail compilation:
-  // StaticRingBuffer<BadStruct, 4> bad_buffer;
-  // StaticRingBuffer<std::string, 4> string_buffer;
-  */
-
-  std::cout << "Shared memory compatibility checks passed!" << std::endl;
-}
-
 int main() {
   try {
     // Dynamic RingBuffer tests
@@ -475,9 +446,6 @@ int main() {
     TestStaticIterators();
     TestStaticClear();
     TestStaticDifferentSizes();
-
-    // Shared memory compatibility test
-    TestSharedMemoryCompatibility();
 
     std::cout << "\n=== All tests completed successfully! ===" << std::endl;
   } catch (const std::exception& e) {
