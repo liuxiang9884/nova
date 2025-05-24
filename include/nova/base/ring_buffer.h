@@ -97,9 +97,19 @@ class RingBuffer {
 
   // Emplace an element directly in the buffer at current write position
   template <typename... Args>
-  void Emplace(Args&&... args) {
-    buffer_[write_pos_ & mask_] = T(std::forward<Args>(args)...);
+  T& Emplace(Args&&... args) {
+    T& item = buffer_[write_pos_ & mask_];
+    item = T(std::forward<Args>(args)...);
     ++write_pos_;
+    return item;
+  }
+
+  // Allocate memory at current write position without initialization
+  // Returns reference to the allocated memory
+  T& Allocate() {
+    T& item = buffer_[write_pos_ & mask_];
+    ++write_pos_;
+    return item;
   }
 
   // Access element by index from the beginning of writes
@@ -235,9 +245,19 @@ class StaticRingBuffer {
 
   // Emplace an element directly in the buffer at current write position
   template <typename... Args>
-  void Emplace(Args&&... args) {
-    buffer_[write_pos_ & kMask] = T(std::forward<Args>(args)...);
+  constexpr T& Emplace(Args&&... args) {
+    T& item = buffer_[write_pos_ & kMask];
+    item = T(std::forward<Args>(args)...);
     ++write_pos_;
+    return item;
+  }
+
+  // Allocate memory at current write position without initialization
+  // Returns reference to the allocated memory
+  constexpr T& Allocate() {
+    T& item = buffer_[write_pos_ & kMask];
+    ++write_pos_;
+    return item;
   }
 
   // Access element by index from the beginning of writes
@@ -316,11 +336,6 @@ class StaticRingBuffer {
   // Check if buffer is empty
   [[nodiscard]] constexpr bool IsEmpty() const {
     return write_pos_ == 0;
-  }
-
-  // Check if buffer is full
-  [[nodiscard]] constexpr bool IsFull() const {
-    return write_pos_ >= N;
   }
 
   // Get iterator to beginning of valid data

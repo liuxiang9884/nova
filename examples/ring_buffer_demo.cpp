@@ -134,7 +134,6 @@ void TestStaticRingBuffer() {
   std::cout << "Capacity: " << buffer.capacity() << std::endl;
   std::cout << "Is empty: " << (buffer.IsEmpty() ? "true" : "false")
             << std::endl;
-  std::cout << "Is full: " << (buffer.IsFull() ? "true" : "false") << std::endl;
 }
 
 int main() {
