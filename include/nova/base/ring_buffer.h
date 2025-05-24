@@ -5,6 +5,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <bit>
 #include <cstddef>
 #include <stdexcept>
@@ -194,6 +195,191 @@ class RingBuffer {
   size_type mask_;
   // Underlying storage
   std::vector<T> buffer_;
+  // Total number of elements written (also serves as write position)
+  size_type write_pos_;
+};
+
+// Static ring buffer implementation using std::array as underlying storage
+// Capacity N must be a power of 2 and is fixed at compile time
+//
+// For shared memory usage, type T must satisfy strict constraints
+template <typename T, std::size_t N>
+  requires std::is_standard_layout_v<T> && std::is_trivial_v<T> &&
+           std::is_trivially_copyable_v<T> &&
+           std::is_default_constructible_v<T> &&
+           std::is_copy_constructible_v<T> && std::is_move_constructible_v<T>
+class StaticRingBuffer {
+ public:
+  using value_type = T;
+  using size_type = std::size_t;
+  using reference = T&;
+  using const_reference = const T&;
+
+  // Compile-time check that N is a power of 2
+  static_assert(N > 0 && (N & (N - 1)) == 0, "Capacity N must be a power of 2");
+
+  // Default constructor
+  constexpr StaticRingBuffer() : write_pos_(0) {}
+
+  // Copy constructor
+  StaticRingBuffer(const StaticRingBuffer& other) = default;
+
+  // Move constructor
+  StaticRingBuffer(StaticRingBuffer&& other) noexcept = default;
+
+  // Copy assignment operator
+  StaticRingBuffer& operator=(const StaticRingBuffer& other) = default;
+
+  // Move assignment operator
+  StaticRingBuffer& operator=(StaticRingBuffer&& other) noexcept = default;
+
+  // Destructor
+  ~StaticRingBuffer() = default;
+
+  // Push an element to the buffer at current write position
+  void Push(const T& item) {
+    buffer_[write_pos_ & kMask] = item;
+    write_pos_++;
+  }
+
+  // Push an element to the buffer (move version)
+  void Push(T&& item) {
+    buffer_[write_pos_ & kMask] = std::move(item);
+    write_pos_++;
+  }
+
+  // Emplace an element directly in the buffer at current write position
+  template <typename... Args>
+  void Emplace(Args&&... args) {
+    buffer_[write_pos_ & kMask] = T(std::forward<Args>(args)...);
+    write_pos_++;
+  }
+
+  // Access element by index from the beginning of writes
+  // Index 0 is the first written element, index 1 is the second, etc.
+  constexpr const T& operator[](size_type index) const {
+    if constexpr (NOVA_DEBUG_MODE) {
+      if (index >= WrittenCount()) {
+        throw std::out_of_range("Index out of range");
+      }
+    }
+
+    // Calculate actual index in buffer
+    size_type actual_index = index & kMask;
+    return buffer_[actual_index];
+  }
+
+  // Access element by index (non-const version)
+  constexpr T& operator[](size_type index) {
+    if constexpr (NOVA_DEBUG_MODE) {
+      if (index >= WrittenCount()) {
+        throw std::out_of_range("Index out of range");
+      }
+    }
+
+    // Calculate actual index in buffer
+    size_type actual_index = index & kMask;
+    return buffer_[actual_index];
+  }
+
+  // Get element at specific absolute position in buffer
+  constexpr const T& At(size_type pos) const {
+    if constexpr (NOVA_DEBUG_MODE) {
+      if (pos >= N) {
+        throw std::out_of_range("Position out of range");
+      }
+    }
+    return buffer_[pos];
+  }
+
+  // Get element at specific absolute position in buffer (non-const version)
+  constexpr T& At(size_type pos) {
+    if constexpr (NOVA_DEBUG_MODE) {
+      if (pos >= N) {
+        throw std::out_of_range("Position out of range");
+      }
+    }
+    return buffer_[pos];
+  }
+
+  // Clear all elements from the buffer
+  void Clear() {
+    write_pos_ = 0;
+    // Optionally clear the array content
+    std::fill(buffer_.begin(), buffer_.end(), T{});
+  }
+
+  // Get the capacity of the buffer
+  [[nodiscard]] constexpr size_type Capacity() const {
+    return N;
+  }
+
+  // Get current write position in buffer
+  [[nodiscard]] constexpr size_type WritePosition() const {
+    return write_pos_ & kMask;
+  }
+
+  // Get the number of elements written so far
+  [[nodiscard]] constexpr size_type WrittenCount() const {
+    return std::min(write_pos_, N);
+  }
+
+  // Get the most recently written element
+  constexpr const T& Latest() const {
+    if constexpr (NOVA_DEBUG_MODE) {
+      if (write_pos_ == 0) {
+        throw std::out_of_range("No elements written yet");
+      }
+    }
+    return buffer_[(write_pos_ - 1) & kMask];
+  }
+
+  // Get the most recently written element (non-const version)
+  constexpr T& Latest() {
+    if constexpr (NOVA_DEBUG_MODE) {
+      if (write_pos_ == 0) {
+        throw std::out_of_range("No elements written yet");
+      }
+    }
+    return buffer_[(write_pos_ - 1) & kMask];
+  }
+
+  // Check if buffer is empty
+  [[nodiscard]] constexpr bool IsEmpty() const {
+    return write_pos_ == 0;
+  }
+
+  // Check if buffer is full
+  [[nodiscard]] constexpr bool IsFull() const {
+    return write_pos_ >= N;
+  }
+
+  // Get iterator to beginning of valid data
+  constexpr auto begin() const {
+    return buffer_.begin();
+  }
+
+  // Get iterator to end of buffer
+  constexpr auto end() const {
+    return buffer_.end();
+  }
+
+  // Get iterator to beginning of valid data (non-const)
+  constexpr auto begin() {
+    return buffer_.begin();
+  }
+
+  // Get iterator to end of buffer (non-const)
+  constexpr auto end() {
+    return buffer_.end();
+  }
+
+ private:
+  // Compile-time mask for efficient modulo operation
+  static constexpr size_type kMask = N - 1;
+
+  // Underlying storage
+  std::array<T, N> buffer_;
   // Total number of elements written (also serves as write position)
   size_type write_pos_;
 };
