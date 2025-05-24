@@ -49,3 +49,8 @@ target_link_libraries(datetime_demo PRIVATE fmt::fmt-header-only nova)
 add_executable(ring_buffer_demo ring_buffer_demo.cpp)
 target_include_directories(ring_buffer_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
 target_link_libraries(ring_buffer_demo PRIVATE fmt::fmt-header-only nova)
+
+#ring_pool_demo
+add_executable(ring_pool_demo ring_pool_demo.cpp)
+target_include_directories(ring_pool_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
+target_link_libraries(ring_pool_demo PRIVATE fmt::fmt-header-only nova)
