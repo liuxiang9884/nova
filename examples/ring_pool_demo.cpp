@@ -48,7 +48,7 @@ void TestBasicOperations() {
   // Test Allocate with size
   auto* raw_mem = pool.Allocate(100);
   std::cout << "Allocated 100 bytes at position: " << pool.latest_pos()
-            << std::endl;
+            << (raw_mem != nullptr) << std::endl;
 
   // Test template Allocate
   auto& obj2 = pool.Allocate<TestStruct>();
