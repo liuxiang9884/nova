@@ -8,6 +8,7 @@
 #include <array>
 #include <bit>
 #include <cstddef>
+#include <cstring>
 #include <stdexcept>
 #include <vector>
 
@@ -85,47 +86,31 @@ class RingBuffer {
   // Push an element to the buffer at current write position
   void Push(const T& item) {
     buffer_[write_pos_ & mask_] = item;
-    write_pos_++;
+    ++write_pos_;
   }
 
   // Push an element to the buffer (move version)
   void Push(T&& item) {
     buffer_[write_pos_ & mask_] = std::move(item);
-    write_pos_++;
+    ++write_pos_;
   }
 
   // Emplace an element directly in the buffer at current write position
   template <typename... Args>
   void Emplace(Args&&... args) {
     buffer_[write_pos_ & mask_] = T(std::forward<Args>(args)...);
-    write_pos_++;
+    ++write_pos_;
   }
 
   // Access element by index from the beginning of writes
   // Index 0 is the first written element, index 1 is the second, etc.
   const T& operator[](size_type index) const {
-    if constexpr (NOVA_DEBUG_MODE) {
-      if (index >= WrittenCount()) {
-        throw std::out_of_range("Index out of range");
-      }
-    }
-
-    // Calculate actual index in buffer
-    size_type actual_index = index & mask_;
-    return buffer_[actual_index];
+    return buffer_[index & mask_];
   }
 
   // Access element by index (non-const version)
   T& operator[](size_type index) {
-    if constexpr (NOVA_DEBUG_MODE) {
-      if (index >= WrittenCount()) {
-        throw std::out_of_range("Index out of range");
-      }
-    }
-
-    // Calculate actual index in buffer
-    size_type actual_index = index & mask_;
-    return buffer_[actual_index];
+    return buffer_[index & mask_];
   }
 
   // Get element at specific absolute position in buffer
@@ -156,22 +141,22 @@ class RingBuffer {
   }
 
   // Get the capacity of the buffer
-  [[nodiscard]] size_type Capacity() const {
+  [[nodiscard]] size_type capacity() const {
     return mask_ + 1;
   }
 
   // Get current write position
-  [[nodiscard]] size_type WritePosition() const {
+  [[nodiscard]] size_type write_position() const {
     return write_pos_ & mask_;
   }
 
   // Get the number of elements written so far
-  [[nodiscard]] size_type WrittenCount() const {
-    return std::min(write_pos_, mask_ + 1);
+  [[nodiscard]] size_type write_count() const {
+    return write_pos_;
   }
 
   // Get the most recently written element
-  const T& Latest() const {
+  const T& latest() const {
     if constexpr (NOVA_DEBUG_MODE) {
       if (write_pos_ == 0) {
         throw std::out_of_range("No elements written yet");
@@ -181,7 +166,7 @@ class RingBuffer {
   }
 
   // Get the most recently written element (non-const version)
-  T& Latest() {
+  T& latest() {
     if constexpr (NOVA_DEBUG_MODE) {
       if (write_pos_ == 0) {
         throw std::out_of_range("No elements written yet");
@@ -239,47 +224,31 @@ class StaticRingBuffer {
   // Push an element to the buffer at current write position
   void Push(const T& item) {
     buffer_[write_pos_ & kMask] = item;
-    write_pos_++;
+    ++write_pos_;
   }
 
   // Push an element to the buffer (move version)
   void Push(T&& item) {
     buffer_[write_pos_ & kMask] = std::move(item);
-    write_pos_++;
+    ++write_pos_;
   }
 
   // Emplace an element directly in the buffer at current write position
   template <typename... Args>
   void Emplace(Args&&... args) {
     buffer_[write_pos_ & kMask] = T(std::forward<Args>(args)...);
-    write_pos_++;
+    ++write_pos_;
   }
 
   // Access element by index from the beginning of writes
   // Index 0 is the first written element, index 1 is the second, etc.
   constexpr const T& operator[](size_type index) const {
-    if constexpr (NOVA_DEBUG_MODE) {
-      if (index >= WrittenCount()) {
-        throw std::out_of_range("Index out of range");
-      }
-    }
-
-    // Calculate actual index in buffer
-    size_type actual_index = index & kMask;
-    return buffer_[actual_index];
+    return buffer_[index & kMask];
   }
 
   // Access element by index (non-const version)
   constexpr T& operator[](size_type index) {
-    if constexpr (NOVA_DEBUG_MODE) {
-      if (index >= WrittenCount()) {
-        throw std::out_of_range("Index out of range");
-      }
-    }
-
-    // Calculate actual index in buffer
-    size_type actual_index = index & kMask;
-    return buffer_[actual_index];
+    return buffer_[index & kMask];
   }
 
   // Get element at specific absolute position in buffer
@@ -310,22 +279,22 @@ class StaticRingBuffer {
   }
 
   // Get the capacity of the buffer
-  [[nodiscard]] constexpr size_type Capacity() const {
+  [[nodiscard]] constexpr size_type capacity() const {
     return N;
   }
 
   // Get current write position in buffer
-  [[nodiscard]] constexpr size_type WritePosition() const {
+  [[nodiscard]] constexpr size_type write_position() const {
     return write_pos_ & kMask;
   }
 
   // Get the number of elements written so far
-  [[nodiscard]] constexpr size_type WrittenCount() const {
-    return std::min(write_pos_, N);
+  [[nodiscard]] constexpr size_type write_count() const {
+    return write_pos_;
   }
 
   // Get the most recently written element
-  constexpr const T& Latest() const {
+  constexpr const T& latest() const {
     if constexpr (NOVA_DEBUG_MODE) {
       if (write_pos_ == 0) {
         throw std::out_of_range("No elements written yet");
@@ -335,7 +304,7 @@ class StaticRingBuffer {
   }
 
   // Get the most recently written element (non-const version)
-  constexpr T& Latest() {
+  constexpr T& latest() {
     if constexpr (NOVA_DEBUG_MODE) {
       if (write_pos_ == 0) {
         throw std::out_of_range("No elements written yet");
