@@ -10,11 +10,12 @@
 
 namespace nova {
 
+namespace static_impl {
 // Low-level static ring memory pool implementation that supports arbitrary
 // types and data lengths. For shared memory usage, type T must satisfy strict
 // constraints.
 template <std::size_t N>
-class StaticRingPool {
+class RingPool {
  public:
   using size_type = std::size_t;
 
@@ -169,5 +170,7 @@ class StaticRingPool {
   // Latest written position
   size_type latest_pos_{0};
 };
+
+}  // namespace static_impl
 
 }  // namespace nova

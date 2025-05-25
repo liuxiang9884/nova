@@ -42,11 +42,11 @@ struct TradeData {
 
 // Demo 1: Ping-Pong test - passing int64_t between two threads
 void PingPongDemo() {
-  std::cout << "\n=== StaticSPSCQueue Ping-Pong Test ===\n" << std::endl;
+  std::cout << "\n=== SPSCQueue Ping-Pong Test ===\n" << std::endl;
 
   // Create two queues, A->B and B->A
-  nova::StaticSPSCQueue<int64_t, 16> queue_a_to_b;
-  nova::StaticSPSCQueue<int64_t, 16> queue_b_to_a;
+  nova::static_impl::SPSCQueue<int64_t, 16> queue_a_to_b;
+  nova::static_impl::SPSCQueue<int64_t, 16> queue_b_to_a;
 
   const int ITERATIONS = 1000000;
   std::atomic<bool> done(false);
@@ -143,10 +143,9 @@ void PingPongDemo() {
 
 // Demo 2: Producer-Consumer pattern - one thread writing, one thread reading
 void ProducerConsumerDemo() {
-  std::cout << "\n=== StaticSPSCQueue Producer-Consumer Pattern ===\n"
-            << std::endl;
+  std::cout << "\n=== SPSCQueue Producer-Consumer Pattern ===\n" << std::endl;
 
-  nova::StaticSPSCQueue<TradeData, 32> trade_queue;
+  nova::static_impl::SPSCQueue<TradeData, 32> trade_queue;
 
   constexpr int NUM_TRADES = 100;
   std::atomic<bool> producer_done(false);
@@ -277,6 +276,7 @@ class TaskProcessor {
   explicit TaskProcessor(std::size_t capacity = 1024)
       : queue_(capacity), running_(true) {
     consumer_thread_ = std::thread(&TaskProcessor::process_tasks, this);
+    consumer_id_ = consumer_thread_.get_id();
   }
 
   // Destructor - stops processor and joins thread
@@ -310,7 +310,7 @@ class TaskProcessor {
 
   // Shutdown the processor
   void shutdown() {
-    running_ = false;
+    running_.store(false, std::memory_order_release);
   }
 
   // Get the consumer thread ID
@@ -321,12 +321,11 @@ class TaskProcessor {
  private:
   // Task processing loop
   void process_tasks() {
-    consumer_id_ = std::this_thread::get_id();
-
-    while (running_.load(std::memory_order_acquire) || !queue_.Empty()) {
-      Task task;
-      if (queue_.TryPop(task)) {
-        task();
+    while (running_.load(std::memory_order_acquire)) {
+      Task* task = queue_.Front();
+      if (task) {
+        (*task)();
+        queue_.Pop();
       } else {
         std::this_thread::yield();
       }
@@ -343,10 +342,10 @@ class TaskProcessor {
 
 // Demo 3: Task scheduling between threads using SPSCQueue
 void TaskProcessorDemo() {
-  std::cout << "\n=== Task Processor Demo using SPSCQueue ===\n" << std::endl;
+  std::cout << "\n=== SPSCQueue Task Processor Demo ===\n" << std::endl;
 
-  // Create a task processor with capacity 32
-  TaskProcessor processor(32);
+  // Create a task processor with capacity 1024
+  TaskProcessor processor(1024);
 
   std::cout << "Main thread ID: " << std::this_thread::get_id() << std::endl;
   std::cout << "Consumer thread ID: " << processor.get_consumer_id()

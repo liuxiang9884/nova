@@ -15,30 +15,32 @@
 namespace nova {
 
 template <typename T>
-using StaticMappedType = T;
+using MappedType = T;
+
+namespace static_impl {
 
 template <typename T, std::size_t Capacity>
   requires std::is_standard_layout_v<T> && std::is_trivial_v<T> &&
            std::is_trivially_copyable_v<T> &&
            std::is_default_constructible_v<T> &&
            std::is_copy_constructible_v<T> && std::is_move_constructible_v<T>
-class alignas(nova::kCacheLineSize) StaticSPSCQueue {
+class alignas(nova::kCacheLineSize) SPSCQueue {
  public:
   static_assert(Capacity >= 2, "Capacity must be at least 2");
   static_assert((Capacity & (Capacity - 1)) == 0,
                 "Capacity must be a power of 2");
 
-  StaticSPSCQueue() = default;
+  SPSCQueue() = default;
 
-  ~StaticSPSCQueue() = default;
+  ~SPSCQueue() = default;
 
-  StaticSPSCQueue(const StaticSPSCQueue &) = delete;
+  SPSCQueue(const SPSCQueue &) = delete;
 
-  StaticSPSCQueue(StaticSPSCQueue &&) = delete;
+  SPSCQueue(SPSCQueue &&) = delete;
 
-  StaticSPSCQueue &operator=(const StaticSPSCQueue &) = delete;
+  SPSCQueue &operator=(const SPSCQueue &) = delete;
 
-  StaticSPSCQueue &operator=(StaticSPSCQueue &&) = delete;
+  SPSCQueue &operator=(SPSCQueue &&) = delete;
 
   std::size_t size() const noexcept {
     const auto head = head_.load(std::memory_order_relaxed);
@@ -157,6 +159,8 @@ class alignas(nova::kCacheLineSize) StaticSPSCQueue {
   alignas(nova::kCacheLineSize) std::atomic<std::size_t> tail_{0};
   alignas(nova::kCacheLineSize) std::size_t cached_head_{0};
 };
+
+}  // namespace static_impl
 
 template <typename T, typename Allocator = std::allocator<T>>
 class alignas(nova::kCacheLineSize) SPSCQueue {

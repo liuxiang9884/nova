@@ -108,10 +108,10 @@ void TestEmplace() {
   std::cout << std::endl;
 }
 
-// Test StaticRingBuffer
+// Test static ring buffer
 void TestStaticRingBuffer() {
-  std::cout << "\n=== Testing StaticRingBuffer ===" << std::endl;
-  StaticRingBuffer<int, 4> buffer;  // Fixed capacity of 4
+  std::cout << "\n=== Testing Static Ring Buffer ===" << std::endl;
+  static_impl::RingBuffer<int, 4> buffer;  // Fixed capacity of 4
 
   // Test writing
   buffer.Push(1);

@@ -194,6 +194,8 @@ class RingBuffer {
   size_type write_pos_;
 };
 
+namespace static_impl {
+
 // Static ring buffer implementation using std::array as underlying storage
 // Capacity N must be a power of 2 and is fixed at compile time
 //
@@ -203,7 +205,7 @@ template <typename T, std::size_t N>
            std::is_trivially_copyable_v<T> &&
            std::is_default_constructible_v<T> &&
            std::is_copy_constructible_v<T> && std::is_move_constructible_v<T>
-class StaticRingBuffer {
+class RingBuffer {
  public:
   using value_type = T;
   using size_type = std::size_t;
@@ -214,22 +216,22 @@ class StaticRingBuffer {
   static_assert(N > 0 && (N & (N - 1)) == 0, "Capacity N must be a power of 2");
 
   // Default constructor
-  constexpr StaticRingBuffer() : write_pos_(0) {}
+  constexpr RingBuffer() : write_pos_(0) {}
 
   // Copy constructor
-  StaticRingBuffer(const StaticRingBuffer& other) = default;
+  RingBuffer(const RingBuffer& other) = default;
 
   // Move constructor
-  StaticRingBuffer(StaticRingBuffer&& other) noexcept = default;
+  RingBuffer(RingBuffer&& other) noexcept = default;
 
   // Copy assignment operator
-  StaticRingBuffer& operator=(const StaticRingBuffer& other) = default;
+  RingBuffer& operator=(const RingBuffer& other) = default;
 
   // Move assignment operator
-  StaticRingBuffer& operator=(StaticRingBuffer&& other) noexcept = default;
+  RingBuffer& operator=(RingBuffer&& other) noexcept = default;
 
   // Destructor
-  ~StaticRingBuffer() = default;
+  ~RingBuffer() = default;
 
   // Push an element to the buffer at current write position
   void Push(const T& item) {
@@ -368,4 +370,5 @@ class StaticRingBuffer {
   size_type write_pos_;
 };
 
+}  // namespace static_impl
 }  // namespace nova

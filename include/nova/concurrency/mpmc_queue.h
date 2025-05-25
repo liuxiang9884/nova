@@ -13,9 +13,9 @@ namespace nova {
 
 template <typename T, std::size_t Capacity>
 class MPMCQueue {
-public:
+ public:
   static_assert(std::is_nothrow_copy_assignable<T>::value ||
-                std::is_nothrow_move_assignable<T>::value,
+                    std::is_nothrow_move_assignable<T>::value,
                 "T must be nothrow copy or move assignable");
 
   static_assert(std::is_nothrow_destructible<T>::value,
@@ -29,11 +29,10 @@ public:
                   "MPMCQueue<T> must be a multiple of cache line size");
     static_assert(sizeof(Slot) % kCacheLineSize == 0,
                   "Slot size must be a multiple of cache line size");
-//    assert(reinterpret_cast<size_t>(&(slots_[0])) % kCacheLineSize == 0 &&
-//           "slots_ array must be aligned to cache line size");
-    assert(reinterpret_cast<char*>(&tail_) -
-           reinterpret_cast<char*>(&head_) >=
-           static_cast<size_t>(kCacheLineSize) &&
+    //    assert(reinterpret_cast<size_t>(&(slots_[0])) % kCacheLineSize == 0 &&
+    //           "slots_ array must be aligned to cache line size");
+    assert(reinterpret_cast<char*>(&tail_) - reinterpret_cast<char*>(&head_) >=
+               static_cast<size_t>(kCacheLineSize) &&
            "head and tail must be a cache line apart to prevent false sharing");
   }
 
@@ -48,8 +47,8 @@ public:
   MPMCQueue& operator=(const MPMCQueue&) = delete;
 
   template <typename... Args>
-  void Emplace(Args&& ... args) noexcept {
-    static_assert(std::is_nothrow_constructible<T, Args&& ...>::value,
+  void Emplace(Args&&... args) noexcept {
+    static_assert(std::is_nothrow_constructible<T, Args&&...>::value,
                   "T must be nothrow constructible with Args&& ...");
     const auto head = head_.fetch_add(1);
     auto& slot = slots_[Idx(head)];
@@ -61,8 +60,8 @@ public:
   }
 
   template <typename... Args>
-  bool TryEmplace(Args&& ...args) noexcept {
-    static_assert(std::is_nothrow_constructible<T, Args&& ...>::value,
+  bool TryEmplace(Args&&... args) noexcept {
+    static_assert(std::is_nothrow_constructible<T, Args&&...>::value,
                   "T must be nothrow constructible with Arg&& ...");
     auto head = head_.load(std::memory_order_acquire);
     for (;;) {
@@ -89,13 +88,11 @@ public:
     Emplace(val);
   }
 
-  template <typename P,
-      typename = typename std::enable_if<
-          std::is_nothrow_constructible<T, P&&>::value>::type>
+  template <typename P, typename = typename std::enable_if<
+                            std::is_nothrow_constructible<T, P&&>::value>::type>
   bool TryPush(P&& val) noexcept {
     return TryEmplace(std::forward<P>(val));
   }
-
 
   void Pop(T& val) {
     const auto tail = tail_.fetch_add(1);
@@ -129,7 +126,7 @@ public:
     }
   }
 
-private:
+ private:
   std::size_t mask_ = Capacity - 1;
 
   [[nodiscard]] constexpr std::size_t Idx(std::size_t i) const noexcept {
@@ -148,10 +145,10 @@ private:
     }
 
     template <typename... Args>
-    void Construct(Args&& ... args) noexcept {
-      static_assert(std::is_nothrow_constructible<T, Args&& ...>::value,
+    void Construct(Args&&... args) noexcept {
+      static_assert(std::is_nothrow_constructible<T, Args&&...>::value,
                     "T must be nothrow constructible with Args&&...");
-      new(&storage) T(std::forward<Args>(args)...);
+      new (&storage) T(std::forward<Args>(args)...);
     }
 
     void Destroy() noexcept {
@@ -176,4 +173,4 @@ private:
   char pad1_[kCacheLineSize - sizeof(AtomicIndexType)] = {0};
 };
 
-} // namespace nova
+}  // namespace nova

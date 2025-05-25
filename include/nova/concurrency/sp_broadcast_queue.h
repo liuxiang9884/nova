@@ -14,6 +14,8 @@
 
 namespace nova {
 
+namespace static_impl {
+
 /**
  * A single producer, multiple consumer broadcast queue with static memory
  * allocation. This queue allows one producer to publish messages to multiple
@@ -28,7 +30,7 @@ template <typename T, std::size_t Capacity>
            std::is_trivially_copyable_v<T> &&
            std::is_default_constructible_v<T> &&
            std::is_copy_constructible_v<T> && std::is_move_constructible_v<T>
-class alignas(nova::kCacheLineSize) StaticSPBroadcastQueue {
+class alignas(nova::kCacheLineSize) SPBroadcastQueue {
  public:
   static_assert(Capacity >= 2, "Capacity must be at least 2");
   static_assert((Capacity & (Capacity - 1)) == 0,
@@ -37,15 +39,15 @@ class alignas(nova::kCacheLineSize) StaticSPBroadcastQueue {
   /**
    * Default constructor initializes the queue with empty state
    */
-  StaticSPBroadcastQueue() : current_(0) {}
+  SPBroadcastQueue() : current_(0) {}
 
   /**
    * Disallow copy and move operations
    */
-  StaticSPBroadcastQueue(const StaticSPBroadcastQueue&) = delete;
-  StaticSPBroadcastQueue(StaticSPBroadcastQueue&&) = delete;
-  StaticSPBroadcastQueue& operator=(const StaticSPBroadcastQueue&) = delete;
-  StaticSPBroadcastQueue& operator=(StaticSPBroadcastQueue&&) = delete;
+  SPBroadcastQueue(const SPBroadcastQueue&) = default;
+  SPBroadcastQueue(SPBroadcastQueue&&) = default;
+  SPBroadcastQueue& operator=(const SPBroadcastQueue&) = default;
+  SPBroadcastQueue& operator=(SPBroadcastQueue&&) = default;
 
   /**
    * Emplace a new element into the queue by constructing it in-place
@@ -192,6 +194,8 @@ class alignas(nova::kCacheLineSize) StaticSPBroadcastQueue {
   // Data storage
   alignas(nova::kCacheLineSize) T data_[Capacity];
 };
+
+}  // namespace static_impl
 
 /**
  * A single producer, multiple consumer broadcast queue with dynamic memory

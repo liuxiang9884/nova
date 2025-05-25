@@ -5,9 +5,16 @@
 
 #include "nova/base/ring_pool.h"
 
-// Fixed-size string for testing
+// Fixed-size string struct (POD, trivial)
 struct FixedString {
   char data[32];
+};
+
+// Test struct (POD, trivial)
+struct TestStruct {
+  int id;
+  FixedString name;
+  double value;
 };
 
 static_assert(std::is_standard_layout_v<FixedString>);
@@ -17,13 +24,6 @@ static_assert(std::is_default_constructible_v<FixedString>);
 static_assert(std::is_copy_constructible_v<FixedString>);
 static_assert(std::is_move_constructible_v<FixedString>);
 
-// Test struct for demonstration
-struct TestStruct {
-  int a;
-  double b;
-  FixedString c;
-};
-
 static_assert(std::is_standard_layout_v<TestStruct>);
 static_assert(std::is_trivial_v<TestStruct>);
 static_assert(std::is_trivially_copyable_v<TestStruct>);
@@ -31,35 +31,37 @@ static_assert(std::is_default_constructible_v<TestStruct>);
 static_assert(std::is_copy_constructible_v<TestStruct>);
 static_assert(std::is_move_constructible_v<TestStruct>);
 
+// Test basic operations
 void TestBasicOperations() {
-  std::cout << "=== Testing Basic Operations ===" << std::endl;
-  nova::StaticRingPool<1024> pool;
+  std::cout << "\n=== Testing Basic Operations ===\n" << std::endl;
+  nova::static_impl::RingPool<1024> pool;
 
-  // Test Emplace
-  auto& obj1 = pool.Emplace<TestStruct>();
-  obj1.a = 1;
-  obj1.b = 3.14;
-  std::strncpy(obj1.c.data, "Hello", sizeof(obj1.c.data) - 1);
-  obj1.c.data[sizeof(obj1.c.data) - 1] = '\0';
-  std::cout << "Emplaced object: a=" << obj1.a << ", b=" << obj1.b
-            << ", c=" << obj1.c.data << std::endl;
-  std::cout << "Position: " << pool.latest_pos() << std::endl;
+  // Emplace object
+  auto& obj1 = pool.Emplace<TestStruct>(1, FixedString{"test1"}, 1.1);
+  auto& obj2 = pool.Emplace<TestStruct>(2, FixedString{"test2"}, 2.2);
+  auto& obj3 = pool.Emplace<TestStruct>(3, FixedString{"test3"}, 3.3);
 
-  // Test Allocate with size
+  std::cout << "Object 1: id=" << obj1.id << ", name=" << obj1.name.data
+            << ", value=" << obj1.value << std::endl;
+  std::cout << "Object 2: id=" << obj2.id << ", name=" << obj2.name.data
+            << ", value=" << obj2.value << std::endl;
+  std::cout << "Object 3: id=" << obj3.id << ", name=" << obj3.name.data
+            << ", value=" << obj3.value << std::endl;
+
+  // Allocate raw memory
   auto* raw_mem = pool.Allocate(100);
   std::cout << "Allocated 100 bytes at position: " << pool.latest_pos()
-            << (raw_mem != nullptr) << std::endl;
+            << (raw_mem != nullptr ? " (success)" : " (fail)") << std::endl;
 
-  // Test template Allocate
-  auto& obj2 = pool.Allocate<TestStruct>();
-  obj2.a = 2;
-  obj2.b = 2.718;
-  std::strncpy(obj2.c.data, "World", sizeof(obj2.c.data) - 1);
-  std::cout << "Allocated object: a=" << obj2.a << ", b=" << obj2.b
-            << ", c=" << obj2.c.data << std::endl;
-  std::cout << "Position: " << pool.latest_pos() << std::endl;
+  // Allocate object without initialization
+  auto& obj4 = pool.Allocate<TestStruct>();
+  obj4.id = 4;
+  std::strncpy(obj4.name.data, "test4", sizeof(obj4.name.data) - 1);
+  obj4.value = 4.4;
+  std::cout << "Object 4: id=" << obj4.id << ", name=" << obj4.name.data
+            << ", value=" << obj4.value << std::endl;
 
-  // Test Push
+  // Push raw data
   std::string data = "Test Data";
   auto* pushed_data = pool.Push(data.data(), data.size());
   std::cout << "Pushed data at position: " << pool.latest_pos() << std::endl;
@@ -68,50 +70,51 @@ void TestBasicOperations() {
                                 data.size())
             << std::endl;
 
-  // Test Read
+  // Read back object
   auto& read_obj =
       pool.Read<TestStruct>(pool.latest_pos() - sizeof(TestStruct));
-  std::cout << "Read object: a=" << read_obj.a << ", b=" << read_obj.b
-            << ", c=" << read_obj.c.data << std::endl;
+  std::cout << "Read object: id=" << read_obj.id
+            << ", name=" << read_obj.name.data << ", value=" << read_obj.value
+            << std::endl;
 
-  // Test latest
   std::cout << "Latest position: " << pool.latest_pos() << std::endl;
 }
 
+// Test ring buffer wrap-around
 void TestRingWrap() {
-  std::cout << "\n=== Testing Ring Wrap ===" << std::endl;
-  nova::StaticRingPool<64> pool;  // Small pool to test wrap-around
+  std::cout << "\n=== Testing Ring Wrap ===\n" << std::endl;
+  nova::static_impl::RingPool<64> pool;  // Small pool to test wrap-around
 
   // Fill the pool
-  std::vector<size_t> positions;
   for (int i = 0; i < 5; ++i) {
     auto* mem = pool.Allocate(10);
-    positions.push_back(pool.latest_pos());
     std::cout << "Allocation " << i << " at position: " << pool.latest_pos()
-              << (mem != nullptr ) << std::endl;
+              << (mem != nullptr ? " (success)" : " (fail)") << std::endl;
   }
 
-  // Verify wrap-around
   std::cout << "Write position after wrap: " << pool.write_pos() << std::endl;
   std::cout << "Write count: " << pool.write_count() << std::endl;
   std::cout << "Latest position: " << pool.latest_pos() << std::endl;
 }
 
+// Test multiple types
 void TestMultipleTypes() {
-  std::cout << "\n=== Testing Multiple Types ===" << std::endl;
-  nova::StaticRingPool<1024> pool;
+  std::cout << "\n=== Testing Multiple Types ===\n" << std::endl;
+  nova::static_impl::RingPool<128> pool;
 
-  // Allocate different types
+  // Allocate int
   auto& int_val = pool.Allocate<int>();
   int_val = 42;
   std::cout << "Integer at position " << pool.latest_pos() << ": " << int_val
             << std::endl;
 
+  // Allocate double
   auto& double_val = pool.Allocate<double>();
   double_val = 3.14159;
   std::cout << "Double at position " << pool.latest_pos() << ": " << double_val
             << std::endl;
 
+  // Allocate FixedString
   auto& str_val = pool.Allocate<FixedString>();
   std::strncpy(str_val.data, "Hello, StaticRingPool!",
                sizeof(str_val.data) - 1);
@@ -132,7 +135,6 @@ void TestMultipleTypes() {
       << pool.Read<FixedString>(pool.latest_pos() - sizeof(FixedString)).data
       << std::endl;
 
-  // Test latest
   std::cout << "Latest position: " << pool.latest_pos() << std::endl;
 }
 
