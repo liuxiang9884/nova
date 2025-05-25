@@ -50,10 +50,10 @@ class RingPool {
 
   // Move constructor
   RingPool(RingPool&& other) noexcept
-      : buffer_(std::move(other.buffer_)),
-        write_pos_(other.write_pos_),
+      : write_pos_(other.write_pos_),
         latest_pos_(other.latest_pos_),
-        write_count_(other.write_count_) {
+        write_count_(other.write_count_),
+        buffer_(std::move(other.buffer_)) {
     other.buffer_.resize(16);
     other.write_pos_ = 0;
     other.latest_pos_ = 0;
@@ -93,40 +93,27 @@ class RingPool {
   // Construct an object at current position
   template <typename T, typename... Args>
     requires MMapType<T>
-  T& Emplace(Args&&... args) {
+  T& Emplace(Args&&... args) noexcept(
+      std::is_nothrow_constructible_v<T, Args...>) {
     static_assert(alignof(T) <= kAlignment,
                   "Type alignment exceeds pool alignment");
 
-    // Ensure alignment
-    write_pos_ = (write_pos_ + alignof(T) - 1) & ~(alignof(T) - 1);
-
-    // Check if object would cross buffer boundary
-    if (write_pos_ + sizeof(T) > buffer_.size()) [[unlikely]] {
-      // Wrap to beginning (0 is always aligned)
-      write_pos_ = 0;
-    }
+    CalculateWritePos(sizeof(T), alignof(T));
 
     T* ptr = new (&buffer_[write_pos_]) T(std::forward<Args>(args)...);
     latest_pos_ = write_pos_;
-    write_pos_ = write_pos_ + sizeof(T);
+    write_pos_ += sizeof(T);
     ++write_count_;
     return *ptr;
   }
 
   // Allocate raw memory of specified size
-  std::byte* Allocate(size_type size) {
-    // Ensure alignment
-    write_pos_ = (write_pos_ + kAlignment - 1) & ~(kAlignment - 1);
-
-    // Check if allocation would cross buffer boundary
-    if (write_pos_ + size > buffer_.size()) [[unlikely]] {
-      // Wrap to beginning (0 is always aligned)
-      write_pos_ = 0;
-    }
+  std::byte* Allocate(size_type size) noexcept {
+    CalculateWritePos(size, kAlignment);
 
     std::byte* ptr = &buffer_[write_pos_];
     latest_pos_ = write_pos_;
-    write_pos_ = write_pos_ + size;
+    write_pos_ += size;
     ++write_count_;
     return ptr;
   }
@@ -134,22 +121,15 @@ class RingPool {
   // Allocate memory for type T without initialization
   template <typename T>
     requires MMapType<T>
-  T& Allocate() {
+  T& Allocate() noexcept {
     static_assert(alignof(T) <= kAlignment,
                   "Type alignment exceeds pool alignment");
 
-    // Ensure alignment
-    write_pos_ = (write_pos_ + alignof(T) - 1) & ~(alignof(T) - 1);
-
-    // Check if object would cross buffer boundary
-    if (write_pos_ + sizeof(T) > buffer_.size()) [[unlikely]] {
-      // Wrap to beginning (0 is always aligned)
-      write_pos_ = 0;
-    }
+    CalculateWritePos(sizeof(T), alignof(T));
 
     T& ref = reinterpret_cast<T&>(buffer_[write_pos_]);
     latest_pos_ = write_pos_;
-    write_pos_ = write_pos_ + sizeof(T);
+    write_pos_ += sizeof(T);
     ++write_count_;
     return ref;
   }
@@ -223,17 +203,17 @@ class RingPool {
   }
 
   // Get current write position
-  [[nodiscard]] size_type write_pos() const {
+  [[nodiscard]] constexpr size_type write_pos() const noexcept {
     return write_pos_;
   }
 
   // Get total number of writes
-  [[nodiscard]] size_type write_count() const {
+  [[nodiscard]] constexpr size_type write_count() const noexcept {
     return write_count_;
   }
 
   // Get available space
-  [[nodiscard]] size_type available_space() const {
+  [[nodiscard]] size_type available_space() const noexcept {
     return buffer_
         .size();  // For ring buffer, total capacity is always available
   }
@@ -278,15 +258,37 @@ class RingPool {
     return &buffer_[pos];
   }
 
+  // Get buffer size
+  [[nodiscard]] constexpr size_type size() const noexcept {
+    return buffer_.size();
+  }
+
+  // Check if buffer is empty (no writes yet)
+  [[nodiscard]] constexpr bool empty() const noexcept {
+    return write_count_ == 0;
+  }
+
  private:
-  // Underlying storage
-  std::vector<std::byte> buffer_;
-  // Current write position
-  size_type write_pos_{0};
-  // Most recently written position
-  size_type latest_pos_{0};
-  // Total number of writes
-  size_type write_count_{0};
+  // Hot data - frequently accessed together
+  size_type write_pos_{0};    // Current write position
+  size_type latest_pos_{0};   // Most recently written position
+  size_type write_count_{0};  // Total number of writes
+
+  // Cold data - less frequently accessed
+  std::vector<std::byte> buffer_;  // Underlying storage
+
+  // Helper functions for alignment and boundary checking
+  static constexpr size_type AlignUp(size_type pos,
+                                     size_type alignment) noexcept {
+    return (pos + alignment - 1) & ~(alignment - 1);
+  }
+
+  void CalculateWritePos(size_type size, size_type alignment) noexcept {
+    write_pos_ = AlignUp(write_pos_, alignment);
+    if (write_pos_ + size > buffer_.size()) [[unlikely]] {
+      write_pos_ = 0;
+    }
+  }
 };
 
 namespace static_impl {
@@ -321,40 +323,27 @@ class RingPool {
   // Construct an object at current position
   template <typename T, typename... Args>
     requires MMapType<T>
-  T& Emplace(Args&&... args) {
+  T& Emplace(Args&&... args) noexcept(
+      std::is_nothrow_constructible_v<T, Args...>) {
     static_assert(alignof(T) <= kAlignment,
                   "Type alignment exceeds pool alignment");
 
-    // Ensure alignment
-    write_pos_ = (write_pos_ + alignof(T) - 1) & ~(alignof(T) - 1);
-
-    // Check if object would cross buffer boundary
-    if (write_pos_ + sizeof(T) > N) [[unlikely]] {
-      // Wrap to beginning (0 is always aligned)
-      write_pos_ = 0;
-    }
+    CalculateWritePos(sizeof(T), alignof(T));
 
     T* ptr = new (&buffer_[write_pos_]) T(std::forward<Args>(args)...);
     latest_pos_ = write_pos_;
-    write_pos_ = write_pos_ + sizeof(T);
+    write_pos_ += sizeof(T);
     ++write_count_;
     return *ptr;
   }
 
   // Allocate raw memory of specified size
-  std::byte* Allocate(size_type size) {
-    // Ensure alignment
-    write_pos_ = (write_pos_ + kAlignment - 1) & ~(kAlignment - 1);
-
-    // Check if allocation would cross buffer boundary
-    if (write_pos_ + size > N) [[unlikely]] {
-      // Wrap to beginning (0 is always aligned)
-      write_pos_ = 0;
-    }
+  std::byte* Allocate(size_type size) noexcept {
+    CalculateWritePos(size, kAlignment);
 
     std::byte* ptr = &buffer_[write_pos_];
     latest_pos_ = write_pos_;
-    write_pos_ = write_pos_ + size;
+    write_pos_ += size;
     ++write_count_;
     return ptr;
   }
@@ -362,22 +351,15 @@ class RingPool {
   // Allocate memory for type T without initialization
   template <typename T>
     requires MMapType<T>
-  T& Allocate() {
+  T& Allocate() noexcept {
     static_assert(alignof(T) <= kAlignment,
                   "Type alignment exceeds pool alignment");
 
-    // Ensure alignment
-    write_pos_ = (write_pos_ + alignof(T) - 1) & ~(alignof(T) - 1);
-
-    // Check if object would cross buffer boundary
-    if (write_pos_ + sizeof(T) > N) [[unlikely]] {
-      // Wrap to beginning (0 is always aligned)
-      write_pos_ = 0;
-    }
+    CalculateWritePos(sizeof(T), alignof(T));
 
     T& ref = reinterpret_cast<T&>(buffer_[write_pos_]);
     latest_pos_ = write_pos_;
-    write_pos_ = write_pos_ + sizeof(T);
+    write_pos_ += sizeof(T);
     ++write_count_;
     return ref;
   }
@@ -451,7 +433,7 @@ class RingPool {
   }
 
   // Get current write position
-  [[nodiscard]] size_type write_pos() const {
+  [[nodiscard]] constexpr size_type write_pos() const noexcept {
     return write_pos_;
   }
 
@@ -461,7 +443,7 @@ class RingPool {
   }
 
   // Get available space
-  [[nodiscard]] size_type available_space() const {
+  [[nodiscard]] static constexpr size_type available_space() noexcept {
     return N;  // For ring buffer, total capacity is always available
   }
 
@@ -505,15 +487,37 @@ class RingPool {
     return &buffer_[pos];
   }
 
+  // Get buffer size
+  [[nodiscard]] static constexpr size_type size() noexcept {
+    return N;
+  }
+
+  // Check if buffer is empty (no writes yet)
+  [[nodiscard]] constexpr bool empty() const noexcept {
+    return write_count_ == 0;
+  }
+
  private:
-  // Underlying storage with alignment
+  // Hot data - frequently accessed together
+  size_type write_pos_{0};    // Current write position
+  size_type latest_pos_{0};   // Most recently written position
+  size_type write_count_{0};  // Total number of writes
+
+  // Cold data - large buffer placed last
   alignas(kAlignment) std::array<std::byte, N> buffer_;
-  // Current write position
-  size_type write_pos_{0};
-  // Most recently written position
-  size_type latest_pos_{0};
-  // Total number of writes
-  size_type write_count_{0};
+
+  // Helper functions for alignment and boundary checking
+  static constexpr size_type AlignUp(size_type pos,
+                                     size_type alignment) noexcept {
+    return (pos + alignment - 1) & ~(alignment - 1);
+  }
+
+  void CalculateWritePos(size_type size, size_type alignment) noexcept {
+    write_pos_ = AlignUp(write_pos_, alignment);
+    if (write_pos_ + size > N) [[unlikely]] {
+      write_pos_ = 0;
+    }
+  }
 };
 
 }  // namespace static_impl
