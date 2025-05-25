@@ -5,6 +5,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <vector>
+#include <bit>
 
 #include "nova/common/macros.h"
 
