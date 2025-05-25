@@ -431,7 +431,7 @@ void HeapAllocatedRingPoolTest() {
   constexpr size_t kPoolSize = 128 * 1024;  // 128KB
   auto pool = std::make_unique<static_impl::RingPool<kPoolSize>>();
 
-  for (size_t i = 0; i < 50; ++i) {
+  for (size_t i = 0; i < 1000000; ++i) {
     auto& data = pool->Emplace<PerformanceData>();
     data.timestamp = i;
     data.value = static_cast<double>(i);
