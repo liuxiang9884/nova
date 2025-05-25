@@ -118,6 +118,15 @@ class RingPool {
         if ((write_pos_ - latest_pos_) % kAlignment != 0) {
           throw std::runtime_error("Position misalignment in destructor");
         }
+        // Check buffer integrity
+        if (buffer_.data() == nullptr) {
+          throw std::runtime_error("Buffer is null in destructor");
+        }
+        // Check if we can safely access the buffer
+        volatile std::byte test = buffer_[0];
+        volatile std::byte test2 = buffer_[mask_];
+        (void)test;
+        (void)test2;
       }
     }
   }
@@ -343,6 +352,15 @@ class RingPool {
         if ((write_pos_ - latest_pos_) % kAlignment != 0) {
           throw std::runtime_error("Position misalignment in destructor");
         }
+        // Check buffer integrity
+        if (buffer_.data() == nullptr) {
+          throw std::runtime_error("Buffer is null in destructor");
+        }
+        // Check if we can safely access the buffer
+        volatile std::byte test = buffer_[0];
+        volatile std::byte test2 = buffer_[N - 1];
+        (void)test;
+        (void)test2;
       }
     }
   }

@@ -233,6 +233,27 @@ void PerformanceComparisonDemo() {
   std::cout << "haha" << std::endl;
 }
 
+// Simple test with fewer iterations
+void SimpleStaticRingPoolTest() {
+  std::cout << "\n=== Simple Static RingPool Test ===" << std::endl;
+
+  constexpr size_t kPoolSize = 1024;  // 1KB
+  constexpr size_t kIterations = 10;  // Only 10 operations
+
+  static_impl::RingPool<kPoolSize> pool;
+
+  for (size_t i = 0; i < kIterations; ++i) {
+    auto& data = pool.Emplace<PerformanceData>();
+    data.timestamp = i;
+    data.value = static_cast<double>(i);
+    std::cout << "Iteration " << i << ": write_count=" << pool.write_count()
+              << ", latest_pos=" << pool.latest_pos()
+              << ", write_pos=" << pool.write_pos() << std::endl;
+  }
+
+  std::cout << "Simple test completed successfully" << std::endl;
+}
+
 // Performance comparison between dynamic and static RingPool
 void TestStaticRingPool() {
   std::cout << "\n=== Test static ring pool ===" << std::endl;
@@ -273,6 +294,7 @@ void TestStaticRingPool() {
 
   std::cout << "haha" << std::endl;
 }
+
 // Memory alignment demo
 void AlignmentDemo() {
   std::cout << "\n=== Alignment Demo ===" << std::endl;
@@ -368,7 +390,8 @@ int main() {
     // DynamicRingPoolDemo();
     // StaticRingPoolDemo();
     // PerformanceComparisonDemo();
-    TestStaticRingPool();
+    SimpleStaticRingPoolTest();
+    // TestStaticRingPool();
     // AlignmentDemo();
   } catch (const std::exception& e) {
     std::cerr << "Error: " << e.what() << std::endl;
