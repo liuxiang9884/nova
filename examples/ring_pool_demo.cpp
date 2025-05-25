@@ -1,146 +1,364 @@
-#include <cstring>
+#include <chrono>
+#include <cstdint>
+#include <iomanip>
 #include <iostream>
-#include <string>
 #include <vector>
 
 #include "nova/base/ring_pool.h"
 
-// Fixed-size string struct (POD, trivial)
-struct FixedString {
-  char data[32];
-};
+using namespace nova;
 
-// Test struct (POD, trivial)
-struct TestStruct {
-  int id;
-  FixedString name;
+// Test data structure
+struct TestData {
+  int32_t id;
   double value;
+  char name[32];
+
+  void Print() const {
+    std::cout << "TestData{id=" << id << ", value=" << value
+              << ", name=" << name << "}" << std::endl;
+  }
 };
 
-static_assert(std::is_standard_layout_v<FixedString>);
-static_assert(std::is_trivial_v<FixedString>);
-static_assert(std::is_trivially_copyable_v<FixedString>);
-static_assert(std::is_default_constructible_v<FixedString>);
-static_assert(std::is_copy_constructible_v<FixedString>);
-static_assert(std::is_move_constructible_v<FixedString>);
+// Performance test data structure
+struct PerformanceData {
+  int64_t timestamp;
+  double value;
+  char description[64];
+};
 
-static_assert(std::is_standard_layout_v<TestStruct>);
-static_assert(std::is_trivial_v<TestStruct>);
-static_assert(std::is_trivially_copyable_v<TestStruct>);
-static_assert(std::is_default_constructible_v<TestStruct>);
-static_assert(std::is_copy_constructible_v<TestStruct>);
-static_assert(std::is_move_constructible_v<TestStruct>);
+// Basic functionality demo for dynamic RingPool
+void DynamicRingPoolDemo() {
+  std::cout << "\n=== Dynamic RingPool Demo ===" << std::endl;
 
-// Test basic operations
-void TestBasicOperations() {
-  std::cout << "\n=== Testing Basic Operations ===\n" << std::endl;
-  nova::static_impl::RingPool<1024> pool;
+  // Create a 1KB pool
+  RingPool pool(1024);
+  std::cout << "Pool capacity: " << pool.capacity() << " bytes" << std::endl;
 
-  // Emplace object
-  auto& obj1 = pool.Emplace<TestStruct>(1, FixedString{"test1"}, 1.1);
-  auto& obj2 = pool.Emplace<TestStruct>(2, FixedString{"test2"}, 2.2);
-  auto& obj3 = pool.Emplace<TestStruct>(3, FixedString{"test3"}, 3.3);
+  // Use Emplace to construct objects
+  auto& data1 = pool.Emplace<TestData>();
+  size_t data1_pos = pool.latest_pos();
+  data1.id = 1;
+  data1.value = 3.14;
+  std::strcpy(data1.name, "test1");
+  std::cout << "Emplaced data1 at position " << data1_pos << ": ";
+  data1.Print();
 
-  std::cout << "Object 1: id=" << obj1.id << ", name=" << obj1.name.data
-            << ", value=" << obj1.value << std::endl;
-  std::cout << "Object 2: id=" << obj2.id << ", name=" << obj2.name.data
-            << ", value=" << obj2.value << std::endl;
-  std::cout << "Object 3: id=" << obj3.id << ", name=" << obj3.name.data
-            << ", value=" << obj3.value << std::endl;
+  // Use Allocate to allocate memory
+  auto& data2 = pool.Allocate<TestData>();
+  size_t data2_pos = pool.latest_pos();
+  data2.id = 2;
+  data2.value = 2.718;
+  std::strcpy(data2.name, "test2");
+  std::cout << "Allocated data2 at position " << data2_pos << ": ";
+  data2.Print();
 
-  // Allocate raw memory
-  auto* raw_mem = pool.Allocate(100);
-  std::cout << "Allocated 100 bytes at position: " << pool.latest_pos()
-            << (raw_mem != nullptr ? " (success)" : " (fail)") << std::endl;
+  // Use Push to copy data
+  TestData data3{3, 1.414, "test3"};
+  auto* ptr = pool.Push(&data3, sizeof(TestData));
+  size_t data3_pos = pool.latest_pos();
+  auto& data3_ref = *reinterpret_cast<TestData*>(ptr);
+  std::cout << "Pushed data3 at position " << data3_pos << ": ";
+  data3_ref.Print();
 
-  // Allocate object without initialization
-  auto& obj4 = pool.Allocate<TestStruct>();
-  obj4.id = 4;
-  std::strncpy(obj4.name.data, "test4", sizeof(obj4.name.data) - 1);
-  obj4.value = 4.4;
-  std::cout << "Object 4: id=" << obj4.id << ", name=" << obj4.name.data
-            << ", value=" << obj4.value << std::endl;
+  // Use Read to read data
+  auto& data1_read = pool.Read<TestData>(data1_pos);
+  std::cout << "Read data1 from position " << data1_pos << ": ";
+  data1_read.Print();
 
-  // Push raw data
-  std::string data = "Test Data";
-  auto* pushed_data = pool.Push(data.data(), data.size());
-  std::cout << "Pushed data at position: " << pool.latest_pos() << std::endl;
-  std::cout << "Data content: "
-            << std::string_view(reinterpret_cast<char*>(pushed_data),
-                                data.size())
-            << std::endl;
+  auto& data2_read = pool.Read<TestData>(data2_pos);
+  std::cout << "Read data2 from position " << data2_pos << ": ";
+  data2_read.Print();
 
-  // Read back object
-  auto& read_obj =
-      pool.Read<TestStruct>(pool.latest_pos() - sizeof(TestStruct));
-  std::cout << "Read object: id=" << read_obj.id
-            << ", name=" << read_obj.name.data << ", value=" << read_obj.value
-            << std::endl;
+  auto& data3_read = pool.Read<TestData>(data3_pos);
+  std::cout << "Read data3 from position " << data3_pos << ": ";
+  data3_read.Print();
 
-  std::cout << "Latest position: " << pool.latest_pos() << std::endl;
+  // Display statistics
+  std::cout << "Write position: " << pool.write_pos() << std::endl;
+  std::cout << "Write count: " << pool.write_count() << std::endl;
+  std::cout << "Available space: " << pool.available_space() << std::endl;
 }
 
-// Test ring buffer wrap-around
-void TestRingWrap() {
-  std::cout << "\n=== Testing Ring Wrap ===\n" << std::endl;
-  nova::static_impl::RingPool<64> pool;  // Small pool to test wrap-around
+// Basic functionality demo for static RingPool
+void StaticRingPoolDemo() {
+  std::cout << "\n=== Static RingPool Demo ===" << std::endl;
 
-  // Fill the pool
-  for (int i = 0; i < 5; ++i) {
-    auto* mem = pool.Allocate(10);
-    std::cout << "Allocation " << i << " at position: " << pool.latest_pos()
-              << (mem != nullptr ? " (success)" : " (fail)") << std::endl;
+  // Create a 1KB pool
+  static_impl::RingPool<1024> pool;
+  std::cout << "Pool capacity: " << pool.capacity() << " bytes" << std::endl;
+
+  // Use Emplace to construct objects
+  auto& data1 = pool.Emplace<TestData>();
+  size_t data1_pos = pool.latest_pos();
+  data1.id = 1;
+  data1.value = 3.14;
+  std::strcpy(data1.name, "test1");
+  std::cout << "Emplaced data1 at position " << data1_pos << ": ";
+  data1.Print();
+
+  // Use Allocate to allocate memory
+  auto& data2 = pool.Allocate<TestData>();
+  size_t data2_pos = pool.latest_pos();
+  data2.id = 2;
+  data2.value = 2.718;
+  std::strcpy(data2.name, "test2");
+  std::cout << "Allocated data2 at position " << data2_pos << ": ";
+  data2.Print();
+
+  // Use Push to copy data
+  TestData data3{3, 1.414, "test3"};
+  auto* ptr = pool.Push(&data3, sizeof(TestData));
+  size_t data3_pos = pool.latest_pos();
+  auto& data3_ref = *reinterpret_cast<TestData*>(ptr);
+  std::cout << "Pushed data3 at position " << data3_pos << ": ";
+  data3_ref.Print();
+
+  // Use Read to read data
+  auto& data1_read = pool.Read<TestData>(data1_pos);
+  std::cout << "Read data1 from position " << data1_pos << ": ";
+  data1_read.Print();
+
+  auto& data2_read = pool.Read<TestData>(data2_pos);
+  std::cout << "Read data2 from position " << data2_pos << ": ";
+  data2_read.Print();
+
+  auto& data3_read = pool.Read<TestData>(data3_pos);
+  std::cout << "Read data3 from position " << data3_pos << ": ";
+  data3_read.Print();
+
+  // Display statistics
+  std::cout << "Write position: " << pool.write_pos() << std::endl;
+  std::cout << "Write count: " << pool.write_count() << std::endl;
+  std::cout << "Available space: " << pool.available_space() << std::endl;
+}
+
+// Performance comparison between dynamic and static RingPool
+void PerformanceComparisonDemo() {
+  std::cout << "\n=== Performance Comparison Demo ===" << std::endl;
+
+  constexpr size_t kPoolSize = 1024 * 1024;  // 1MB
+  constexpr size_t kIterations = 10000;      // 10K operations
+
+  std::cout << "cmp size: " << kPoolSize << ", "
+            << kIterations * sizeof(PerformanceData) << std::endl;
+  //
+  // // Test dynamic RingPool
+  // {
+  //   std::cout << "\nTesting Dynamic RingPool:" << std::endl;
+  //   RingPool pool(kPoolSize);
+  //   std::vector<PerformanceData> results;
+  //   results.reserve(kIterations);
+  //
+  //   auto start = std::chrono::high_resolution_clock::now();
+  //
+  //   for (size_t i = 0; i < kIterations; ++i) {
+  //     auto& data = pool.Emplace<PerformanceData>();
+  //     data.timestamp =
+  //         std::chrono::duration_cast<std::chrono::nanoseconds>(
+  //             std::chrono::high_resolution_clock::now().time_since_epoch())
+  //             .count();
+  //     data.value = static_cast<double>(i);
+  //     std::snprintf(data.description, sizeof(data.description),
+  //                   "Performance test data %zu", i);
+  //     results.push_back(data);
+  //   }
+  //
+  //   auto end = std::chrono::high_resolution_clock::now();
+  //   auto duration =
+  //       std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  //
+  //   double total_time = duration.count() / 1000000.0;
+  //   double ops_per_second = kIterations / total_time;
+  //   double avg_latency = (total_time * 1000000.0) / kIterations;
+  //
+  //   std::cout << "Total time: " << std::fixed << std::setprecision(3)
+  //             << total_time << " seconds" << std::endl;
+  //   std::cout << "Operations per second: " << std::fixed <<
+  //   std::setprecision(0)
+  //             << ops_per_second << " ops/s" << std::endl;
+  //   std::cout << "Average latency: " << std::fixed << std::setprecision(3)
+  //             << avg_latency << " us" << std::endl;
+  //
+  //   auto sum = 0.;
+  //   for (auto data : results) {
+  //     sum += data.value;
+  //   }
+  //   std::cout << "Sum: " << sum << std::endl;
+  // }
+
+  // Test static RingPool
+
+  std::cout << "\nTesting Static RingPool:" << std::endl;
+  static_impl::RingPool<kPoolSize> pool;
+  // std::vector<PerformanceData> results;
+  // results.reserve(kIterations);
+
+  // auto start = std::chrono::high_resolution_clock::now();
+
+  for (size_t i = 0; i < kIterations; ++i) {
+    auto& data = pool.Emplace<PerformanceData>();
+    data.timestamp =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::high_resolution_clock::now().time_since_epoch())
+            .count();
+    data.value = static_cast<double>(i);
+    // std::snprintf(data.description, sizeof(data.description),
+    //               "Performance test data %zu", i);
+    // results.push_back(data);
   }
 
-  std::cout << "Write position after wrap: " << pool.write_pos() << std::endl;
-  std::cout << "Write count: " << pool.write_count() << std::endl;
-  std::cout << "Latest position: " << pool.latest_pos() << std::endl;
+  // auto end = std::chrono::high_resolution_clock::now();
+  // auto duration =
+  //     std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  //
+  // double total_time = duration.count() / 1000000.0;
+  // double ops_per_second = kIterations / total_time;
+  // double avg_latency = (total_time * 1000000.0) / kIterations;
+  //
+  // std::cout << "Total time: " << std::fixed << std::setprecision(3)
+  //           << total_time << " seconds" << std::endl;
+  // std::cout << "Operations per second: " << std::fixed <<
+  // std::setprecision(0)
+  //           << ops_per_second << " ops/s" << std::endl;
+  // std::cout << "Average latency: " << std::fixed << std::setprecision(3)
+  //           << avg_latency << " us" << std::endl;
+  //
+  // auto sum = 0.;
+  // for (auto data : results) {
+  //   sum += data.value;
+  // }
+  // std::cout << "Sum: " << sum << std::endl;
+
+  std::cout << "haha" << std::endl;
 }
 
-// Test multiple types
-void TestMultipleTypes() {
-  std::cout << "\n=== Testing Multiple Types ===\n" << std::endl;
-  nova::static_impl::RingPool<128> pool;
+// Performance comparison between dynamic and static RingPool
+void TestStaticRingPool() {
+  std::cout << "\n=== Test static ring pool ===" << std::endl;
 
-  // Allocate int
-  auto& int_val = pool.Allocate<int>();
-  int_val = 42;
-  std::cout << "Integer at position " << pool.latest_pos() << ": " << int_val
-            << std::endl;
+  constexpr size_t kPoolSize = 128 * 1024;  // 1MB
+  constexpr size_t kIterations = 20000;      // 10K operations
 
-  // Allocate double
-  auto& double_val = pool.Allocate<double>();
-  double_val = 3.14159;
-  std::cout << "Double at position " << pool.latest_pos() << ": " << double_val
-            << std::endl;
+  std::cout << "cmp size: " << kPoolSize << ", "
+            << kIterations * sizeof(PerformanceData) << std::endl;
 
-  // Allocate FixedString
-  auto& str_val = pool.Allocate<FixedString>();
-  std::strncpy(str_val.data, "Hello, StaticRingPool!",
-               sizeof(str_val.data) - 1);
-  std::cout << "String at position " << pool.latest_pos() << ": "
-            << str_val.data << std::endl;
+  std::cout << "\nTesting Static RingPool:" << std::endl;
+  static_impl::RingPool<kPoolSize> pool;
 
-  // Read back using Read
-  std::cout << "Read back integer: "
-            << pool.Read<int>(pool.latest_pos() - sizeof(int) - sizeof(double) -
-                              sizeof(FixedString))
-            << std::endl;
-  std::cout << "Read back double: "
-            << pool.Read<double>(pool.latest_pos() - sizeof(double) -
-                                 sizeof(FixedString))
-            << std::endl;
-  std::cout
-      << "Read back string: "
-      << pool.Read<FixedString>(pool.latest_pos() - sizeof(FixedString)).data
-      << std::endl;
+  for (size_t i = 0; i < kIterations; ++i) {
+    auto& data = pool.Emplace<PerformanceData>();
+    data.timestamp =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::high_resolution_clock::now().time_since_epoch())
+            .count();
+    data.value = static_cast<double>(i);
+    std::cout << pool.write_count() << ", " << pool.latest_pos() << "," << pool.write_pos() << std::endl;
+  }
 
-  std::cout << "Latest position: " << pool.latest_pos() << std::endl;
+  std::cout << "haha" << std::endl;
+}
+// Memory alignment demo
+void AlignmentDemo() {
+  std::cout << "\n=== Alignment Demo ===" << std::endl;
+
+  // Test with dynamic RingPool
+  {
+    std::cout << "\nTesting Dynamic RingPool:" << std::endl;
+    RingPool pool(1024);
+    std::cout << "Pool alignment: " << pool.kAlignment << " bytes" << std::endl;
+
+    struct alignas(1) SmallData {
+      char data[1];
+    };
+    struct alignas(4) MediumData {
+      int32_t data[2];
+    };
+    struct alignas(8) LargeData {
+      double data[4];
+    };
+
+    auto& small = pool.Emplace<SmallData>();
+    size_t small_pos = pool.latest_pos();
+    std::cout << "Small data position: " << small_pos << std::endl;
+
+    auto& medium = pool.Emplace<MediumData>();
+    size_t medium_pos = pool.latest_pos();
+    std::cout << "Medium data position: " << medium_pos << std::endl;
+
+    auto& large = pool.Emplace<LargeData>();
+    size_t large_pos = pool.latest_pos();
+    std::cout << "Large data position: " << large_pos << std::endl;
+
+    std::cout << "Alignment check:" << std::endl;
+    std::cout << "Small data aligned: "
+              << (reinterpret_cast<uintptr_t>(&small) % alignof(SmallData) == 0)
+              << std::endl;
+    std::cout << "Medium data aligned: "
+              << (reinterpret_cast<uintptr_t>(&medium) % alignof(MediumData) ==
+                  0)
+              << std::endl;
+    std::cout << "Large data aligned: "
+              << (reinterpret_cast<uintptr_t>(&large) % alignof(LargeData) == 0)
+              << std::endl;
+  }
+
+  // Test with static RingPool
+  {
+    std::cout << "\nTesting Static RingPool:" << std::endl;
+    static_impl::RingPool<1024> pool;
+    std::cout << "Pool alignment: " << pool.kAlignment << " bytes" << std::endl;
+
+    struct alignas(1) SmallData {
+      char data[1];
+    };
+    struct alignas(4) MediumData {
+      int32_t data[2];
+    };
+    struct alignas(8) LargeData {
+      double data[4];
+    };
+
+    auto& small = pool.Emplace<SmallData>();
+    size_t small_pos = pool.latest_pos();
+    std::cout << "Small data position: " << small_pos << std::endl;
+
+    auto& medium = pool.Emplace<MediumData>();
+    size_t medium_pos = pool.latest_pos();
+    std::cout << "Medium data position: " << medium_pos << std::endl;
+
+    auto& large = pool.Emplace<LargeData>();
+    size_t large_pos = pool.latest_pos();
+    std::cout << "Large data position: " << large_pos << std::endl;
+
+    std::cout << "Alignment check:" << std::endl;
+    std::cout << "Small data aligned: "
+              << (reinterpret_cast<uintptr_t>(&small) % alignof(SmallData) == 0)
+              << std::endl;
+    std::cout << "Medium data aligned: "
+              << (reinterpret_cast<uintptr_t>(&medium) % alignof(MediumData) ==
+                  0)
+              << std::endl;
+    std::cout << "Large data aligned: "
+              << (reinterpret_cast<uintptr_t>(&large) % alignof(LargeData) == 0)
+              << std::endl;
+  }
 }
 
 int main() {
-  TestBasicOperations();
-  TestRingWrap();
-  TestMultipleTypes();
+  std::cout << "RingPool Demo" << std::endl;
+  std::cout << "============" << std::endl;
+
+  try {
+    // DynamicRingPoolDemo();
+    // StaticRingPoolDemo();
+    // PerformanceComparisonDemo();
+    TestStaticRingPool();
+    // AlignmentDemo();
+  } catch (const std::exception& e) {
+    std::cerr << "Error: " << e.what() << std::endl;
+    return 1;
+  }
+
   return 0;
 }
