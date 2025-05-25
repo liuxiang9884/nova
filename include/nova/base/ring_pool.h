@@ -300,16 +300,25 @@ class RingPool {
 
   RingPool() = default;
   ~RingPool() {
-    // 在析构时检查缓冲区状态
+    // Check buffer state during destruction
     if constexpr (NOVA_DEBUG_MODE) {
       if (write_count_ > 0) {
-        // 检查最后一个写入的位置是否有效
-        if (latest_pos_ >= N) {
+        // Check if write position is valid
+        if (write_pos_ > N) {
+          throw std::runtime_error("Invalid write_pos_ in destructor");
+        }
+        // Check if latest position is valid
+        if (latest_pos_ > N) {
           throw std::runtime_error("Invalid latest_pos_ in destructor");
         }
-        // 检查写位置是否有效
-        if (write_pos_ >= N) {
-          throw std::runtime_error("Invalid write_pos_ in destructor");
+        // Check position relationship
+        if (write_pos_ < latest_pos_) {
+          throw std::runtime_error(
+              "Invalid position relationship in destructor");
+        }
+        // Check if positions are properly aligned
+        if ((write_pos_ - latest_pos_) % kAlignment != 0) {
+          throw std::runtime_error("Position misalignment in destructor");
         }
       }
     }
