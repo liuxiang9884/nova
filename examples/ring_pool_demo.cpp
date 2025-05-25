@@ -138,64 +138,63 @@ void StaticRingPoolDemo() {
 void PerformanceComparisonDemo() {
   std::cout << "\n=== Performance Comparison Demo ===" << std::endl;
 
-  constexpr size_t kPoolSize = 1024 * 1024;  // 1MB
-  constexpr size_t kIterations = 10000;      // 10K operations
+  constexpr size_t kPoolSize = 128 * 1024;  // 1MB
+  constexpr size_t kIterations = 10000;     // 10K operations
 
   std::cout << "cmp size: " << kPoolSize << ", "
             << kIterations * sizeof(PerformanceData) << std::endl;
-  //
-  // // Test dynamic RingPool
-  // {
-  //   std::cout << "\nTesting Dynamic RingPool:" << std::endl;
-  //   RingPool pool(kPoolSize);
-  //   std::vector<PerformanceData> results;
-  //   results.reserve(kIterations);
-  //
-  //   auto start = std::chrono::high_resolution_clock::now();
-  //
-  //   for (size_t i = 0; i < kIterations; ++i) {
-  //     auto& data = pool.Emplace<PerformanceData>();
-  //     data.timestamp =
-  //         std::chrono::duration_cast<std::chrono::nanoseconds>(
-  //             std::chrono::high_resolution_clock::now().time_since_epoch())
-  //             .count();
-  //     data.value = static_cast<double>(i);
-  //     std::snprintf(data.description, sizeof(data.description),
-  //                   "Performance test data %zu", i);
-  //     results.push_back(data);
-  //   }
-  //
-  //   auto end = std::chrono::high_resolution_clock::now();
-  //   auto duration =
-  //       std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  //
-  //   double total_time = duration.count() / 1000000.0;
-  //   double ops_per_second = kIterations / total_time;
-  //   double avg_latency = (total_time * 1000000.0) / kIterations;
-  //
-  //   std::cout << "Total time: " << std::fixed << std::setprecision(3)
-  //             << total_time << " seconds" << std::endl;
-  //   std::cout << "Operations per second: " << std::fixed <<
-  //   std::setprecision(0)
-  //             << ops_per_second << " ops/s" << std::endl;
-  //   std::cout << "Average latency: " << std::fixed << std::setprecision(3)
-  //             << avg_latency << " us" << std::endl;
-  //
-  //   auto sum = 0.;
-  //   for (auto data : results) {
-  //     sum += data.value;
-  //   }
-  //   std::cout << "Sum: " << sum << std::endl;
-  // }
+
+  // Test dynamic RingPool
+  {
+    std::cout << "\nTesting Dynamic RingPool:" << std::endl;
+    RingPool pool(kPoolSize);
+    std::vector<PerformanceData> results;
+    results.reserve(kIterations);
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    for (size_t i = 0; i < kIterations; ++i) {
+      auto& data = pool.Emplace<PerformanceData>();
+      data.timestamp =
+          std::chrono::duration_cast<std::chrono::nanoseconds>(
+              std::chrono::high_resolution_clock::now().time_since_epoch())
+              .count();
+      data.value = static_cast<double>(i);
+      std::snprintf(data.description, sizeof(data.description),
+                    "Performance test data %zu", i);
+      results.push_back(data);
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration =
+        std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    double total_time = duration.count() / 1000000.0;
+    double ops_per_second = kIterations / total_time;
+    double avg_latency = (total_time * 1000000.0) / kIterations;
+
+    std::cout << "Total time: " << std::fixed << std::setprecision(3)
+              << total_time << " seconds" << std::endl;
+    std::cout << "Operations per second: " << std::fixed << std::setprecision(0)
+              << ops_per_second << " ops/s" << std::endl;
+    std::cout << "Average latency: " << std::fixed << std::setprecision(3)
+              << avg_latency << " us" << std::endl;
+
+    auto sum = 0.;
+    for (auto data : results) {
+      sum += data.value;
+    }
+    std::cout << "Sum: " << sum << std::endl;
+  }
 
   // Test static RingPool
 
   std::cout << "\nTesting Static RingPool:" << std::endl;
   static_impl::RingPool<kPoolSize> pool;
-  // std::vector<PerformanceData> results;
-  // results.reserve(kIterations);
+  std::vector<PerformanceData> results;
+  results.reserve(kIterations);
 
-  // auto start = std::chrono::high_resolution_clock::now();
+  auto start = std::chrono::high_resolution_clock::now();
 
   for (size_t i = 0; i < kIterations; ++i) {
     auto& data = pool.Emplace<PerformanceData>();
@@ -204,34 +203,34 @@ void PerformanceComparisonDemo() {
             std::chrono::high_resolution_clock::now().time_since_epoch())
             .count();
     data.value = static_cast<double>(i);
-    // std::snprintf(data.description, sizeof(data.description),
-    //               "Performance test data %zu", i);
-    // results.push_back(data);
+    std::snprintf(data.description, sizeof(data.description),
+                  "Performance test data %zu", i);
+    results.push_back(data);
+    std::cout << "Iteration " << i << ": write_count=" << pool.write_count()
+              << ", latest_pos=" << pool.latest_pos()
+              << ", write_pos=" << pool.write_pos() << std::endl;
   }
 
-  // auto end = std::chrono::high_resolution_clock::now();
-  // auto duration =
-  //     std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  //
-  // double total_time = duration.count() / 1000000.0;
-  // double ops_per_second = kIterations / total_time;
-  // double avg_latency = (total_time * 1000000.0) / kIterations;
-  //
-  // std::cout << "Total time: " << std::fixed << std::setprecision(3)
-  //           << total_time << " seconds" << std::endl;
-  // std::cout << "Operations per second: " << std::fixed <<
-  // std::setprecision(0)
-  //           << ops_per_second << " ops/s" << std::endl;
-  // std::cout << "Average latency: " << std::fixed << std::setprecision(3)
-  //           << avg_latency << " us" << std::endl;
-  //
-  // auto sum = 0.;
-  // for (auto data : results) {
-  //   sum += data.value;
-  // }
-  // std::cout << "Sum: " << sum << std::endl;
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration =
+      std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-  std::cout << "haha" << std::endl;
+  double total_time = duration.count() / 1000000.0;
+  double ops_per_second = kIterations / total_time;
+  double avg_latency = (total_time * 1000000.0) / kIterations;
+
+  std::cout << "Total time: " << std::fixed << std::setprecision(3)
+            << total_time << " seconds" << std::endl;
+  std::cout << "Operations per second: " << std::fixed << std::setprecision(0)
+            << ops_per_second << " ops/s" << std::endl;
+  std::cout << "Average latency: " << std::fixed << std::setprecision(3)
+            << avg_latency << " us" << std::endl;
+
+  auto sum = 0.;
+  for (auto data : results) {
+    sum += data.value;
+  }
+  std::cout << "Sum: " << sum << std::endl;
 }
 
 // Simple test with fewer iterations
@@ -467,15 +466,15 @@ int main() {
   try {
     // DynamicRingPoolDemo();
     // StaticRingPoolDemo();
-    // PerformanceComparisonDemo();
+    PerformanceComparisonDemo();
     // SimpleStaticRingPoolTest();
     // std::cout << "Simple test function completed" << std::endl;
 
-    ProgressiveStaticRingPoolTest();
-    std::cout << "Progressive test function completed" << std::endl;
-
-    HeapAllocatedRingPoolTest();
-    std::cout << "Heap allocated test function completed" << std::endl;
+    // ProgressiveStaticRingPoolTest();
+    // std::cout << "Progressive test function completed" << std::endl;
+    //
+    // HeapAllocatedRingPoolTest();
+    // std::cout << "Heap allocated test function completed" << std::endl;
 
     // TestStaticRingPool();
     // AlignmentDemo();
