@@ -107,11 +107,9 @@ class RingPool {
 
     // Ensure alignment
     write_pos_ = (write_pos_ + alignof(T) - 1) & ~(alignof(T) - 1);
-    write_pos_ = (write_pos_ + sizeof(T)) & mask_;
-
-    T* ptr = new (&buffer_[write_pos_]) T(std::forward<Args>(args)...);
-    latest_pos_ = write_pos_;
-    write_pos_ += sizeof(T);
+    latest_pos_ = write_pos_ & mask_;
+    T* ptr = new (&buffer_[latest_pos_]) T(std::forward<Args>(args)...);
+    write_pos_ = (latest_pos_ + sizeof(T)) & mask_;
     ++write_count_;
     return *ptr;
   }
@@ -120,11 +118,9 @@ class RingPool {
   std::byte* Allocate(size_type size) {
     // Ensure alignment
     write_pos_ = (write_pos_ + kAlignment - 1) & ~(kAlignment - 1);
-    write_pos_ = (write_pos_ + size) & mask_;
-
-    std::byte* ptr = &buffer_[write_pos_];
-    latest_pos_ = write_pos_;
-    write_pos_ += size;
+    latest_pos_ = write_pos_ & mask_;
+    std::byte* ptr = &buffer_[latest_pos_];
+    write_pos_ = (latest_pos_ + size) & mask_;
     ++write_count_;
     return ptr;
   }
@@ -138,11 +134,9 @@ class RingPool {
 
     // Ensure alignment
     write_pos_ = (write_pos_ + alignof(T) - 1) & ~(alignof(T) - 1);
-    write_pos_ = (write_pos_ + sizeof(T)) & mask_;
-
-    T& ref = reinterpret_cast<T&>(buffer_[write_pos_]);
-    latest_pos_ = write_pos_;
-    write_pos_ += sizeof(T);
+    latest_pos_ = write_pos_ & mask_;
+    T& ref = reinterpret_cast<T&>(buffer_[latest_pos_]);
+    write_pos_ = (latest_pos_ + sizeof(T)) & mask_;
     ++write_count_;
     return ref;
   }
@@ -151,12 +145,10 @@ class RingPool {
   std::byte* Push(const void* data, size_type size) {
     // Ensure alignment
     write_pos_ = (write_pos_ + kAlignment - 1) & ~(kAlignment - 1);
-    write_pos_ = (write_pos_ + size) & mask_;
-
-    std::byte* ptr = &buffer_[write_pos_];
+    latest_pos_ = write_pos_ & mask_;
+    std::byte* ptr = &buffer_[latest_pos_];
     std::memcpy(ptr, data, size);
-    latest_pos_ = write_pos_;
-    write_pos_ += size;
+    write_pos_ = (latest_pos_ + size) & mask_;
     ++write_count_;
     return ptr;
   }
@@ -271,11 +263,11 @@ class RingPool {
   // Underlying storage
   std::vector<std::byte> buffer_;
   // Current write position
-  size_type write_pos_ = 0;
+  size_type write_pos_{0};
   // Most recently written position
-  size_type latest_pos_ = 0;
+  size_type latest_pos_{0};
   // Total number of writes
-  size_type write_count_ = 0;
+  size_type write_count_{0};
 };
 
 namespace static_impl {
@@ -305,9 +297,6 @@ class RingPool {
   // Ensure N is a power of 2
   static_assert(N > 0 && (N & (N - 1)) == 0, "N must be a power of 2");
 
-  RingPool() = default;
-  ~RingPool() =default;
-
   // Construct an object at current position
   template <typename T, typename... Args>
     requires MMapType<T>
@@ -317,11 +306,9 @@ class RingPool {
 
     // Ensure alignment
     write_pos_ = (write_pos_ + alignof(T) - 1) & ~(alignof(T) - 1);
-    write_pos_ = (write_pos_ + sizeof(T)) & (N - 1);
-
-    T* ptr = new (&buffer_[write_pos_]) T(std::forward<Args>(args)...);
-    latest_pos_ = write_pos_;
-    write_pos_ += sizeof(T);
+    latest_pos_ = write_pos_ & (N - 1);
+    T* ptr = new (&buffer_[latest_pos_]) T(std::forward<Args>(args)...);
+    write_pos_ = (latest_pos_ + sizeof(T)) & (N - 1);
     ++write_count_;
     return *ptr;
   }
@@ -330,11 +317,9 @@ class RingPool {
   std::byte* Allocate(size_type size) {
     // Ensure alignment
     write_pos_ = (write_pos_ + kAlignment - 1) & ~(kAlignment - 1);
-    write_pos_ = (write_pos_ + size) & (N - 1);
-
-    std::byte* ptr = &buffer_[write_pos_];
-    latest_pos_ = write_pos_;
-    write_pos_ += size;
+    latest_pos_ = write_pos_ & (N - 1);
+    std::byte* ptr = &buffer_[latest_pos_];
+    write_pos_ = (latest_pos_ + size) & (N - 1);
     ++write_count_;
     return ptr;
   }
@@ -348,11 +333,9 @@ class RingPool {
 
     // Ensure alignment
     write_pos_ = (write_pos_ + alignof(T) - 1) & ~(alignof(T) - 1);
-    write_pos_ = (write_pos_ + sizeof(T)) & (N - 1);
-
-    T& ref = reinterpret_cast<T&>(buffer_[write_pos_]);
-    latest_pos_ = write_pos_;
-    write_pos_ += sizeof(T);
+    latest_pos_ = write_pos_ & (N - 1);
+    T& ref = reinterpret_cast<T&>(buffer_[latest_pos_]);
+    write_pos_ = (latest_pos_ + sizeof(T)) & (N - 1);
     ++write_count_;
     return ref;
   }
@@ -361,12 +344,10 @@ class RingPool {
   std::byte* Push(const void* data, size_type size) {
     // Ensure alignment
     write_pos_ = (write_pos_ + kAlignment - 1) & ~(kAlignment - 1);
-    write_pos_ = (write_pos_ + size) & (N - 1);
-
-    std::byte* ptr = &buffer_[write_pos_];
+    latest_pos_ = write_pos_ & (N - 1);
+    std::byte* ptr = &buffer_[latest_pos_];
     std::memcpy(ptr, data, size);
-    latest_pos_ = write_pos_;
-    write_pos_ += size;
+    write_pos_ = (latest_pos_ + size) & (N - 1);
     ++write_count_;
     return ptr;
   }
@@ -479,11 +460,11 @@ class RingPool {
   // Underlying storage with alignment
   alignas(kAlignment) std::array<std::byte, N> buffer_;
   // Current write position
-  size_type write_pos_ = 0;
+  size_type write_pos_{0};
   // Most recently written position
-  size_type latest_pos_ = 0;
+  size_type latest_pos_{0};
   // Total number of writes
-  size_type write_count_ = 0;
+  size_type write_count_{0};
 };
 
 }  // namespace static_impl
