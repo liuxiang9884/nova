@@ -434,11 +434,11 @@ class RingPool {
 
   // Direct access to underlying memory (use with caution)
   std::byte* data() {
-    return buffer_.data();
+    return buffer_;
   }
 
   [[nodiscard]] const std::byte* data() const {
-    return buffer_.data();
+    return buffer_;
   }
 
   // Get pointer at specific position
@@ -462,7 +462,7 @@ class RingPool {
 
  private:
   // Underlying storage with alignment
-  alignas(kAlignment) std::array<std::byte, N> buffer_;
+  alignas(kAlignment) std::byte buffer_[N];
   // Current write position
   size_type write_pos_{0};
   // Most recently written position
