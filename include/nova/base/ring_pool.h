@@ -327,11 +327,11 @@ class RingPool {
     if constexpr (NOVA_DEBUG_MODE) {
       if (write_count_ > 0) {
         // Check if write position is valid
-        if (write_pos_ > N) {
+        if (write_pos_ > (N - 1)) {
           throw std::runtime_error("Invalid write_pos_ in destructor");
         }
         // Check if latest position is valid
-        if (latest_pos_ > N) {
+        if (latest_pos_ > (N - 1)) {
           throw std::runtime_error("Invalid latest_pos_ in destructor");
         }
         // Check position relationship

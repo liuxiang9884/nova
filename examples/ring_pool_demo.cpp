@@ -264,16 +264,12 @@ void TestStaticRingPool() {
   std::cout << "Write pos: " << pool.write_pos() << std::endl;
   std::cout << "Pool size: " << kPoolSize << std::endl;
   std::cout << "Data size: " << sizeof(PerformanceData) << std::endl;
-
-  // Explicitly call destructors for all objects
-  size_t pos = 0;
-  while (pos < pool.write_pos()) {
-    if (pos + sizeof(PerformanceData) <= pool.write_pos()) {
-      auto* ptr = reinterpret_cast<PerformanceData*>(pool.At(pos));
-      ptr->~PerformanceData();
-    }
-    pos += sizeof(PerformanceData);
-  }
+  std::cout << "Alignment: " << alignof(PerformanceData) << std::endl;
+  std::cout << "Is POD: " << std::is_pod_v<PerformanceData> << std::endl;
+  std::cout << "Is standard layout: "
+            << std::is_standard_layout_v<PerformanceData> << std::endl;
+  std::cout << "Is trivial: "
+            << std::is_trivial_v<PerformanceData> << std::endl;
 
   std::cout << "haha" << std::endl;
 }
