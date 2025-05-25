@@ -97,39 +97,7 @@ class RingPool {
   }
 
   // Destructor
-  ~RingPool() {
-    // Check buffer state during destruction
-    if constexpr (NOVA_DEBUG_MODE) {
-      if (write_count_ > 0) {
-        // Check if write position is valid
-        if (write_pos_ > mask_) {
-          throw std::runtime_error("Invalid write_pos_ in destructor");
-        }
-        // Check if latest position is valid
-        if (latest_pos_ > mask_) {
-          throw std::runtime_error("Invalid latest_pos_ in destructor");
-        }
-        // Check position relationship
-        if (write_pos_ < latest_pos_) {
-          throw std::runtime_error(
-              "Invalid position relationship in destructor");
-        }
-        // Check if positions are properly aligned
-        if ((write_pos_ - latest_pos_) % kAlignment != 0) {
-          throw std::runtime_error("Position misalignment in destructor");
-        }
-        // Check buffer integrity
-        if (buffer_.data() == nullptr) {
-          throw std::runtime_error("Buffer is null in destructor");
-        }
-        // Check if we can safely access the buffer
-        volatile std::byte test = buffer_[0];
-        volatile std::byte test2 = buffer_[mask_];
-        (void)test;
-        (void)test2;
-      }
-    }
-  }
+  ~RingPool() = default;
 
   // Construct an object at current position
   template <typename T, typename... Args>
@@ -331,39 +299,7 @@ class RingPool {
   static_assert(N > 0 && (N & (N - 1)) == 0, "N must be a power of 2");
 
   RingPool() = default;
-  ~RingPool() {
-    // Check buffer state during destruction
-    if constexpr (NOVA_DEBUG_MODE) {
-      if (write_count_ > 0) {
-        // Check if write position is valid
-        if (write_pos_ > (N - 1)) {
-          throw std::runtime_error("Invalid write_pos_ in destructor");
-        }
-        // Check if latest position is valid
-        if (latest_pos_ > (N - 1)) {
-          throw std::runtime_error("Invalid latest_pos_ in destructor");
-        }
-        // Check position relationship
-        if (write_pos_ < latest_pos_) {
-          throw std::runtime_error(
-              "Invalid position relationship in destructor");
-        }
-        // Check if positions are properly aligned
-        if ((write_pos_ - latest_pos_) % kAlignment != 0) {
-          throw std::runtime_error("Position misalignment in destructor");
-        }
-        // Check buffer integrity
-        if (buffer_.data() == nullptr) {
-          throw std::runtime_error("Buffer is null in destructor");
-        }
-        // Check if we can safely access the buffer
-        volatile std::byte test = buffer_[0];
-        volatile std::byte test2 = buffer_[N - 1];
-        (void)test;
-        (void)test2;
-      }
-    }
-  }
+  ~RingPool() = default;
 
   // Construct an object at current position
   template <typename T, typename... Args>
