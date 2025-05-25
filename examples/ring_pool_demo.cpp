@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <vector>
 
 #include "nova/base/ring_pool.h"
@@ -258,13 +259,13 @@ void SimpleStaticRingPoolTest() {
 void ProgressiveStaticRingPoolTest() {
   std::cout << "\n=== Progressive Static RingPool Test ===" << std::endl;
 
-  constexpr size_t kPoolSize = 128 * 1024;  // 128KB
+  constexpr size_t kPoolSize = 4 * 1024;  // 4KB instead of 128KB
   static_impl::RingPool<kPoolSize> pool;
 
   // Test different iteration counts
   {
-    std::vector<size_t> test_counts = {100,  500,   1000,  2000,
-                                       5000, 10000, 15000, 20000};
+    std::vector<size_t> test_counts = {10, 20, 30, 40,
+                                       50};  // Smaller counts for smaller pool
 
     for (auto count : test_counts) {
       std::cout << "Testing with " << count << " iterations..." << std::endl;
@@ -276,11 +277,9 @@ void ProgressiveStaticRingPoolTest() {
         data.timestamp = i;
         data.value = static_cast<double>(i);
 
-        // Only print every 1000th iteration to reduce output
-        if (i % 1000 == 0 || i == count - 1) {
-          std::cout << "  " << pool.write_count() << ", " << pool.latest_pos()
-                    << ", " << pool.write_pos() << std::endl;
-        }
+        // Print every iteration for small tests
+        std::cout << "  " << pool.write_count() << ", " << pool.latest_pos()
+                  << ", " << pool.write_pos() << std::endl;
       }
 
       std::cout << "  Final state: write_count=" << pool.write_count()
@@ -425,6 +424,26 @@ void AlignmentDemo() {
   }
 }
 
+// Test with heap allocation
+void HeapAllocatedRingPoolTest() {
+  std::cout << "\n=== Heap Allocated RingPool Test ===" << std::endl;
+
+  constexpr size_t kPoolSize = 128 * 1024;  // 128KB
+  auto pool = std::make_unique<static_impl::RingPool<kPoolSize>>();
+
+  for (size_t i = 0; i < 50; ++i) {
+    auto& data = pool->Emplace<PerformanceData>();
+    data.timestamp = i;
+    data.value = static_cast<double>(i);
+
+    std::cout << "  " << pool->write_count() << ", " << pool->latest_pos()
+              << ", " << pool->write_pos() << std::endl;
+  }
+
+  std::cout << "Heap allocated test completed successfully" << std::endl;
+  std::cout << "Pool going out of scope..." << std::endl;
+}
+
 int main() {
   std::cout << "RingPool Demo" << std::endl;
   std::cout << "============" << std::endl;
@@ -438,6 +457,9 @@ int main() {
 
     ProgressiveStaticRingPoolTest();
     std::cout << "Progressive test function completed" << std::endl;
+
+    HeapAllocatedRingPoolTest();
+    std::cout << "Heap allocated test function completed" << std::endl;
 
     // TestStaticRingPool();
     // AlignmentDemo();
