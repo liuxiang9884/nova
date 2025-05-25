@@ -257,13 +257,23 @@ void TestStaticRingPool() {
               << pool.write_pos() << std::endl;
   }
 
-  // 在函数结束前检查状态
+  // Print final state
   std::cout << "Final state:" << std::endl;
   std::cout << "Write count: " << pool.write_count() << std::endl;
   std::cout << "Latest pos: " << pool.latest_pos() << std::endl;
   std::cout << "Write pos: " << pool.write_pos() << std::endl;
   std::cout << "Pool size: " << kPoolSize << std::endl;
   std::cout << "Data size: " << sizeof(PerformanceData) << std::endl;
+
+  // Explicitly call destructors for all objects
+  size_t pos = 0;
+  while (pos < pool.write_pos()) {
+    if (pos + sizeof(PerformanceData) <= pool.write_pos()) {
+      auto* ptr = reinterpret_cast<PerformanceData*>(pool.At(pos));
+      ptr->~PerformanceData();
+    }
+    pos += sizeof(PerformanceData);
+  }
 
   std::cout << "haha" << std::endl;
 }

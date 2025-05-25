@@ -97,7 +97,30 @@ class RingPool {
   }
 
   // Destructor
-  ~RingPool() = default;
+  ~RingPool() {
+    // Check buffer state during destruction
+    if constexpr (NOVA_DEBUG_MODE) {
+      if (write_count_ > 0) {
+        // Check if write position is valid
+        if (write_pos_ > mask_) {
+          throw std::runtime_error("Invalid write_pos_ in destructor");
+        }
+        // Check if latest position is valid
+        if (latest_pos_ > mask_) {
+          throw std::runtime_error("Invalid latest_pos_ in destructor");
+        }
+        // Check position relationship
+        if (write_pos_ < latest_pos_) {
+          throw std::runtime_error(
+              "Invalid position relationship in destructor");
+        }
+        // Check if positions are properly aligned
+        if ((write_pos_ - latest_pos_) % kAlignment != 0) {
+          throw std::runtime_error("Position misalignment in destructor");
+        }
+      }
+    }
+  }
 
   // Construct an object at current position
   template <typename T, typename... Args>
