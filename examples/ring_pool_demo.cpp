@@ -237,8 +237,8 @@ void PerformanceComparisonDemo() {
 void TestStaticRingPool() {
   std::cout << "\n=== Test static ring pool ===" << std::endl;
 
-  constexpr size_t kPoolSize = 128 * 1024;  // 1MB
-  constexpr size_t kIterations = 20000;      // 10K operations
+  constexpr size_t kPoolSize = 128 * 1024;  // 128KB
+  constexpr size_t kIterations = 20000;     // 20K operations
 
   std::cout << "cmp size: " << kPoolSize << ", "
             << kIterations * sizeof(PerformanceData) << std::endl;
@@ -253,8 +253,17 @@ void TestStaticRingPool() {
             std::chrono::high_resolution_clock::now().time_since_epoch())
             .count();
     data.value = static_cast<double>(i);
-    std::cout << pool.write_count() << ", " << pool.latest_pos() << "," << pool.write_pos() << std::endl;
+    std::cout << pool.write_count() << ", " << pool.latest_pos() << ","
+              << pool.write_pos() << std::endl;
   }
+
+  // 在函数结束前检查状态
+  std::cout << "Final state:" << std::endl;
+  std::cout << "Write count: " << pool.write_count() << std::endl;
+  std::cout << "Latest pos: " << pool.latest_pos() << std::endl;
+  std::cout << "Write pos: " << pool.write_pos() << std::endl;
+  std::cout << "Pool size: " << kPoolSize << std::endl;
+  std::cout << "Data size: " << sizeof(PerformanceData) << std::endl;
 
   std::cout << "haha" << std::endl;
 }

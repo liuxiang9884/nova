@@ -299,7 +299,21 @@ class RingPool {
   static_assert(N > 0 && (N & (N - 1)) == 0, "N must be a power of 2");
 
   RingPool() = default;
-  ~RingPool() = default;
+  ~RingPool() {
+    // 在析构时检查缓冲区状态
+    if constexpr (NOVA_DEBUG_MODE) {
+      if (write_count_ > 0) {
+        // 检查最后一个写入的位置是否有效
+        if (latest_pos_ >= N) {
+          throw std::runtime_error("Invalid latest_pos_ in destructor");
+        }
+        // 检查写位置是否有效
+        if (write_pos_ >= N) {
+          throw std::runtime_error("Invalid write_pos_ in destructor");
+        }
+      }
+    }
+  }
 
   // Construct an object at current position
   template <typename T, typename... Args>
