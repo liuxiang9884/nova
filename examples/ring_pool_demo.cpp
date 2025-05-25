@@ -254,6 +254,44 @@ void SimpleStaticRingPoolTest() {
   std::cout << "Simple test completed successfully" << std::endl;
 }
 
+// Progressive test to find the issue
+void ProgressiveStaticRingPoolTest() {
+  std::cout << "\n=== Progressive Static RingPool Test ===" << std::endl;
+
+  constexpr size_t kPoolSize = 128 * 1024;  // 128KB
+  static_impl::RingPool<kPoolSize> pool;
+
+  // Test different iteration counts
+  std::vector<size_t> test_counts = {100,  500,   1000,  2000,
+                                     5000, 10000, 15000, 20000};
+
+  for (auto count : test_counts) {
+    std::cout << "Testing with " << count << " iterations..." << std::endl;
+
+    pool.Reset();  // Reset the pool for each test
+
+    for (size_t i = 0; i < count; ++i) {
+      auto& data = pool.Emplace<PerformanceData>();
+      data.timestamp = i;
+      data.value = static_cast<double>(i);
+
+      // Only print every 1000th iteration to reduce output
+      if (i % 1000 == 0 || i == count - 1) {
+        std::cout << "  " << pool.write_count() << ", " << pool.latest_pos()
+                  << ", " << pool.write_pos() << std::endl;
+      }
+    }
+
+    std::cout << "  Final state: write_count=" << pool.write_count()
+              << ", latest_pos=" << pool.latest_pos()
+              << ", write_pos=" << pool.write_pos() << std::endl;
+    std::cout << "  Test with " << count << " iterations completed successfully"
+              << std::endl;
+  }
+
+  std::cout << "All progressive tests completed" << std::endl;
+}
+
 // Performance comparison between dynamic and static RingPool
 void TestStaticRingPool() {
   std::cout << "\n=== Test static ring pool ===" << std::endl;
@@ -391,6 +429,7 @@ int main() {
     // StaticRingPoolDemo();
     // PerformanceComparisonDemo();
     SimpleStaticRingPoolTest();
+    ProgressiveStaticRingPoolTest();
     // TestStaticRingPool();
     // AlignmentDemo();
   } catch (const std::exception& e) {
