@@ -1,11 +1,11 @@
 #pragma once
 
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <cstring>
 #include <stdexcept>
 #include <vector>
-#include <bit>
 
 #include "nova/common/macros.h"
 
@@ -299,9 +299,7 @@ class RingPool {
   static_assert(N > 0 && (N & (N - 1)) == 0, "N must be a power of 2");
 
   RingPool() = default;
-  ~RingPool() {
-    std::cout << "~RingPool()" << std::endl;
-  }
+  ~RingPool() = default;
 
   // Construct an object at current position
   template <typename T, typename... Args>
