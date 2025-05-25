@@ -52,10 +52,7 @@ class RingPool {
 
   // Allocate memory for type T without initialization
   template <typename T>
-    requires std::is_standard_layout_v<T> && std::is_trivial_v<T> &&
-             std::is_trivially_copyable_v<T> &&
-             std::is_default_constructible_v<T> &&
-             std::is_copy_constructible_v<T> && std::is_move_constructible_v<T>
+    requires std::is_standard_layout_v<T> && std::is_trivial_v<T>
   T& Allocate() {
     if (write_pos_ + sizeof(T) >= N) [[unlikely]] {
       write_pos_ = 0;
@@ -88,10 +85,7 @@ class RingPool {
   }
 
   template <typename T>
-    requires std::is_standard_layout_v<T> && std::is_trivial_v<T> &&
-             std::is_trivially_copyable_v<T> &&
-             std::is_default_constructible_v<T> &&
-             std::is_copy_constructible_v<T> && std::is_move_constructible_v<T>
+    requires std::is_standard_layout_v<T> && std::is_trivial_v<T>
   T& Read(size_type offset) {
     return reinterpret_cast<T&>(buffer_[offset]);
   }

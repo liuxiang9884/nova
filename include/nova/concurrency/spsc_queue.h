@@ -20,10 +20,7 @@ using MappedType = T;
 namespace static_impl {
 
 template <typename T, std::size_t Capacity>
-  requires std::is_standard_layout_v<T> && std::is_trivial_v<T> &&
-           std::is_trivially_copyable_v<T> &&
-           std::is_default_constructible_v<T> &&
-           std::is_copy_constructible_v<T> && std::is_move_constructible_v<T>
+  requires std::is_standard_layout_v<T> && std::is_trivial_v<T>
 class alignas(nova::kCacheLineSize) SPSCQueue {
  public:
   static_assert(Capacity >= 2, "Capacity must be at least 2");
