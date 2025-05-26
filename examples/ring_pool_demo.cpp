@@ -548,7 +548,9 @@ void MixedTypesDemo() {
 // Static RingPool mixed types demo
 void StaticMixedTypesDemo() {
   std::cout << "\n=== Static RingPool Mixed Types Demo ===" << std::endl;
-  std::cout << "演示在静态 RingPool 中构建不同类型的结构" << std::endl;
+  std::cout
+      << "Demonstrating construction of different types in static RingPool"
+      << std::endl;
 
   // Create a 2KB static pool
   static_impl::RingPool<2048> pool;
@@ -556,7 +558,7 @@ void StaticMixedTypesDemo() {
             << std::endl;
 
   // Create a graphics scene with mixed objects
-  std::cout << "\n--- 创建图形场景 ---" << std::endl;
+  std::cout << "\n--- Creating Graphics Scene ---" << std::endl;
 
   // Background rectangle
   auto& background = pool.Emplace<Rectangle>();
@@ -564,7 +566,7 @@ void StaticMixedTypesDemo() {
   background.bottom_right = {800.0f, 600.0f};
   background.color = 0x000000;  // Black background
   size_t bg_pos = pool.latest_pos();
-  std::cout << "背景矩形在位置 " << bg_pos << ": ";
+  std::cout << "Background rectangle at position " << bg_pos << ": ";
   background.Print();
 
   // Title text
@@ -574,7 +576,7 @@ void StaticMixedTypesDemo() {
   title.font_size = 24;
   title.color = 0xFFFFFF;  // White text
   size_t title_pos = pool.latest_pos();
-  std::cout << "标题文本在位置 " << title_pos << ": ";
+  std::cout << "Title text at position " << title_pos << ": ";
   title.Print();
 
   // Create some geometric shapes
@@ -587,7 +589,8 @@ void StaticMixedTypesDemo() {
     circle.radius = 30.0f + i * 10.0f;
     circle.color = 0xFF0000 + (i * 0x003300);  // Red to yellow gradient
     shape_positions.push_back(pool.latest_pos());
-    std::cout << "圆形 " << (i + 1) << " 在位置 " << pool.latest_pos() << ": ";
+    std::cout << "Circle " << (i + 1) << " at position " << pool.latest_pos()
+              << ": ";
     circle.Print();
 
     // Rectangle
@@ -596,7 +599,8 @@ void StaticMixedTypesDemo() {
     rect.bottom_right = {120.0f + i * 150.0f, 350.0f};
     rect.color = 0x0000FF + (i * 0x330000);  // Blue to magenta gradient
     shape_positions.push_back(pool.latest_pos());
-    std::cout << "矩形 " << (i + 1) << " 在位置 " << pool.latest_pos() << ": ";
+    std::cout << "Rectangle " << (i + 1) << " at position " << pool.latest_pos()
+              << ": ";
     rect.Print();
 
     // Label for each shape
@@ -606,41 +610,42 @@ void StaticMixedTypesDemo() {
     label.font_size = 12;
     label.color = 0xFFFFFF;
     shape_positions.push_back(pool.latest_pos());
-    std::cout << "标签 " << (i + 1) << " 在位置 " << pool.latest_pos() << ": ";
+    std::cout << "Label " << (i + 1) << " at position " << pool.latest_pos()
+              << ": ";
     label.Print();
   }
 
-  std::cout << "\n--- 内存布局分析 ---" << std::endl;
-  std::cout << "对象类型大小:" << std::endl;
+  std::cout << "\n--- Memory Layout Analysis ---" << std::endl;
+  std::cout << "Object type sizes:" << std::endl;
   std::cout << "  Point2D: " << sizeof(Point2D) << " bytes" << std::endl;
   std::cout << "  Rectangle: " << sizeof(Rectangle) << " bytes" << std::endl;
   std::cout << "  Circle: " << sizeof(Circle) << " bytes" << std::endl;
   std::cout << "  TextLabel: " << sizeof(TextLabel) << " bytes" << std::endl;
 
-  std::cout << "\n对象对齐要求:" << std::endl;
+  std::cout << "\nObject alignment requirements:" << std::endl;
   std::cout << "  Point2D: " << alignof(Point2D) << " bytes" << std::endl;
   std::cout << "  Rectangle: " << alignof(Rectangle) << " bytes" << std::endl;
   std::cout << "  Circle: " << alignof(Circle) << " bytes" << std::endl;
   std::cout << "  TextLabel: " << alignof(TextLabel) << " bytes" << std::endl;
 
-  std::cout << "\n池使用统计:" << std::endl;
-  std::cout << "  总对象数: " << pool.write_count() << std::endl;
-  std::cout << "  已用内存: " << pool.write_pos() << " bytes" << std::endl;
-  std::cout << "  内存利用率: " << std::fixed << std::setprecision(1)
+  std::cout << "\nPool usage statistics:" << std::endl;
+  std::cout << "  Total objects: " << pool.write_count() << std::endl;
+  std::cout << "  Used memory: " << pool.write_pos() << " bytes" << std::endl;
+  std::cout << "  Memory utilization: " << std::fixed << std::setprecision(1)
             << (static_cast<double>(pool.write_pos()) / pool.capacity() * 100.0)
             << "%" << std::endl;
 
   // Demonstrate reading back the objects
-  std::cout << "\n--- 验证对象完整性 ---" << std::endl;
+  std::cout << "\n--- Object Integrity Verification ---" << std::endl;
   auto& bg_read = pool.Read<Rectangle>(bg_pos);
-  std::cout << "重新读取背景: ";
+  std::cout << "Re-read background: ";
   bg_read.Print();
 
   auto& title_read = pool.Read<TextLabel>(title_pos);
-  std::cout << "重新读取标题: ";
+  std::cout << "Re-read title: ";
   title_read.Print();
 
-  std::cout << "\n混合类型演示完成!" << std::endl;
+  std::cout << "\nMixed types demo completed!" << std::endl;
 }
 
 // Memory alignment demo
@@ -772,7 +777,8 @@ int main() {
     DynamicRingPoolDemo();
     StaticRingPoolDemo();
 
-    // Mixed types demos - 演示在同一个pool中构建不同类型的结构
+    // Mixed types demos - Demonstrate constructing different types in the same
+    // pool
     MixedTypesDemo();
     StaticMixedTypesDemo();
 
