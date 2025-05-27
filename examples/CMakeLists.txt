@@ -66,7 +66,7 @@ endif()
 
 # flat_hash_map_demo
 add_executable(flat_hash_map_demo flat_hash_map_demo.cpp)
-target_include_directories(flat_hash_map_demo PRIVaATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
+target_include_directories(flat_hash_map_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
 target_link_libraries(flat_hash_map_demo PRIVATE fmt::fmt-header-only nova)
 
 # shm_flat_hash_map_demo

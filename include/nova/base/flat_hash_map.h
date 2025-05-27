@@ -560,47 +560,17 @@ FlatHashMap<Key, Value, N, Hash, KeyEqual>::cend() const {
   return const_iterator(&container_, Capacity);
 }
 
-// Shared memory compatible type alias with constraints
-template <class Key, class Value, std::size_t N = 1024,
-          class Hash = std::hash<Key>, class KeyEqual = std::equal_to<Key>>
-using ShmFlatHashMap = FlatHashMap<Key, Value, N, Hash, KeyEqual>;
-
 // Type trait to check if types are shared memory compatible
 template <typename T>
 constexpr bool is_shm_compatible_v =
     std::is_standard_layout_v<T> && std::is_trivially_copyable_v<T> &&
     !std::is_pointer_v<T>;
 
-// Static assertions for shared memory compatibility
-template <class Key, class Value, std::size_t N>
-struct ShmFlatHashMapTraits {
-  static_assert(is_shm_compatible_v<Key>,
-                "Key type must be shared memory compatible (standard layout, "
-                "trivially copyable, non-pointer)");
-  static_assert(is_shm_compatible_v<Value>,
-                "Value type must be shared memory compatible (standard layout, "
-                "trivially copyable, non-pointer)");
-  static_assert(sizeof(Key) <= 1024,
-                "Key type should be reasonably sized for shared memory usage");
-  static_assert(
-      sizeof(Value) <= 1024,
-      "Value type should be reasonably sized for shared memory usage");
+template <typename T>
+concept ShmType = is_shm_compatible_v<T>;
 
-  using type = ShmFlatHashMap<Key, Value, N>;
-
-  // Helper to validate at runtime
-  static constexpr bool validate() {
-    return is_shm_compatible_v<Key> && is_shm_compatible_v<Value>;
-  }
-
-  // Memory size calculation for mmap
-  static constexpr std::size_t memory_size() {
-    return sizeof(ShmFlatHashMap<Key, Value, N>);
-  }
-};
-
-// Convenience macro for creating shared memory compatible FlatHashMap
-#define NOVA_SHM_FLAT_HASH_MAP(Key, Value, N) \
-  typename ::nova::static_impl::ShmFlatHashMapTraits<Key, Value, N>::type
+template <ShmType Key, ShmType Value, std::size_t N = 1024,
+          class Hash = std::hash<Key>, class KeyEqual = std::equal_to<Key>>
+using ShmFlatHashMap = FlatHashMap<Key, Value, N, Hash, KeyEqual>;
 
 }  // namespace nova::static_impl
