@@ -29,7 +29,7 @@ void BasicFlatHashMapDemo() {
   std::cout << "\n=== Basic FlatHashMap Demo ===" << std::endl;
 
   // Create a FlatHashMap with capacity 16
-  FlatHashMap<int, std::string, std::hash<int>, std::equal_to<int>, 16> map;
+  FlatHashMap<int, std::string, 16> map;
 
   std::cout << "Created FlatHashMap with capacity: " << map.max_size()
             << std::endl;
@@ -91,9 +91,7 @@ void BasicFlatHashMapDemo() {
 void IteratorDemo() {
   std::cout << "\n=== Iterator Demo ===" << std::endl;
 
-  FlatHashMap<std::string, int, std::hash<std::string>,
-              std::equal_to<std::string>, 32>
-      map;
+  FlatHashMap<std::string, int, 32> map;
 
   // Insert some elements
   map["apple"] = 5;
@@ -127,7 +125,7 @@ void IteratorDemo() {
 void ComplexObjectDemo() {
   std::cout << "\n=== Complex Object Demo ===" << std::endl;
 
-  FlatHashMap<int, TestData, std::hash<int>, std::equal_to<int>, 64> map;
+  FlatHashMap<int, TestData, 64> map;
 
   // Insert complex objects
   map.emplace(1, 1, "First", 1.1);
@@ -161,7 +159,7 @@ void ComplexObjectDemo() {
 void EraseDemo() {
   std::cout << "\n=== Erase Demo ===" << std::endl;
 
-  FlatHashMap<int, std::string, std::hash<int>, std::equal_to<int>, 16> map;
+  FlatHashMap<int, std::string, 16> map;
 
   // Insert elements
   for (int i = 1; i <= 8; ++i) {
@@ -212,7 +210,7 @@ void HashCollisionDemo() {
     }
   };
 
-  FlatHashMap<int, std::string, BadHash, std::equal_to<int>, 16> map;
+  FlatHashMap<int, std::string, 16> map;
 
   std::cout << "Using bad hash function (key % 4) to force collisions"
             << std::endl;
@@ -254,7 +252,7 @@ void PerformanceComparison() {
   // Test FlatHashMap
   {
     std::cout << "\nTesting FlatHashMap:" << std::endl;
-    FlatHashMap<int, int, std::hash<int>, std::equal_to<int>, kCapacity>
+    FlatHashMap<int, int, kCapacity>
         flat_map;
 
     auto start = std::chrono::high_resolution_clock::now();
@@ -326,7 +324,7 @@ void PerformanceComparison() {
 void CapacityLimitDemo() {
   std::cout << "\n=== Capacity Limit Demo ===" << std::endl;
 
-  FlatHashMap<int, std::string, std::hash<int>, std::equal_to<int>, 8>
+  FlatHashMap<int, std::string, 8>
       small_map;
 
   std::cout << "Created map with capacity: " << small_map.max_size()
@@ -347,7 +345,7 @@ void CapacityLimitDemo() {
     std::cout << "Trying to insert beyond capacity..." << std::endl;
     small_map[8] = "Should_Fail";
 
-  } catch (const FlatHashMapError& e) {
+  } catch (const std::runtime_error& e) {
     std::cout << "Caught expected exception: " << e.what() << std::endl;
   }
 }
@@ -369,6 +367,11 @@ int main() {
     std::cerr << "Error: " << e.what() << std::endl;
     return 1;
   }
+
+  using Key = std::array<char, 20>;
+
+  std::cout << std::is_trivial_v<FlatHashMap<Key, int>> << std::endl;
+  std::cout << std::is_standard_layout_v<FlatHashMap<Key, int>> << std::endl;
 
   std::cout << "\nDemo completed successfully!" << std::endl;
   return 0;
