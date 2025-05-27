@@ -1,22 +1,17 @@
 #pragma once
 
 #include <array>
+#include <bit>
 #include <functional>
-#include <optional>
 #include <stdexcept>
-#include <type_traits>
-#include <utility>
+#include <tuple>
 
 namespace nova::static_impl {
 
-// Exception for FlatHashMap operations
-class FlatHashMapError : public std::runtime_error {
- public:
-  explicit FlatHashMapError(const std::string& msg) : std::runtime_error(msg) {}
-};
+// Use C++20 std::bit_ceil for calculating next power of 2
 
 template <class Key, class Value, class Hash = std::hash<Key>,
-          class KeyEqual = std::equal_to<Key>, std::size_t Capacity = 1024>
+          class KeyEqual = std::equal_to<Key>, std::size_t N = 1024>
 class FlatHashMap {
  public:
   using key_type = Key;
@@ -26,8 +21,20 @@ class FlatHashMap {
   using hasher = Hash;
   using key_equal = KeyEqual;
 
-  // Container type - stores actual key-value pairs
-  using Container = std::array<std::optional<value_type>, Capacity>;
+  // Load factor and capacity calculation
+  static constexpr double kLoadFactor = 0.618;
+  static constexpr size_type Capacity =
+      std::bit_ceil(static_cast<size_type>(N / kLoadFactor));
+  static constexpr size_type kCapacityMask = Capacity - 1;
+
+  // Slot structure using value_type + bool
+  struct Slot {
+    value_type data;
+    bool occupied;
+  };
+
+  // Container type
+  using Container = std::array<Slot, Capacity>;
 
   // Iterator types
   class iterator;
@@ -54,13 +61,16 @@ class FlatHashMap {
     return size_;
   }
   [[nodiscard]] constexpr size_type max_size() const noexcept {
+    return N;
+  }
+  [[nodiscard]] constexpr size_type capacity() const noexcept {
     return Capacity;
   }
   [[nodiscard]] constexpr bool empty() const noexcept {
     return size_ == 0;
   }
   [[nodiscard]] constexpr bool full() const noexcept {
-    return size_ == Capacity;
+    return size_ == N;
   }
   [[nodiscard]] constexpr double load_factor() const noexcept {
     return static_cast<double>(size_) / Capacity;
@@ -120,8 +130,11 @@ class FlatHashMap {
   hasher hash_;
   key_equal equal_;
 
-  // Helper functions
-  size_type hash_key(const key_type& key) const;
+  // Helper functions - using bit operations for power-of-2 capacity
+  size_type hash_key(const key_type& key) const {
+    return hash_(key) & kCapacityMask;  // Optimized % for power of 2
+  }
+
   size_type find_slot(const key_type& key) const;
   size_type find_empty_slot(const key_type& key) const;
 
@@ -134,9 +147,8 @@ class FlatHashMap {
 };
 
 // Iterator implementation
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-class FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::iterator {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+class FlatHashMap<Key, Value, Hash, KeyEqual, N>::iterator {
  public:
   using iterator_category = std::forward_iterator_tag;
   using value_type = typename FlatHashMap::value_type;
@@ -151,10 +163,10 @@ class FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::iterator {
   }
 
   reference operator*() const {
-    return container_->at(index_).value();
+    return container_->at(index_).data;
   }
   pointer operator->() const {
-    return &container_->at(index_).value();
+    return &container_->at(index_).data;
   }
 
   iterator& operator++() {
@@ -186,7 +198,7 @@ class FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::iterator {
   size_type index_ = Capacity;
 
   void skip_empty() {
-    while (index_ < Capacity && !container_->at(index_).has_value()) {
+    while (index_ < Capacity && !container_->at(index_).occupied) {
       ++index_;
     }
   }
@@ -195,9 +207,8 @@ class FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::iterator {
 };
 
 // Const iterator implementation
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-class FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::const_iterator {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+class FlatHashMap<Key, Value, Hash, KeyEqual, N>::const_iterator {
  public:
   using iterator_category = std::forward_iterator_tag;
   using value_type = typename FlatHashMap::value_type;
@@ -216,10 +227,10 @@ class FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::const_iterator {
       : container_(it.container_), index_(it.index_) {}
 
   reference operator*() const {
-    return container_->at(index_).value();
+    return container_->at(index_).data;
   }
   pointer operator->() const {
-    return &container_->at(index_).value();
+    return &container_->at(index_).data;
   }
 
   const_iterator& operator++() {
@@ -251,7 +262,7 @@ class FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::const_iterator {
   size_type index_ = Capacity;
 
   void skip_empty() {
-    while (index_ < Capacity && !container_->at(index_).has_value()) {
+    while (index_ < Capacity && !container_->at(index_).occupied) {
       ++index_;
     }
   }
@@ -261,18 +272,9 @@ class FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::const_iterator {
 
 // Implementation of member functions
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::size_type
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::hash_key(
-    const key_type& key) const {
-  return hash_(key) % Capacity;
-}
-
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::size_type
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::find_slot(
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::size_type
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::find_slot(
     const key_type& key) const {
   size_type index = hash_key(key);
 
@@ -280,11 +282,11 @@ FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::find_slot(
   for (size_type i = 0; i < Capacity; ++i) {
     size_type current_index = (index + i) % Capacity;
 
-    if (!container_[current_index].has_value()) {
+    if (!container_[current_index].occupied) {
       return Capacity;  // Not found
     }
 
-    if (equal_(container_[current_index]->first, key)) {
+    if (equal_(container_[current_index].data.first, key)) {
       return current_index;
     }
   }
@@ -292,10 +294,9 @@ FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::find_slot(
   return Capacity;  // Not found
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::size_type
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::find_empty_slot(
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::size_type
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::find_empty_slot(
     const key_type& key) const {
   size_type index = hash_key(key);
 
@@ -303,12 +304,12 @@ FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::find_empty_slot(
   for (size_type i = 0; i < Capacity; ++i) {
     size_type current_index = (index + i) % Capacity;
 
-    if (!container_[current_index].has_value()) {
+    if (!container_[current_index].occupied) {
       return current_index;
     }
 
     // Check if key already exists
-    if (equal_(container_[current_index]->first, key)) {
+    if (equal_(container_[current_index].data.first, key)) {
       return current_index;
     }
   }
@@ -316,69 +317,56 @@ FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::find_empty_slot(
   return Capacity;  // No empty slot found
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::mapped_type&
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::operator[](
-    const key_type& key) {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::mapped_type&
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::operator[](const key_type& key) {
   auto result = try_emplace(key);
   return result.first->second;
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::mapped_type&
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::operator[](key_type&& key) {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::mapped_type&
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::operator[](key_type&& key) {
   auto result = try_emplace(std::move(key));
   return result.first->second;
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::mapped_type&
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::at(const key_type& key) {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::mapped_type&
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::at(const key_type& key) {
   size_type index = find_slot(key);
   if (index == Capacity) {
-    throw FlatHashMapError("Key not found");
+    throw std::runtime_error("Key not found");
   }
-  return container_[index]->second;
+  return container_[index].data.second;
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-const typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::mapped_type&
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::at(
-    const key_type& key) const {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+const typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::mapped_type&
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::at(const key_type& key) const {
   size_type index = find_slot(key);
   if (index == Capacity) {
-    throw FlatHashMapError("Key not found");
+    throw std::runtime_error("Key not found");
   }
-  return container_[index]->second;
+  return container_[index].data.second;
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-std::pair<typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::iterator,
-          bool>
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::insert(
-    const value_type& value) {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+std::pair<typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::iterator, bool>
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::insert(const value_type& value) {
   return emplace(value);
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-std::pair<typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::iterator,
-          bool>
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::insert(value_type&& value) {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+std::pair<typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::iterator, bool>
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::insert(value_type&& value) {
   return emplace(std::move(value));
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
 template <typename... Args>
-std::pair<typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::iterator,
-          bool>
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::emplace(Args&&... args) {
+std::pair<typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::iterator, bool>
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::emplace(Args&&... args) {
   // For emplace, we expect either:
   // 1. A pair<Key, Value>
   // 2. Key followed by Value constructor arguments
@@ -393,80 +381,73 @@ FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::emplace(Args&&... args) {
   }
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
 template <typename FirstArg, typename... RestArgs>
-std::pair<typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::iterator,
-          bool>
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::emplace_from_args(
+std::pair<typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::iterator, bool>
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::emplace_from_args(
     FirstArg&& first, RestArgs&&... rest) {
   return emplace_impl(std::forward<FirstArg>(first),
                       std::forward<RestArgs>(rest)...);
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
 template <typename... Args>
-std::pair<typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::iterator,
-          bool>
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::try_emplace(
-    const key_type& key, Args&&... args) {
+std::pair<typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::iterator, bool>
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::try_emplace(const key_type& key,
+                                                        Args&&... args) {
   return emplace_impl(key, std::forward<Args>(args)...);
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
 template <typename... Args>
-std::pair<typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::iterator,
-          bool>
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::try_emplace(key_type&& key,
-                                                               Args&&... args) {
+std::pair<typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::iterator, bool>
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::try_emplace(key_type&& key,
+                                                        Args&&... args) {
   return emplace_impl(std::move(key), std::forward<Args>(args)...);
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
 template <typename K, typename... Args>
-std::pair<typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::iterator,
-          bool>
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::emplace_impl(
-    K&& key, Args&&... args) {
+std::pair<typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::iterator, bool>
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::emplace_impl(K&& key,
+                                                         Args&&... args) {
   size_type index = find_empty_slot(key);
 
   if (index == Capacity) {
-    throw FlatHashMapError("HashMap is full");
+    throw std::runtime_error("HashMap is full");
   }
 
   // Check if key already exists
-  if (container_[index].has_value() && equal_(container_[index]->first, key)) {
+  if (container_[index].occupied && equal_(container_[index].data.first, key)) {
     return {iterator(&container_, index), false};
   }
 
-  // Insert new element
-  container_[index] = value_type(std::forward<K>(key),
-                                 mapped_type(std::forward<Args>(args)...));
+  // Insert new element using placement new for zero-copy construction
+  new (&container_[index].data) value_type(
+      std::piecewise_construct, std::forward_as_tuple(std::forward<K>(key)),
+      std::forward_as_tuple(std::forward<Args>(args)...));
+  container_[index].occupied = true;
   ++size_;
 
   return {iterator(&container_, index), true};
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::size_type
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::erase(const key_type& key) {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::size_type
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::erase(const key_type& key) {
   size_type index = find_slot(key);
   if (index == Capacity) {
     return 0;
   }
 
-  container_[index].reset();
+  container_[index].occupied = false;
   --size_;
 
   // Rehash elements that might have been displaced by linear probing
   size_type next_index = (index + 1) % Capacity;
-  while (container_[next_index].has_value()) {
-    value_type temp = std::move(*container_[next_index]);
-    container_[next_index].reset();
+  while (container_[next_index].occupied) {
+    value_type temp = std::move(container_[next_index].data);
+    container_[next_index].occupied = false;
     --size_;
 
     // Reinsert the element
@@ -478,23 +459,22 @@ FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::erase(const key_type& key) {
   return 1;
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::iterator
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::erase(const_iterator pos) {
-  if (pos.index_ >= Capacity || !container_[pos.index_].has_value()) {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::iterator
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::erase(const_iterator pos) {
+  if (pos.index_ >= Capacity || !container_[pos.index_].occupied) {
     return end();
   }
 
   size_type index = pos.index_;
-  container_[index].reset();
+  container_[index].occupied = false;
   --size_;
 
   // Rehash elements that might have been displaced by linear probing
   size_type next_index = (index + 1) % Capacity;
-  while (container_[next_index].has_value()) {
-    value_type temp = std::move(*container_[next_index]);
-    container_[next_index].reset();
+  while (container_[next_index].occupied) {
+    value_type temp = std::move(container_[next_index].data);
+    container_[next_index].occupied = false;
     --size_;
 
     // Reinsert the element
@@ -506,19 +486,17 @@ FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::erase(const_iterator pos) {
   return iterator(&container_, index);
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-void FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::clear() noexcept {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+void FlatHashMap<Key, Value, Hash, KeyEqual, N>::clear() noexcept {
   for (auto& slot : container_) {
-    slot.reset();
+    slot.occupied = false;
   }
   size_ = 0;
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::iterator
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::find(const key_type& key) {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::iterator
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::find(const key_type& key) {
   size_type index = find_slot(key);
   if (index == Capacity) {
     return end();
@@ -526,11 +504,9 @@ FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::find(const key_type& key) {
   return iterator(&container_, index);
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::const_iterator
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::find(
-    const key_type& key) const {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::const_iterator
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::find(const key_type& key) const {
   size_type index = find_slot(key);
   if (index == Capacity) {
     return end();
@@ -538,60 +514,51 @@ FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::find(
   return const_iterator(&container_, index);
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-bool FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::contains(
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+bool FlatHashMap<Key, Value, Hash, KeyEqual, N>::contains(
     const key_type& key) const {
   return find_slot(key) != Capacity;
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::size_type
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::count(
-    const key_type& key) const {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::size_type
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::count(const key_type& key) const {
   return contains(key) ? 1 : 0;
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::iterator
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::begin() {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::iterator
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::begin() {
   return iterator(&container_, 0);
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::const_iterator
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::begin() const {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::const_iterator
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::begin() const {
   return const_iterator(&container_, 0);
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::const_iterator
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::cbegin() const {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::const_iterator
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::cbegin() const {
   return const_iterator(&container_, 0);
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::iterator
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::end() {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::iterator
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::end() {
   return iterator(&container_, Capacity);
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::const_iterator
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::end() const {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::const_iterator
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::end() const {
   return const_iterator(&container_, Capacity);
 }
 
-template <class Key, class Value, class Hash, class KeyEqual,
-          std::size_t Capacity>
-typename FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::const_iterator
-FlatHashMap<Key, Value, Hash, KeyEqual, Capacity>::cend() const {
+template <class Key, class Value, class Hash, class KeyEqual, std::size_t N>
+typename FlatHashMap<Key, Value, Hash, KeyEqual, N>::const_iterator
+FlatHashMap<Key, Value, Hash, KeyEqual, N>::cend() const {
   return const_iterator(&container_, Capacity);
 }
 
