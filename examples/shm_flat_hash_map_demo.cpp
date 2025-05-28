@@ -51,14 +51,14 @@ void process1_writer() {
   std::cout << "Process 1 (Writer) PID: " << getpid() << std::endl;
 
   // Create shared memory
-  int shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
+  const int shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
   if (shm_fd == -1) {
     perror("shm_open failed in process 1");
     exit(1);
   }
 
   // Set the size of shared memory
-  size_t shm_size = sizeof(SharedMapType);
+  const size_t shm_size = sizeof(SharedMapType);
   if (ftruncate(shm_fd, shm_size) == -1) {
     perror("ftruncate failed");
     close(shm_fd);
@@ -154,7 +154,7 @@ void process2_reader() {
 
   std::cout << "\nProcess 2: Looking up employee data..." << std::endl;
   for (int id : test_ids) {
-    auto it = shared_map->find(id);
+    const auto it = shared_map->find(id);
     if (it != shared_map->end()) {
       const auto& emp = it->second;
       std::cout << "Process 2: Found ID " << id << " -> " << emp.name
