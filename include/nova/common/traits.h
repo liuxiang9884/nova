@@ -14,4 +14,8 @@ constexpr bool is_shm_compatible_v =
     std::is_standard_layout_v<T> && std::is_trivially_copyable_v<T> &&
     !std::is_pointer_v<T>;
 
+template <typename T>
+constexpr bool is_pod_v =
+    std::is_standard_layout_v<T> && std::is_trivial_v<T>;
+
 } // namespace nova
