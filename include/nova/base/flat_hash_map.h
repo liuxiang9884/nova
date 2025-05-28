@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <tuple>
 
+#include "nova/common/traits.h"
+
 namespace nova::static_impl {
 
 template <class Key, class Value, std::size_t N = 1024,
@@ -559,12 +561,6 @@ typename FlatHashMap<Key, Value, N, Hash, KeyEqual>::const_iterator
 FlatHashMap<Key, Value, N, Hash, KeyEqual>::cend() const {
   return const_iterator(&container_, Capacity);
 }
-
-// Type trait to check if types are shared memory compatible
-template <typename T>
-constexpr bool is_shm_compatible_v =
-    std::is_standard_layout_v<T> && std::is_trivially_copyable_v<T> &&
-    !std::is_pointer_v<T>;
 
 template <typename T>
 concept ShmType = is_shm_compatible_v<T>;

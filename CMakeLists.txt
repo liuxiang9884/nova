@@ -29,7 +29,8 @@ file(GLOB_RECURSE SOURCES
 )
 
 add_library(nova ${HEADERS} ${SOURCES}
-        include/nova/base/shm.h)
+        include/nova/base/shm.h
+        include/nova/common/traits.h)
 target_include_directories(nova PUBLIC ${NOVA_INCLUDE} ${VCPKG_INCLUDE})
 target_compile_options(nova PRIVATE -Wno-gnu-zero-variadic-macro-arguments)
 
