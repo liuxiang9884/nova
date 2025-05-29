@@ -211,7 +211,7 @@ std::string ShmAllocator::FromShmName(const ShmName& shm_name) {
   return shm_name.string();
 }
 
-ShmBlock ShmAllocator::GetBlock(std::string_view name) const {
+ShmAllocator::ShmBlock ShmAllocator::GetBlock(std::string_view name) const {
   if (!Valid()) {
     return ShmBlock();
   }
@@ -264,27 +264,27 @@ std::vector<std::string> ShmAllocator::GetInstanceNames() const {
   return names;
 }
 
-ShmSize ShmAllocator::instance_count() const {
+ShmAllocator::ShmSize ShmAllocator::instance_count() const {
   return Valid() ? index_->size() : 0;
 }
 
-ShmSize ShmAllocator::max_instances() const {
+ShmAllocator::ShmSize ShmAllocator::max_instances() const {
   return Valid() ? header_->max_instances : 0;
 }
 
-ShmSize ShmAllocator::total_size() const {
+ShmAllocator::ShmSize ShmAllocator::total_size() const {
   return Valid() ? header_->total_size : 0;
 }
 
-ShmSize ShmAllocator::used_storage_size() const {
+ShmAllocator::ShmSize ShmAllocator::used_storage_size() const {
   return Valid() ? header_->current_storage_used : 0;
 }
 
-ShmSize ShmAllocator::available_storage_size() const {
+ShmAllocator::ShmSize ShmAllocator::available_storage_size() const {
   return Valid() ? (header_->storage_size - header_->current_storage_used) : 0;
 }
 
-ShmSize ShmAllocator::storage_size() const {
+ShmAllocator::ShmSize ShmAllocator::storage_size() const {
   return Valid() ? header_->storage_size : 0;
 }
 

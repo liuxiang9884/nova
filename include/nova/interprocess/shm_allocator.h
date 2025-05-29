@@ -8,13 +8,18 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
+#include "nova/base/fixed_string.h"
 #include "nova/base/flat_hash_map.h"
-#include "nova/interprocess/shm_types.h"
+#include "nova/common/traits.h"
 #include <fcntl.h>
 
 namespace nova {
@@ -36,7 +41,111 @@ class ShmAllocatorError : public std::runtime_error {
 /// only supports releasing all memory at once
 class ShmAllocator {
  public:
-  /// @brief Index type, using FlatHashMap to store instance metadata
+  // Size and offset types
+  using size_type = std::size_t;
+  using ShmOffset = size_type;
+  using ShmSize = size_type;
+
+  // Shared memory instance name type
+  using ShmName = FixedString<32>;
+
+  // Hash function for ShmName
+  using ShmNameHash = FixedStringHash<32>;
+
+  // Comparison function for ShmName
+  struct ShmNameEqual {
+    bool operator()(const ShmName& lhs, const ShmName& rhs) const {
+      return lhs == rhs;
+    }
+  };
+
+  // Metadata for instances stored in shared memory
+  struct ShmInstanceMeta {
+    // Offset in storage area
+    ShmOffset offset;
+    // Size in bytes occupied by instance
+    ShmSize size;
+    // Alignment requirement
+    ShmSize alignment;
+    // Whether constructed
+    bool constructed;
+
+    ShmInstanceMeta() = default;
+    ShmInstanceMeta(ShmOffset off, ShmSize sz, ShmSize align, bool ctor = false)
+        : offset(off), size(sz), alignment(align), constructed(ctor) {}
+  };
+
+  // Shared memory header information
+  struct ShmHeader {
+    // Shared memory name
+    char name[64];
+    // Total size
+    ShmSize total_size;
+    // Maximum instance count
+    ShmSize max_instances;
+    // Storage area start offset
+    ShmSize storage_offset;
+    // Storage area size
+    ShmSize storage_size;
+    // Currently used storage size
+    ShmSize current_storage_used;
+    // Version number
+    std::uint32_t version;
+    // Whether initialized
+    bool initialized;
+
+    ShmHeader() = default;
+    ShmHeader(const char* shm_name, ShmSize total_sz, ShmSize max_inst,
+              ShmSize storage_off, ShmSize storage_sz)
+        : total_size(total_sz),
+          max_instances(max_inst),
+          storage_offset(storage_off),
+          storage_size(storage_sz),
+          current_storage_used(0),
+          version(1),
+          initialized(true) {
+      std::strncpy(name, shm_name, sizeof(name) - 1);
+      name[sizeof(name) - 1] = '\0';
+    }
+  };
+
+  // Shared memory block representing an allocated memory region
+  class ShmBlock {
+   public:
+    // Default constructor
+    ShmBlock() : ptr_(nullptr) {}
+
+    // Constructor
+    explicit ShmBlock(void* ptr) : ptr_(ptr) {}
+
+    // Get memory pointer
+    void* data() const {
+      return ptr_;
+    }
+
+    // Get typed pointer
+    template <typename T>
+    T* as() const {
+      static_assert(is_shm_compatible_v<T>,
+                    "Type must be shared memory compatible");
+      return static_cast<T*>(ptr_);
+    }
+
+    // Check if valid
+    bool valid() const {
+      return ptr_ != nullptr;
+    }
+
+    // Check if empty
+    bool empty() const {
+      return ptr_ == nullptr;
+    }
+
+   private:
+    void* ptr_;
+  };
+
+  // Index type, using FlatHashMap to store instance metadata
   using IndexType =
       nova::static_impl::ShmFlatHashMap<ShmName, ShmInstanceMeta, 1024,
                                         ShmNameHash, ShmNameEqual>;
@@ -301,6 +410,26 @@ T* ShmAllocator::Find(std::string_view name) const {
 
   void* ptr = static_cast<char*>(storage_) + it->second.offset;
   return static_cast<T*>(ptr);
+}
+
+// Helper functions
+
+/// @brief Memory alignment helper function
+inline ShmAllocator::ShmSize align_up(ShmAllocator::ShmSize size,
+                                      ShmAllocator::ShmSize alignment) {
+  return (size + alignment - 1) & ~(alignment - 1);
+}
+
+/// @brief Get alignment requirement of type
+template <typename T>
+constexpr ShmAllocator::ShmSize alignment_of() {
+  return alignof(T);
+}
+
+/// @brief Get size of type
+template <typename T>
+constexpr ShmAllocator::ShmSize size_of() {
+  return sizeof(T);
 }
 
 }  // namespace nova
