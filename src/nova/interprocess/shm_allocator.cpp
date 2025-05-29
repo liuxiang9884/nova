@@ -161,11 +161,8 @@ void* ShmAllocator::AllocateImpl(std::string_view name, size_type size,
     throw ShmAllocatorError("Allocator is not valid");
   }
 
-  ShmName shm_name;
-  ToShmName(name, shm_name);
-
-  // Check if already exists
-  auto it = index_->find(shm_name);
+  // Check if already exists using heterogeneous lookup
+  auto it = index_->find(name);
   if (it != index_->end()) {
     // Already exists, return existing pointer
     return static_cast<char*>(storage_) + it->second.offset;
@@ -179,6 +176,10 @@ void* ShmAllocator::AllocateImpl(std::string_view name, size_type size,
   if (aligned_offset + aligned_size > header_->storage_size) {
     throw ShmAllocatorError("Not enough storage space");
   }
+
+  // Create ShmName only when we need to insert
+  ShmName shm_name;
+  ToShmName(name, shm_name);
 
   // Create metadata
   ShmInstanceMeta meta(aligned_offset, aligned_size, alignment, false);
@@ -214,10 +215,8 @@ void* ShmAllocator::GetBlock(std::string_view name) const {
     return nullptr;
   }
 
-  ShmName shm_name;
-  ToShmName(name, shm_name);
-
-  auto it = index_->find(shm_name);
+  // Use heterogeneous lookup directly with string_view
+  auto it = index_->find(name);
   if (it == index_->end()) {
     return nullptr;
   }
@@ -231,9 +230,8 @@ bool ShmAllocator::Exists(std::string_view name) const {
     return false;
   }
 
-  ShmName shm_name;
-  ToShmName(name, shm_name);
-  return index_->contains(shm_name);
+  // Use heterogeneous lookup directly with string_view
+  return index_->contains(name);
 }
 
 bool ShmAllocator::IsConstructed(std::string_view name) const {
@@ -241,10 +239,8 @@ bool ShmAllocator::IsConstructed(std::string_view name) const {
     return false;
   }
 
-  ShmName shm_name;
-  ToShmName(name, shm_name);
-
-  auto it = index_->find(shm_name);
+  // Use heterogeneous lookup directly with string_view
+  auto it = index_->find(name);
   return it != index_->end() && it->second.constructed;
 }
 

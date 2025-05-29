@@ -118,7 +118,18 @@ class FlatHashMap {
   iterator find(const key_type& key);
   const_iterator find(const key_type& key) const;
 
+  // Heterogeneous lookup - allows finding with different key types
+  template <typename K>
+  iterator find(const K& key);
+  template <typename K>
+  const_iterator find(const K& key) const;
+
   bool contains(const key_type& key) const;
+
+  // Heterogeneous contains
+  template <typename K>
+  bool contains(const K& key) const;
+
   size_type count(const key_type& key) const;
 
   // Iterators
@@ -149,8 +160,20 @@ class FlatHashMap {
     return hash_(key) & kCapacityMask;  // Optimized % for power of 2
   }
 
+  // Heterogeneous hash helper
+  template <typename K>
+  size_type hash_key(const K& key) const {
+    return hash_(key) & kCapacityMask;
+  }
+
   size_type find_slot(const key_type& key) const;
   size_type find_empty_slot(const key_type& key) const;
+
+  // Heterogeneous find slot helpers
+  template <typename K>
+  size_type find_slot(const K& key) const;
+  template <typename K>
+  size_type find_empty_slot(const K& key) const;
 
   template <typename K, typename... Args>
   std::pair<iterator, bool> emplace_impl(K&& key, Args&&... args);
@@ -290,6 +313,22 @@ template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
 typename FlatHashMap<Key, Value, N, Hash, KeyEqual>::size_type
 FlatHashMap<Key, Value, N, Hash, KeyEqual>::find_slot(
     const key_type& key) const {
+  return find_slot<key_type>(key);  // Delegate to heterogeneous find_slot
+}
+
+template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
+typename FlatHashMap<Key, Value, N, Hash, KeyEqual>::size_type
+FlatHashMap<Key, Value, N, Hash, KeyEqual>::find_empty_slot(
+    const key_type& key) const {
+  return find_empty_slot<key_type>(
+      key);  // Delegate to heterogeneous find_empty_slot
+}
+
+// Heterogeneous find_slot implementations
+template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
+template <typename K>
+typename FlatHashMap<Key, Value, N, Hash, KeyEqual>::size_type
+FlatHashMap<Key, Value, N, Hash, KeyEqual>::find_slot(const K& key) const {
   size_type index = hash_key(key);
 
   // Linear probing
@@ -309,9 +348,10 @@ FlatHashMap<Key, Value, N, Hash, KeyEqual>::find_slot(
 }
 
 template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
+template <typename K>
 typename FlatHashMap<Key, Value, N, Hash, KeyEqual>::size_type
 FlatHashMap<Key, Value, N, Hash, KeyEqual>::find_empty_slot(
-    const key_type& key) const {
+    const K& key) const {
   size_type index = hash_key(key);
 
   // Linear probing to find empty slot
@@ -511,6 +551,20 @@ void FlatHashMap<Key, Value, N, Hash, KeyEqual>::clear() noexcept {
 template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
 typename FlatHashMap<Key, Value, N, Hash, KeyEqual>::iterator
 FlatHashMap<Key, Value, N, Hash, KeyEqual>::find(const key_type& key) {
+  return find<key_type>(key);  // Delegate to heterogeneous find
+}
+
+template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
+typename FlatHashMap<Key, Value, N, Hash, KeyEqual>::const_iterator
+FlatHashMap<Key, Value, N, Hash, KeyEqual>::find(const key_type& key) const {
+  return find<key_type>(key);  // Delegate to heterogeneous find
+}
+
+// Heterogeneous find implementations
+template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
+template <typename K>
+typename FlatHashMap<Key, Value, N, Hash, KeyEqual>::iterator
+FlatHashMap<Key, Value, N, Hash, KeyEqual>::find(const K& key) {
   size_type index = find_slot(key);
   if (index == Capacity) {
     return end();
@@ -519,8 +573,9 @@ FlatHashMap<Key, Value, N, Hash, KeyEqual>::find(const key_type& key) {
 }
 
 template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
+template <typename K>
 typename FlatHashMap<Key, Value, N, Hash, KeyEqual>::const_iterator
-FlatHashMap<Key, Value, N, Hash, KeyEqual>::find(const key_type& key) const {
+FlatHashMap<Key, Value, N, Hash, KeyEqual>::find(const K& key) const {
   size_type index = find_slot(key);
   if (index == Capacity) {
     return end();
@@ -531,6 +586,13 @@ FlatHashMap<Key, Value, N, Hash, KeyEqual>::find(const key_type& key) const {
 template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
 bool FlatHashMap<Key, Value, N, Hash, KeyEqual>::contains(
     const key_type& key) const {
+  return contains<key_type>(key);  // Delegate to heterogeneous contains
+}
+
+// Heterogeneous contains implementation
+template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
+template <typename K>
+bool FlatHashMap<Key, Value, N, Hash, KeyEqual>::contains(const K& key) const {
   return find_slot(key) != Capacity;
 }
 

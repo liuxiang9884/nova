@@ -274,11 +274,8 @@ T* ShmAllocator::Construct(std::string_view name, Args&&... args) {
   static_assert(is_shm_compatible_v<T>,
                 "Type must be shared memory compatible");
 
-  ShmName shm_name;
-  ToShmName(name, shm_name);
-
-  // Check if already exists
-  auto it = index_->find(shm_name);
+  // Check if already exists using heterogeneous lookup
+  auto it = index_->find(name);
   if (it != index_->end()) {
     void* ptr = static_cast<char*>(storage_) + it->second.offset;
     if (it->second.constructed) {
@@ -289,7 +286,9 @@ T* ShmAllocator::Construct(std::string_view name, Args&&... args) {
       T* obj_ptr = static_cast<T*>(ptr);
       new (obj_ptr) T(std::forward<Args>(args)...);
 
-      // Update metadata
+      // Update metadata - need ShmName for erase/emplace operations
+      ShmName shm_name;
+      ToShmName(name, shm_name);
       ShmInstanceMeta meta = it->second;
       meta.constructed = true;
       index_->erase(shm_name);
@@ -304,9 +303,11 @@ T* ShmAllocator::Construct(std::string_view name, Args&&... args) {
   T* obj_ptr = static_cast<T*>(ptr);
   new (obj_ptr) T(std::forward<Args>(args)...);
 
-  // Update construction status
-  auto find_it = index_->find(shm_name);
+  // Update construction status using heterogeneous lookup
+  auto find_it = index_->find(name);
   if (find_it != index_->end()) {
+    ShmName shm_name;
+    ToShmName(name, shm_name);
     ShmInstanceMeta meta = find_it->second;
     meta.constructed = true;
     index_->erase(shm_name);
@@ -321,10 +322,8 @@ bool ShmAllocator::Destruct(std::string_view name) {
   static_assert(is_shm_compatible_v<T>,
                 "Type must be shared memory compatible");
 
-  ShmName shm_name;
-  ToShmName(name, shm_name);
-
-  auto it = index_->find(shm_name);
+  // Use heterogeneous lookup to check existence
+  auto it = index_->find(name);
   if (it == index_->end() || !it->second.constructed) {
     return false;
   }
@@ -334,7 +333,9 @@ bool ShmAllocator::Destruct(std::string_view name) {
   T* obj_ptr = static_cast<T*>(ptr);
   obj_ptr->~T();
 
-  // Update metadata
+  // Update metadata - need ShmName for erase/emplace operations
+  ShmName shm_name;
+  ToShmName(name, shm_name);
   ShmInstanceMeta meta = it->second;
   meta.constructed = false;
   index_->erase(shm_name);
@@ -348,10 +349,8 @@ T* ShmAllocator::Find(std::string_view name) const {
   static_assert(is_shm_compatible_v<T>,
                 "Type must be shared memory compatible");
 
-  ShmName shm_name;
-  ToShmName(name, shm_name);
-
-  auto it = index_->find(shm_name);
+  // Use heterogeneous lookup directly
+  auto it = index_->find(name);
   if (it == index_->end()) {
     return nullptr;
   }
