@@ -12,7 +12,62 @@
 #include <algorithm>
 #include <cstring>
 
+// MAP_POPULATE may not be available on all platforms
+#ifndef MAP_POPULATE
+#define MAP_POPULATE 0
+#endif
+
 namespace nova {
+
+void* ShmAllocator::MapMemory(size_type size, int fd,
+                              const std::string& error_msg,
+                              bool cleanup_shm_on_failure) {
+  // Set up mapping flags
+  int map_flags = MAP_SHARED;
+
+  // Add platform-specific optimizations
+  if constexpr (NOVA_OS == NOVA_OS_LINUX) {
+    map_flags |= MAP_POPULATE;  // Preload pages on Linux for better performance
+  }
+
+  void* ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE, map_flags, fd, 0);
+  if (ptr == MAP_FAILED) {
+    // Always cleanup fd and potentially shm on failure
+    close(fd);
+    if (cleanup_shm_on_failure) {
+      shm_unlink(shm_name_.c_str());
+    }
+    throw ShmAllocatorError(error_msg);
+  }
+
+  return ptr;
+}
+
+void ShmAllocator::CleanupNewShmOnFailure() {
+  if (shm_fd_ != -1) {
+    close(shm_fd_);
+    shm_fd_ = -1;
+  }
+  shm_unlink(shm_name_.c_str());
+}
+
+void ShmAllocator::CleanupExistingShmOnFailure() {
+  if (shm_fd_ != -1) {
+    close(shm_fd_);
+    shm_fd_ = -1;
+  }
+}
+
+void ShmAllocator::CleanupMappedResources() {
+  if (shm_ptr_ != nullptr && shm_ptr_ != MAP_FAILED) {
+    munmap(shm_ptr_, shm_size_);
+    shm_ptr_ = nullptr;
+  }
+  if (shm_fd_ != -1) {
+    close(shm_fd_);
+    shm_fd_ = -1;
+  }
+}
 
 ShmAllocator::ShmAllocator(std::string_view name, size_type storage_size,
                            bool create_if_not_exists)
@@ -44,19 +99,13 @@ ShmAllocator::ShmAllocator(std::string_view name, size_type storage_size,
 
     // Set size to calculated total size
     if (ftruncate(shm_fd_, layout.total_size) == -1) {
-      close(shm_fd_);
-      shm_unlink(shm_name_.c_str());
+      CleanupNewShmOnFailure();
       throw ShmAllocatorError("Failed to set shared memory size");
     }
 
-    // Map memory
-    shm_ptr_ = mmap(nullptr, layout.total_size, PROT_READ | PROT_WRITE,
-                    MAP_SHARED, shm_fd_, 0);
-    if (shm_ptr_ == MAP_FAILED) {
-      close(shm_fd_);
-      shm_unlink(shm_name_.c_str());
-      throw ShmAllocatorError("Failed to map shared memory");
-    }
+    // Map memory using common function
+    shm_ptr_ = MapMemory(layout.total_size, shm_fd_,
+                         "Failed to map shared memory", true);
 
     // Initialize layout
     InitializeLayout(storage_size);
@@ -64,19 +113,15 @@ ShmAllocator::ShmAllocator(std::string_view name, size_type storage_size,
     // Get existing shared memory size
     struct stat shm_stat;
     if (fstat(shm_fd_, &shm_stat) == -1) {
-      close(shm_fd_);
+      CleanupExistingShmOnFailure();
       throw ShmAllocatorError("Failed to get shared memory size");
     }
 
     shm_size_ = shm_stat.st_size;
 
-    // Map memory
-    shm_ptr_ = mmap(nullptr, shm_size_, PROT_READ | PROT_WRITE, MAP_SHARED,
-                    shm_fd_, 0);
-    if (shm_ptr_ == MAP_FAILED) {
-      close(shm_fd_);
-      throw ShmAllocatorError("Failed to map existing shared memory");
-    }
+    // Map memory using common function
+    shm_ptr_ = MapMemory(shm_size_, shm_fd_,
+                         "Failed to map existing shared memory", false);
 
     // Validate layout
     ValidateLayout();
@@ -84,12 +129,7 @@ ShmAllocator::ShmAllocator(std::string_view name, size_type storage_size,
 }
 
 ShmAllocator::~ShmAllocator() {
-  if (shm_ptr_ != nullptr && shm_ptr_ != MAP_FAILED) {
-    munmap(shm_ptr_, shm_size_);
-  }
-  if (shm_fd_ != -1) {
-    close(shm_fd_);
-  }
+  CleanupMappedResources();
 }
 
 void ShmAllocator::InitializeLayout(size_type storage_size) {
@@ -292,17 +332,8 @@ void ShmAllocator::DeallocateAll() {
 
   // Destruct all constructed objects (user needs to call destruct manually)
 
-  // Unmap memory
-  if (shm_ptr_ != nullptr && shm_ptr_ != MAP_FAILED) {
-    munmap(shm_ptr_, shm_size_);
-    shm_ptr_ = nullptr;
-  }
-
-  // Close file descriptor
-  if (shm_fd_ != -1) {
-    close(shm_fd_);
-    shm_fd_ = -1;
-  }
+  // Cleanup mapped resources and file descriptor
+  CleanupMappedResources();
 
   // Delete shared memory object
   shm_unlink(shm_name_.c_str());

@@ -12,6 +12,7 @@
 
 #include "nova/base/fixed_string.h"
 #include "nova/base/flat_hash_map.h"
+#include "nova/common/macros.h"
 #include "nova/common/traits.h"
 
 namespace nova {
@@ -216,6 +217,25 @@ class ShmAllocator {
   /// @brief Check if shared memory is valid
   /// @return Whether valid
   [[nodiscard]] bool Valid() const;
+
+  /// @brief Map shared memory with platform-specific optimizations
+  /// @param size Memory size to map
+  /// @param fd File descriptor (will be closed on failure)
+  /// @param error_msg Error message for exceptions
+  /// @param cleanup_shm_on_failure Whether to unlink shared memory on mapping
+  /// failure
+  /// @return Mapped memory pointer
+  void* MapMemory(size_type size, int fd, const std::string& error_msg,
+                  bool cleanup_shm_on_failure = false);
+
+  /// @brief Cleanup when creating new shared memory fails
+  void CleanupNewShmOnFailure();
+
+  /// @brief Cleanup when opening existing shared memory fails
+  void CleanupExistingShmOnFailure();
+
+  /// @brief Cleanup mapped memory and file descriptor
+  void CleanupMappedResources();
 
  private:
   // Shared memory name
