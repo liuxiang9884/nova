@@ -8,7 +8,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <memory>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -44,11 +43,11 @@ class ShmAllocator {
 
   /// @brief Constructor, create or open shared memory
   /// @param name Shared memory name
-  /// @param total_size Total size in bytes
+  /// @param storage_size Storage area size in bytes
   /// @param max_instances Maximum instance count
   /// @param create_if_not_exists Whether to create if not exists
-  ShmAllocator(std::string_view name, ShmSize total_size, ShmSize max_instances,
-               bool create_if_not_exists = true);
+  ShmAllocator(std::string_view name, ShmSize storage_size,
+               ShmSize max_instances, bool create_if_not_exists = true);
 
   /// @brief Destructor, automatically clean up resources
   ~ShmAllocator();
@@ -163,14 +162,15 @@ class ShmAllocator {
   void* storage_;
 
   /// @brief Initialize shared memory layout
-  /// @param total_size Total size
+  /// @param storage_size Storage area size
   /// @param max_instances Maximum instance count
-  void InitializeLayout(ShmSize total_size, ShmSize max_instances);
+  void InitializeLayout(ShmSize storage_size, ShmSize max_instances);
 
   /// @brief Validate shared memory layout
   void ValidateLayout();
 
   /// @brief Calculate layout sizes
+  /// @param storage_size Desired storage area size
   /// @param max_instances Maximum instance count
   /// @return Size information for each part
   struct LayoutSizes {
@@ -178,8 +178,9 @@ class ShmAllocator {
     ShmSize index_size;
     ShmSize storage_offset;
     ShmSize storage_size;
+    ShmSize total_size;  // Total shared memory size needed
   };
-  static LayoutSizes CalculateLayoutSizes(ShmSize total_size,
+  static LayoutSizes CalculateLayoutSizes(ShmSize storage_size,
                                           ShmSize max_instances);
 
   /// @brief Internal implementation of memory allocation

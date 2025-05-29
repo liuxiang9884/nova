@@ -10,48 +10,16 @@
 #include <string_view>
 #include <type_traits>
 
+#include "nova/base/fixed_string.h"
 #include "nova/common/traits.h"
 
 namespace nova {
 
 /// @brief Shared memory instance name type
-struct ShmName {
-  char data[32];
-
-  ShmName() {
-    std::memset(data, 0, sizeof(data));
-  }
-
-  ShmName(const char* str) {
-    std::strncpy(data, str, sizeof(data) - 1);
-    data[sizeof(data) - 1] = '\0';
-  }
-
-  ShmName(std::string_view str) {
-    std::size_t len = std::min(str.size(), sizeof(data) - 1);
-    std::memcpy(data, str.data(), len);
-    std::memset(data + len, 0, sizeof(data) - len);
-  }
-
-  const char* c_str() const {
-    return data;
-  }
-
-  std::string_view view() const {
-    return std::string_view(data, std::strlen(data));
-  }
-
-  bool operator==(const ShmName& other) const {
-    return std::strcmp(data, other.data) == 0;
-  }
-};
+using ShmName = FixedString<32>;
 
 /// @brief Hash function for ShmName
-struct ShmNameHash {
-  std::size_t operator()(const ShmName& name) const {
-    return std::hash<std::string_view>{}(name.view());
-  }
-};
+using ShmNameHash = FixedStringHash<32>;
 
 /// @brief Comparison function for ShmName
 struct ShmNameEqual {
@@ -120,11 +88,10 @@ struct ShmHeader {
 class ShmBlock {
  public:
   /// @brief Default constructor
-  ShmBlock() : ptr_(nullptr), size_(0), alignment_(1) {}
+  ShmBlock() : ptr_(nullptr) {}
 
   /// @brief Constructor
-  ShmBlock(void* ptr, ShmSize size, ShmSize alignment)
-      : ptr_(ptr), size_(size), alignment_(alignment) {}
+  explicit ShmBlock(void* ptr) : ptr_(ptr) {}
 
   /// @brief Get memory pointer
   void* data() const {
@@ -139,30 +106,18 @@ class ShmBlock {
     return static_cast<T*>(ptr_);
   }
 
-  /// @brief Get size
-  ShmSize size() const {
-    return size_;
-  }
-
-  /// @brief Get alignment requirement
-  ShmSize alignment() const {
-    return alignment_;
-  }
-
   /// @brief Check if valid
   bool valid() const {
-    return ptr_ != nullptr && size_ > 0;
+    return ptr_ != nullptr;
   }
 
   /// @brief Check if empty
   bool empty() const {
-    return ptr_ == nullptr || size_ == 0;
+    return ptr_ == nullptr;
   }
 
  private:
   void* ptr_;
-  ShmSize size_;
-  ShmSize alignment_;
 };
 
 /// @brief Memory alignment helper function

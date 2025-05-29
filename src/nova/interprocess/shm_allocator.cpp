@@ -9,20 +9,18 @@
 
 namespace nova {
 
-ShmAllocator::ShmAllocator(std::string_view name, ShmSize total_size,
+ShmAllocator::ShmAllocator(std::string_view name, ShmSize storage_size,
                            ShmSize max_instances, bool create_if_not_exists)
     : shm_name_(name),
       shm_fd_(-1),
       shm_ptr_(nullptr),
-      shm_size_(total_size),
+      shm_size_(0),  // Will be set based on layout calculation
       header_(nullptr),
       index_(nullptr),
       storage_(nullptr) {
-  // Calculate layout sizes
-  auto layout = CalculateLayoutSizes(total_size, max_instances);
-  if (layout.storage_size == 0) {
-    throw ShmAllocatorError("Total size too small for requested max_instances");
-  }
+  // Calculate layout sizes based on desired storage size
+  auto layout = CalculateLayoutSizes(storage_size, max_instances);
+  shm_size_ = layout.total_size;
 
   // Try to open existing shared memory
   shm_fd_ = shm_open(shm_name_.c_str(), O_RDWR, 0666);
@@ -39,16 +37,16 @@ ShmAllocator::ShmAllocator(std::string_view name, ShmSize total_size,
                               ", error: " + std::strerror(errno));
     }
 
-    // Set size
-    if (ftruncate(shm_fd_, total_size) == -1) {
+    // Set size to calculated total size
+    if (ftruncate(shm_fd_, layout.total_size) == -1) {
       close(shm_fd_);
       shm_unlink(shm_name_.c_str());
       throw ShmAllocatorError("Failed to set shared memory size");
     }
 
     // Map memory
-    shm_ptr_ = mmap(nullptr, total_size, PROT_READ | PROT_WRITE, MAP_SHARED,
-                    shm_fd_, 0);
+    shm_ptr_ = mmap(nullptr, layout.total_size, PROT_READ | PROT_WRITE,
+                    MAP_SHARED, shm_fd_, 0);
     if (shm_ptr_ == MAP_FAILED) {
       close(shm_fd_);
       shm_unlink(shm_name_.c_str());
@@ -56,7 +54,7 @@ ShmAllocator::ShmAllocator(std::string_view name, ShmSize total_size,
     }
 
     // Initialize layout
-    InitializeLayout(total_size, max_instances);
+    InitializeLayout(storage_size, max_instances);
   } else {
     // Get existing shared memory size
     struct stat shm_stat;
@@ -89,12 +87,13 @@ ShmAllocator::~ShmAllocator() {
   }
 }
 
-void ShmAllocator::InitializeLayout(ShmSize total_size, ShmSize max_instances) {
-  auto layout = CalculateLayoutSizes(total_size, max_instances);
+void ShmAllocator::InitializeLayout(ShmSize storage_size,
+                                    ShmSize max_instances) {
+  auto layout = CalculateLayoutSizes(storage_size, max_instances);
 
   // Initialize header
   header_ = static_cast<ShmHeader*>(shm_ptr_);
-  new (header_) ShmHeader(shm_name_.c_str(), total_size, max_instances,
+  new (header_) ShmHeader(shm_name_.c_str(), layout.total_size, max_instances,
                           layout.storage_offset, layout.storage_size);
 
   // Initialize index (using placement new and default construction)
@@ -123,7 +122,7 @@ void ShmAllocator::ValidateLayout() {
   }
 
   auto layout =
-      CalculateLayoutSizes(header_->total_size, header_->max_instances);
+      CalculateLayoutSizes(header_->storage_size, header_->max_instances);
 
   // Set pointers
   index_ = reinterpret_cast<IndexType*>(static_cast<char*>(shm_ptr_) +
@@ -132,7 +131,7 @@ void ShmAllocator::ValidateLayout() {
 }
 
 ShmAllocator::LayoutSizes ShmAllocator::CalculateLayoutSizes(
-    ShmSize total_size, ShmSize /* max_instances */) {
+    ShmSize storage_size, ShmSize /* max_instances */) {
   LayoutSizes layout;
 
   // Header size (aligned to 8 bytes)
@@ -144,12 +143,11 @@ ShmAllocator::LayoutSizes ShmAllocator::CalculateLayoutSizes(
   // Storage area offset
   layout.storage_offset = layout.header_size + layout.index_size;
 
-  // Storage area size
-  if (total_size <= layout.storage_offset) {
-    layout.storage_size = 0;
-  } else {
-    layout.storage_size = total_size - layout.storage_offset;
-  }
+  // Storage area size is the requested size
+  layout.storage_size = storage_size;
+
+  // Total size is the sum of all components
+  layout.total_size = layout.storage_offset + layout.storage_size;
 
   return layout;
 }
@@ -200,15 +198,17 @@ void* ShmAllocator::AllocateImpl(std::string_view name, ShmSize size,
 }
 
 void ShmAllocator::ToShmName(std::string_view name, ShmName& shm_name) {
-  if (name.size() >= sizeof(ShmName::data)) {
-    throw ShmAllocatorError("Instance name too long (max 31 characters)");
+  if (name.size() > ShmName::capacity()) {
+    throw ShmAllocatorError("Instance name too long (max " +
+                            std::to_string(ShmName::capacity()) +
+                            " characters)");
   }
 
   shm_name = ShmName(name);
 }
 
 std::string ShmAllocator::FromShmName(const ShmName& shm_name) {
-  return std::string(shm_name.view());
+  return shm_name.string();
 }
 
 ShmBlock ShmAllocator::GetBlock(std::string_view name) const {
@@ -225,7 +225,7 @@ ShmBlock ShmAllocator::GetBlock(std::string_view name) const {
   }
 
   void* ptr = static_cast<char*>(storage_) + it->second.offset;
-  return ShmBlock(ptr, it->second.size, it->second.alignment);
+  return ShmBlock(ptr);
 }
 
 bool ShmAllocator::Exists(std::string_view name) const {
