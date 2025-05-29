@@ -4,18 +4,18 @@
 
 #include "nova/interprocess/shm_allocator.h"
 
-#include <algorithm>
-#include <cstring>
-
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <fcntl.h>
+
+#include <algorithm>
+#include <cstring>
 
 namespace nova {
 
 ShmAllocator::ShmAllocator(std::string_view name, size_type storage_size,
-                           size_type max_instances, bool create_if_not_exists)
+                           bool create_if_not_exists)
     : shm_name_(name),
       shm_fd_(-1),
       shm_ptr_(nullptr),
@@ -24,7 +24,7 @@ ShmAllocator::ShmAllocator(std::string_view name, size_type storage_size,
       index_(nullptr),
       storage_(nullptr) {
   // Calculate layout sizes based on desired storage size
-  const auto layout = CalculateLayoutSizes(storage_size, max_instances);
+  const auto layout = CalculateLayoutSizes(storage_size);
   shm_size_ = layout.total_size;
 
   // Try to open existing shared memory
@@ -59,7 +59,7 @@ ShmAllocator::ShmAllocator(std::string_view name, size_type storage_size,
     }
 
     // Initialize layout
-    InitializeLayout(storage_size, max_instances);
+    InitializeLayout(storage_size);
   } else {
     // Get existing shared memory size
     struct stat shm_stat;
@@ -92,13 +92,12 @@ ShmAllocator::~ShmAllocator() {
   }
 }
 
-void ShmAllocator::InitializeLayout(size_type storage_size,
-                                    size_type max_instances) {
-  auto layout = CalculateLayoutSizes(storage_size, max_instances);
+void ShmAllocator::InitializeLayout(size_type storage_size) {
+  const auto layout = CalculateLayoutSizes(storage_size);
 
   // Initialize header
   header_ = static_cast<ShmHeader*>(shm_ptr_);
-  new (header_) ShmHeader(shm_name_.c_str(), layout.total_size, max_instances,
+  new (header_) ShmHeader(shm_name_.c_str(), layout.total_size,
                           layout.storage_offset, layout.storage_size);
 
   // Initialize index (using placement new and default construction)
@@ -126,8 +125,7 @@ void ShmAllocator::ValidateLayout() {
     throw ShmAllocatorError("Shared memory size mismatch");
   }
 
-  auto layout =
-      CalculateLayoutSizes(header_->storage_size, header_->max_instances);
+  auto layout = CalculateLayoutSizes(header_->storage_size);
 
   // Set pointers
   index_ = reinterpret_cast<IndexType*>(static_cast<char*>(shm_ptr_) +
@@ -136,7 +134,7 @@ void ShmAllocator::ValidateLayout() {
 }
 
 ShmAllocator::LayoutSizes ShmAllocator::CalculateLayoutSizes(
-    size_type storage_size, size_type /* max_instances */) {
+    size_type storage_size) {
   LayoutSizes layout;
 
   // Header size (aligned to 8 bytes)
@@ -171,11 +169,6 @@ void* ShmAllocator::AllocateImpl(std::string_view name, size_type size,
   if (it != index_->end()) {
     // Already exists, return existing pointer
     return static_cast<char*>(storage_) + it->second.offset;
-  }
-
-  // Check if maximum instance count exceeded
-  if (index_->size() >= header_->max_instances) {
-    throw ShmAllocatorError("Maximum number of instances reached");
   }
 
   // Calculate aligned offset
@@ -274,7 +267,7 @@ ShmAllocator::size_type ShmAllocator::instance_count() const {
 }
 
 ShmAllocator::size_type ShmAllocator::max_instances() const {
-  return Valid() ? header_->max_instances : 0;
+  return 1024;  // This matches the N template parameter in IndexType definition
 }
 
 ShmAllocator::size_type ShmAllocator::total_size() const {

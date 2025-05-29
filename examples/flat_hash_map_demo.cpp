@@ -182,7 +182,8 @@ void EraseDemo() {
   auto it = map.find(5);
   if (it != map.end()) {
     std::cout << "Erasing key " << it->first << " by iterator" << std::endl;
-    map.erase(it);
+    map.erase(
+        static_cast<FlatHashMap<int, std::string, 16>::const_iterator>(it));
   }
 
   std::cout << "Size after iterator erase: " << map.size() << std::endl;
@@ -252,8 +253,7 @@ void PerformanceComparison() {
   // Test FlatHashMap
   {
     std::cout << "\nTesting FlatHashMap:" << std::endl;
-    FlatHashMap<int, int, kCapacity>
-        flat_map;
+    FlatHashMap<int, int, kCapacity> flat_map;
 
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -324,8 +324,7 @@ void PerformanceComparison() {
 void CapacityLimitDemo() {
   std::cout << "\n=== Capacity Limit Demo ===" << std::endl;
 
-  FlatHashMap<int, std::string, 8>
-      small_map;
+  FlatHashMap<int, std::string, 8> small_map;
 
   std::cout << "Created map with capacity: " << small_map.max_size()
             << std::endl;

@@ -14,7 +14,6 @@
 #include "nova/base/flat_hash_map.h"
 #include "nova/common/traits.h"
 
-
 namespace nova {
 
 static constexpr std::size_t kShmNameSize = 32;
@@ -72,11 +71,10 @@ class ShmAllocator {
   // Shared memory header information
   struct ShmHeader {
     ShmHeader() = default;
-    ShmHeader(const char* shm_name, size_type total_sz, size_type max_inst,
-              size_type storage_off, size_type storage_sz)
+    ShmHeader(const char* shm_name, size_type total_sz, size_type storage_off,
+              size_type storage_sz)
         : name{},
           total_size(total_sz),
-          max_instances(max_inst),
           storage_offset(storage_off),
           storage_size(storage_sz),
           current_storage_used(0),
@@ -88,8 +86,6 @@ class ShmAllocator {
     char name[64];
     // Total size
     size_type total_size;
-    // Maximum instance count
-    size_type max_instances;
     // Storage area start offset
     size_type storage_offset;
     // Storage area size
@@ -108,10 +104,9 @@ class ShmAllocator {
   /// @brief Constructor, create or open shared memory
   /// @param name Shared memory name
   /// @param storage_size Storage area size in bytes
-  /// @param max_instances Maximum instance count
   /// @param create_if_not_exists Whether to create if not exists
   ShmAllocator(std::string_view name, size_type storage_size,
-               size_type max_instances, bool create_if_not_exists = true);
+               bool create_if_not_exists = true);
 
   /// @brief Destructor, automatically clean up resources
   ~ShmAllocator();
@@ -227,15 +222,13 @@ class ShmAllocator {
 
   /// @brief Initialize shared memory layout
   /// @param storage_size Storage area size
-  /// @param max_instances Maximum instance count
-  void InitializeLayout(size_type storage_size, size_type max_instances);
+  void InitializeLayout(size_type storage_size);
 
   /// @brief Validate shared memory layout
   void ValidateLayout();
 
   /// @brief Calculate layout sizes
   /// @param storage_size Desired storage area size
-  /// @param max_instances Maximum instance count
   /// @return Size information for each part
   struct LayoutSizes {
     size_type header_size;
@@ -244,8 +237,7 @@ class ShmAllocator {
     size_type storage_size;
     size_type total_size;  // Total shared memory size needed
   };
-  static LayoutSizes CalculateLayoutSizes(size_type storage_size,
-                                          size_type max_instances);
+  static LayoutSizes CalculateLayoutSizes(size_type storage_size);
 
   /// @brief Internal implementation of memory allocation
   /// @param name Instance name

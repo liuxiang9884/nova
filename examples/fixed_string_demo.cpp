@@ -2,7 +2,6 @@
 // Created by liuxiang on 2025/5/28.
 //
 
-#include <algorithm>
 #include <iostream>
 #include <string>
 #include <unordered_map>
@@ -51,71 +50,18 @@ void ComparisonDemo() {
   FixedString<32> str1("Hello");
   FixedString<32> str2("Hello");
   FixedString<32> str3("World");
-  FixedString<32> str4("Apple");
 
   std::cout << "str1 == str2: " << (str1 == str2) << std::endl;
   std::cout << "str1 == str3: " << (str1 == str3) << std::endl;
   std::cout << "str1 != str3: " << (str1 != str3) << std::endl;
 
-  // Test ordering comparisons
-  std::cout << "str4 < str1: " << (str4 < str1)
-            << std::endl;  // "Apple" < "Hello"
-  std::cout << "str1 < str3: " << (str1 < str3)
-            << std::endl;  // "Hello" < "World"
-  std::cout << "str3 > str1: " << (str3 > str1)
-            << std::endl;  // "World" > "Hello"
-  std::cout << "str1 <= str2: " << (str1 <= str2)
-            << std::endl;  // "Hello" <= "Hello"
-  std::cout << "str3 >= str1: " << (str3 >= str1)
-            << std::endl;  // "World" >= "Hello"
-
   // Compare with C-string
   std::cout << "str1 == \"Hello\": " << (str1 == "Hello") << std::endl;
-  std::cout << "str1 < \"World\": " << (str1 < "World") << std::endl;
-  std::cout << "str1 > \"Apple\": " << (str1 > "Apple") << std::endl;
+  std::cout << "str1 == \"World\": " << (str1 == "World") << std::endl;
 
   // Compare with string_view
   std::string_view sv = "Hello";
   std::cout << "str1 == string_view(\"Hello\"): " << (str1 == sv) << std::endl;
-  std::cout << "str1 <= string_view(\"Hello\"): " << (str1 <= sv) << std::endl;
-}
-
-void IteratorDemo() {
-  std::cout << "\n=== Iterator Demo ===" << std::endl;
-
-  FixedString<32> str("Iterator");
-
-  // Test range-based for loop
-  std::cout << "Range-based for loop: ";
-  for (char c : str) {
-    std::cout << c;
-  }
-  std::cout << std::endl;
-
-  // Test explicit iterators
-  std::cout << "Using begin/end: ";
-  for (auto it = str.begin(); it != str.end(); ++it) {
-    std::cout << *it;
-  }
-  std::cout << std::endl;
-
-  // Test const iterators
-  std::cout << "Using cbegin/cend: ";
-  for (auto it = str.cbegin(); it != str.cend(); ++it) {
-    std::cout << *it;
-  }
-  std::cout << std::endl;
-
-  // Test STL algorithms
-  std::cout << "Character count 'e': "
-            << std::count(str.begin(), str.end(), 'e') << std::endl;
-
-  // Test find
-  auto found = std::find(str.begin(), str.end(), 'r');
-  if (found != str.end()) {
-    std::cout << "Found 'r' at position: " << std::distance(str.begin(), found)
-              << std::endl;
-  }
 }
 
 void ConversionDemo() {
@@ -124,8 +70,7 @@ void ConversionDemo() {
   FixedString<32> str("Test string");
 
   // Test different access methods
-  std::cout << "data(): " << std::string_view(str.data(), str.size())
-            << std::endl;
+  std::cout << "data(): " << str.data() << std::endl;
   std::cout << "view(): " << str.view() << std::endl;
   std::cout << "string(): " << str.string() << std::endl;
 
@@ -228,7 +173,6 @@ int main() {
 
   BasicFunctionalityDemo();
   ComparisonDemo();
-  IteratorDemo();
   ConversionDemo();
   HashDemo();
   ErrorHandlingDemo();
