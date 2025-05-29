@@ -73,3 +73,8 @@ target_link_libraries(flat_hash_map_demo PRIVATE fmt::fmt-header-only nova)
 add_executable(shm_flat_hash_map_demo shm_flat_hash_map_demo.cpp)
 target_include_directories(shm_flat_hash_map_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
 target_link_libraries(shm_flat_hash_map_demo PRIVATE fmt::fmt-header-only nova)
+
+# fixed_string_demo
+add_executable(fixed_string_demo fixed_string_demo.cpp)
+target_include_directories(fixed_string_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
+target_link_libraries(fixed_string_demo PRIVATE fmt::fmt-header-only nova)
