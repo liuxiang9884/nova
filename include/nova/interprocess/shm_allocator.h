@@ -225,6 +225,11 @@ class ShmAllocator {
   /// @return Whether valid
   [[nodiscard]] bool Valid() const;
 
+  /// @brief Check if a shared memory segment exists
+  /// @param name Shared memory name
+  /// @return True if the shared memory exists, false otherwise
+  [[nodiscard]] static bool ShmExists(std::string_view name);
+
   /// @brief Map shared memory with platform-specific optimizations
   /// @param size Memory size to map
   /// @param fd File descriptor (will be closed on failure)
@@ -233,7 +238,7 @@ class ShmAllocator {
   /// failure
   /// @return Mapped memory pointer
   void* MapMemory(size_type size, int fd, const std::string& error_msg,
-                  bool cleanup_shm_on_failure = false);
+                  bool cleanup_shm_on_failure = false) const;
 
   /// @brief Cleanup when creating new shared memory fails
   void CleanupNewShmOnFailure();

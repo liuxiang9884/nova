@@ -21,7 +21,7 @@ namespace nova {
 
 void* ShmAllocator::MapMemory(size_type size, int fd,
                               const std::string& error_msg,
-                              bool cleanup_shm_on_failure) {
+                              bool cleanup_shm_on_failure) const {
   // Set up mapping flags
   int map_flags = MAP_SHARED;
 
@@ -98,7 +98,7 @@ ShmAllocator::ShmAllocator(std::string_view name, size_type storage_size,
     }
 
     // Set size to calculated total size
-    if (ftruncate(shm_fd_, layout.total_size) == -1) {
+    if (ftruncate(shm_fd_, static_cast<off_t>(layout.total_size)) == -1) {
       CleanupNewShmOnFailure();
       throw ShmAllocatorError("Failed to set shared memory size");
     }
@@ -111,7 +111,7 @@ ShmAllocator::ShmAllocator(std::string_view name, size_type storage_size,
     InitializeLayout(storage_size);
   } else {
     // Get existing shared memory size
-    struct stat shm_stat;
+    struct stat shm_stat{};
     if (fstat(shm_fd_, &shm_stat) == -1) {
       CleanupExistingShmOnFailure();
       throw ShmAllocatorError("Failed to get shared memory size");
@@ -174,7 +174,7 @@ void ShmAllocator::ValidateLayout() {
 
 ShmAllocator::LayoutSizes ShmAllocator::CalculateLayoutSizes(
     size_type storage_size) {
-  LayoutSizes layout;
+  LayoutSizes layout{};
 
   // Header size (aligned to 8 bytes)
   layout.header_size = AlignUp(sizeof(ShmHeader), 8);
@@ -204,8 +204,9 @@ void* ShmAllocator::AllocateImpl(std::string_view name, size_type size,
   }
 
   // Calculate aligned offset
-  size_type aligned_offset = AlignUp(header_->current_storage_used, alignment);
-  size_type aligned_size = AlignUp(size, alignment);
+  const size_type aligned_offset =
+      AlignUp(header_->current_storage_used, alignment);
+  const size_type aligned_size = AlignUp(size, alignment);
 
   // Check if enough space available
   if (aligned_offset + aligned_size > header_->storage_size) {
@@ -322,6 +323,22 @@ bool ShmAllocator::Valid() const {
   return shm_ptr_ != nullptr && shm_ptr_ != MAP_FAILED && shm_fd_ != -1 &&
          header_ != nullptr && header_->initialized && index_ != nullptr &&
          storage_ != nullptr;
+}
+
+bool ShmAllocator::ShmExists(std::string_view name) {
+  // Convert to c string for shm_open
+  std::string shm_name_str(name);
+
+  // Try to open existing shared memory
+  int fd = shm_open(shm_name_str.c_str(), O_RDWR, 0666);
+
+  if (fd == -1) {
+    return false;  // Shared memory does not exist
+  }
+
+  // Close the file descriptor since we only wanted to check existence
+  close(fd);
+  return true;  // Shared memory exists
 }
 
 }  // namespace nova
