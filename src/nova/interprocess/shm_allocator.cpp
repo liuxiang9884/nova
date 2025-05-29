@@ -196,10 +196,6 @@ ShmAllocator::LayoutSizes ShmAllocator::CalculateLayoutSizes(
 
 void* ShmAllocator::AllocateImpl(std::string_view name, size_type size,
                                  size_type alignment) {
-  if (!Valid()) {
-    throw ShmAllocatorError("Allocator is not valid");
-  }
-
   // Check if already exists using heterogeneous lookup
   auto it = index_->find(name);
   if (it != index_->end()) {
@@ -250,10 +246,6 @@ std::string ShmAllocator::FromShmName(const ShmName& shm_name) {
 }
 
 void* ShmAllocator::GetBlock(std::string_view name) const {
-  if (!Valid()) {
-    return nullptr;
-  }
-
   // Use heterogeneous lookup directly with string_view
   auto it = index_->find(name);
   if (it == index_->end()) {
@@ -265,19 +257,11 @@ void* ShmAllocator::GetBlock(std::string_view name) const {
 }
 
 bool ShmAllocator::Exists(std::string_view name) const {
-  if (!Valid()) {
-    return false;
-  }
-
   // Use heterogeneous lookup directly with string_view
   return index_->contains(name);
 }
 
 bool ShmAllocator::IsConstructed(std::string_view name) const {
-  if (!Valid()) {
-    return false;
-  }
-
   // Use heterogeneous lookup directly with string_view
   auto it = index_->find(name);
   return it != index_->end() && it->second.constructed;
@@ -285,10 +269,6 @@ bool ShmAllocator::IsConstructed(std::string_view name) const {
 
 std::vector<std::string> ShmAllocator::GetInstanceNames() const {
   std::vector<std::string> names;
-  if (!Valid()) {
-    return names;
-  }
-
   names.reserve(index_->size());
   for (const auto& pair : *index_) {
     names.push_back(FromShmName(pair.first));
@@ -298,7 +278,7 @@ std::vector<std::string> ShmAllocator::GetInstanceNames() const {
 }
 
 ShmAllocator::size_type ShmAllocator::instance_count() const {
-  return Valid() ? index_->size() : 0;
+  return index_->size();
 }
 
 ShmAllocator::size_type ShmAllocator::max_instances() const {
@@ -306,19 +286,19 @@ ShmAllocator::size_type ShmAllocator::max_instances() const {
 }
 
 ShmAllocator::size_type ShmAllocator::total_size() const {
-  return Valid() ? header_->total_size : 0;
+  return header_->total_size;
 }
 
 ShmAllocator::size_type ShmAllocator::used_storage_size() const {
-  return Valid() ? header_->current_storage_used : 0;
+  return header_->current_storage_used;
 }
 
 ShmAllocator::size_type ShmAllocator::available_storage_size() const {
-  return Valid() ? (header_->storage_size - header_->current_storage_used) : 0;
+  return header_->storage_size - header_->current_storage_used;
 }
 
 ShmAllocator::size_type ShmAllocator::storage_size() const {
-  return Valid() ? header_->storage_size : 0;
+  return header_->storage_size;
 }
 
 std::string_view ShmAllocator::shm_name() const {
@@ -326,11 +306,9 @@ std::string_view ShmAllocator::shm_name() const {
 }
 
 void ShmAllocator::DeallocateAll() {
-  if (!Valid()) {
-    return;
-  }
-
-  // Destruct all constructed objects (user needs to call destruct manually)
+  // Note: This function can only be called once. After calling this function,
+  // the ShmAllocator object becomes invalid and should not be used again.
+  // All constructed objects should be destructed manually before calling this.
 
   // Cleanup mapped resources and file descriptor
   CleanupMappedResources();
