@@ -103,8 +103,7 @@ void ShmAllocator::InitializeLayout(size_type storage_size) {
   // Initialize index (using placement new and default construction)
   index_ = reinterpret_cast<IndexType*>(static_cast<char*>(shm_ptr_) +
                                         layout.header_size);
-  // Clear memory first, then use placement new
-  std::memset(index_, 0, sizeof(IndexType));
+  // Use placement new to construct the object properly
   new (index_) IndexType();
 
   // Set storage area pointer

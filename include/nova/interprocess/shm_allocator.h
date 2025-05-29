@@ -49,6 +49,19 @@ class ShmAllocator {
     bool operator()(const ShmName& lhs, const ShmName& rhs) const {
       return lhs == rhs;
     }
+
+    // Support for heterogeneous lookup with std::string_view
+    bool operator()(const ShmName& lhs, std::string_view rhs) const {
+      return lhs.view() == rhs;
+    }
+
+    bool operator()(std::string_view lhs, const ShmName& rhs) const {
+      return lhs == rhs.view();
+    }
+
+    bool operator()(std::string_view lhs, std::string_view rhs) const {
+      return lhs == rhs;
+    }
   };
 
   // Metadata for instances stored in shared memory
