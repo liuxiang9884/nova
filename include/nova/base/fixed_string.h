@@ -18,30 +18,35 @@
 namespace nova {
 
 /// @brief Fixed-size string with compile-time maximum length
-/// @tparam N Maximum length of the string (excluding null terminator)
+/// @tparam N Maximum length of the string
 template <std::size_t N>
 class FixedString {
  public:
-  static constexpr std::size_t max_size = N;
+  // Type definitions for STL compatibility
+  using value_type = char;
+  using size_type = std::size_t;
+  using difference_type = std::ptrdiff_t;
+  using reference = char&;
+  using const_reference = const char&;
+  using pointer = char*;
+  using const_pointer = const char*;
+  using iterator = char*;
+  using const_iterator = const char*;
 
   /// @brief Default constructor, creates empty string
-  FixedString() : size_(0) {
-    data_[0] = '\0';
-  }
+  FixedString() : size_(0) {}
 
   /// @brief Constructor from C-style string
   /// @param str C-style string to copy
   FixedString(const char* str) {
     if (str == nullptr) {
       size_ = 0;
-      data_[0] = '\0';
       return;
     }
 
     std::size_t len = std::strlen(str);
     size_ = CheckAndAdjustLength(len);
     std::memcpy(data_.data(), str, size_);
-    data_[size_] = '\0';
   }
 
   /// @brief Constructor from std::string
@@ -50,7 +55,6 @@ class FixedString {
     std::size_t len = str.size();
     size_ = CheckAndAdjustLength(len);
     std::memcpy(data_.data(), str.data(), size_);
-    data_[size_] = '\0';
   }
 
   /// @brief Constructor from std::string_view
@@ -59,7 +63,6 @@ class FixedString {
     std::size_t len = str.size();
     size_ = CheckAndAdjustLength(len);
     std::memcpy(data_.data(), str.data(), size_);
-    data_[size_] = '\0';
   }
 
   /// @brief Copy constructor
@@ -79,14 +82,12 @@ class FixedString {
   FixedString& operator=(const char* str) {
     if (str == nullptr) {
       size_ = 0;
-      data_[0] = '\0';
       return *this;
     }
 
     std::size_t len = std::strlen(str);
     size_ = CheckAndAdjustLength(len);
     std::memcpy(data_.data(), str, size_);
-    data_[size_] = '\0';
     return *this;
   }
 
@@ -96,7 +97,6 @@ class FixedString {
     std::size_t len = str.size();
     size_ = CheckAndAdjustLength(len);
     std::memcpy(data_.data(), str.data(), size_);
-    data_[size_] = '\0';
     return *this;
   }
 
@@ -106,14 +106,7 @@ class FixedString {
     std::size_t len = str.size();
     size_ = CheckAndAdjustLength(len);
     std::memcpy(data_.data(), str.data(), size_);
-    data_[size_] = '\0';
     return *this;
-  }
-
-  /// @brief Get C-style string
-  /// @return Null-terminated C-style string
-  const char* c_str() const {
-    return data_.data();
   }
 
   /// @brief Get string data pointer
@@ -155,9 +148,46 @@ class FixedString {
   /// @brief Clear the string
   void Clear() {
     size_ = 0;
-    data_[0] = '\0';
   }
 
+  // Iterator support
+  /// @brief Get iterator to beginning
+  /// @return Iterator to the first character
+  iterator begin() {
+    return data_.data();
+  }
+
+  /// @brief Get const iterator to beginning
+  /// @return Const iterator to the first character
+  const_iterator begin() const {
+    return data_.data();
+  }
+
+  /// @brief Get const iterator to beginning
+  /// @return Const iterator to the first character
+  const_iterator cbegin() const {
+    return data_.data();
+  }
+
+  /// @brief Get iterator to end
+  /// @return Iterator to one past the last character
+  iterator end() {
+    return data_.data() + size_;
+  }
+
+  /// @brief Get const iterator to end
+  /// @return Const iterator to one past the last character
+  const_iterator end() const {
+    return data_.data() + size_;
+  }
+
+  /// @brief Get const iterator to end
+  /// @return Const iterator to one past the last character
+  const_iterator cend() const {
+    return data_.data() + size_;
+  }
+
+  // Comparison operators
   /// @brief Equality comparison
   /// @param other Other FixedString to compare with
   /// @return True if equal, false otherwise
@@ -173,6 +203,36 @@ class FixedString {
     return !(*this == other);
   }
 
+  /// @brief Less than comparison
+  /// @param other Other FixedString to compare with
+  /// @return True if this string is lexicographically less than other
+  bool operator<(const FixedString& other) const {
+    return view() < other.view();
+  }
+
+  /// @brief Greater than comparison
+  /// @param other Other FixedString to compare with
+  /// @return True if this string is lexicographically greater than other
+  bool operator>(const FixedString& other) const {
+    return view() > other.view();
+  }
+
+  /// @brief Less than or equal comparison
+  /// @param other Other FixedString to compare with
+  /// @return True if this string is lexicographically less than or equal to
+  /// other
+  bool operator<=(const FixedString& other) const {
+    return view() <= other.view();
+  }
+
+  /// @brief Greater than or equal comparison
+  /// @param other Other FixedString to compare with
+  /// @return True if this string is lexicographically greater than or equal to
+  /// other
+  bool operator>=(const FixedString& other) const {
+    return view() >= other.view();
+  }
+
   /// @brief Equality comparison with C-style string
   /// @param str C-style string to compare with
   /// @return True if equal, false otherwise
@@ -180,7 +240,8 @@ class FixedString {
     if (str == nullptr) {
       return size_ == 0;
     }
-    return std::strcmp(data_.data(), str) == 0;
+    std::size_t str_len = std::strlen(str);
+    return size_ == str_len && std::memcmp(data_.data(), str, size_) == 0;
   }
 
   /// @brief Inequality comparison with C-style string
@@ -188,6 +249,47 @@ class FixedString {
   /// @return True if not equal, false otherwise
   bool operator!=(const char* str) const {
     return !(*this == str);
+  }
+
+  /// @brief Less than comparison with C-style string
+  /// @param str C-style string to compare with
+  /// @return True if this string is lexicographically less than str
+  bool operator<(const char* str) const {
+    if (str == nullptr) {
+      return false;  // Non-empty string is not less than null
+    }
+    return view() < std::string_view(str);
+  }
+
+  /// @brief Greater than comparison with C-style string
+  /// @param str C-style string to compare with
+  /// @return True if this string is lexicographically greater than str
+  bool operator>(const char* str) const {
+    if (str == nullptr) {
+      return size_ > 0;  // Non-empty string is greater than null
+    }
+    return view() > std::string_view(str);
+  }
+
+  /// @brief Less than or equal comparison with C-style string
+  /// @param str C-style string to compare with
+  /// @return True if this string is lexicographically less than or equal to str
+  bool operator<=(const char* str) const {
+    if (str == nullptr) {
+      return size_ == 0;  // Only empty string is <= null
+    }
+    return view() <= std::string_view(str);
+  }
+
+  /// @brief Greater than or equal comparison with C-style string
+  /// @param str C-style string to compare with
+  /// @return True if this string is lexicographically greater than or equal to
+  /// str
+  bool operator>=(const char* str) const {
+    if (str == nullptr) {
+      return true;  // Any string is >= null
+    }
+    return view() >= std::string_view(str);
   }
 
   /// @brief Equality comparison with std::string_view
@@ -204,9 +306,38 @@ class FixedString {
     return !(*this == str);
   }
 
+  /// @brief Less than comparison with std::string_view
+  /// @param str String view to compare with
+  /// @return True if this string is lexicographically less than str
+  bool operator<(std::string_view str) const {
+    return view() < str;
+  }
+
+  /// @brief Greater than comparison with std::string_view
+  /// @param str String view to compare with
+  /// @return True if this string is lexicographically greater than str
+  bool operator>(std::string_view str) const {
+    return view() > str;
+  }
+
+  /// @brief Less than or equal comparison with std::string_view
+  /// @param str String view to compare with
+  /// @return True if this string is lexicographically less than or equal to str
+  bool operator<=(std::string_view str) const {
+    return view() <= str;
+  }
+
+  /// @brief Greater than or equal comparison with std::string_view
+  /// @param str String view to compare with
+  /// @return True if this string is lexicographically greater than or equal to
+  /// str
+  bool operator>=(std::string_view str) const {
+    return view() >= str;
+  }
+
  private:
-  // String data storage (including space for null terminator)
-  std::array<char, N + 1> data_;
+  // String data storage (no null terminator needed)
+  std::array<char, N> data_;
   // Current string length
   std::size_t size_;
 
