@@ -24,7 +24,7 @@ ShmAllocator::ShmAllocator(std::string_view name, size_type storage_size,
       index_(nullptr),
       storage_(nullptr) {
   // Calculate layout sizes based on desired storage size
-  auto layout = CalculateLayoutSizes(storage_size, max_instances);
+  const auto layout = CalculateLayoutSizes(storage_size, max_instances);
   shm_size_ = layout.total_size;
 
   // Try to open existing shared memory

@@ -23,8 +23,22 @@ class FlatHashMap {
 
   // Load factor and capacity calculation
   static constexpr double kLoadFactor = 0.618;
-  static constexpr size_type Capacity =
-      std::bit_ceil(static_cast<size_type>(N / kLoadFactor));
+
+  // Calculate capacity using the new logic
+  static constexpr size_type CalculateCapacity() {
+    // Find the smallest power of 2 greater than N
+    size_type n = std::bit_ceil(N + 1);
+
+    // If N/n < loadfactor, use n as capacity
+    if (static_cast<double>(N) / n < kLoadFactor) {
+      return n;
+    } else {
+      // Otherwise use the original calculation
+      return std::bit_ceil(static_cast<size_type>(N / kLoadFactor));
+    }
+  }
+
+  static constexpr size_type Capacity = CalculateCapacity();
   static constexpr size_type kCapacityMask = Capacity - 1;
 
   // Slot structure using value_type + bool
