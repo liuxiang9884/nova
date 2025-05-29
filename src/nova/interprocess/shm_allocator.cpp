@@ -212,15 +212,11 @@ void* ShmAllocator::AllocateImpl(std::string_view name, size_type size,
     throw ShmAllocatorError("Not enough storage space");
   }
 
-  // Create ShmName only when we need to insert
-  ShmName shm_name;
-  ToShmName(name, shm_name);
-
   // Create metadata
   ShmInstanceMeta meta(aligned_offset, aligned_size, alignment, false);
 
-  // Insert into index
-  auto result = index_->emplace(shm_name, meta);
+  // Insert into index using heterogeneous emplace with string_view
+  auto result = index_->emplace(name, meta);
   if (!result.second) {
     throw ShmAllocatorError("Failed to insert instance metadata");
   }
@@ -267,11 +263,11 @@ bool ShmAllocator::IsConstructed(std::string_view name) const {
   return it != index_->end() && it->second.constructed;
 }
 
-std::vector<std::string> ShmAllocator::GetInstanceNames() const {
-  std::vector<std::string> names;
+std::vector<std::string_view> ShmAllocator::GetInstanceNames() const {
+  std::vector<std::string_view> names;
   names.reserve(index_->size());
   for (const auto& pair : *index_) {
-    names.push_back(FromShmName(pair.first));
+    names.push_back(pair.first.view());
   }
 
   return names;

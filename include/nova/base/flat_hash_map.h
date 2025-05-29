@@ -103,6 +103,10 @@ class FlatHashMap {
   template <typename... Args>
   std::pair<iterator, bool> emplace(Args&&... args);
 
+  // Heterogeneous emplace - allows emplacing with different key types
+  template <typename K, typename... Args>
+  std::pair<iterator, bool> emplace(K&& key, Args&&... args);
+
   template <typename... Args>
   std::pair<iterator, bool> try_emplace(const key_type& key, Args&&... args);
 
@@ -484,6 +488,13 @@ FlatHashMap<Key, Value, N, Hash, KeyEqual>::emplace_impl(K&& key,
   ++size_;
 
   return {iterator(&container_, index), true};
+}
+
+template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
+template <typename K, typename... Args>
+std::pair<typename FlatHashMap<Key, Value, N, Hash, KeyEqual>::iterator, bool>
+FlatHashMap<Key, Value, N, Hash, KeyEqual>::emplace(K&& key, Args&&... args) {
+  return emplace_impl(std::forward<K>(key), std::forward<Args>(args)...);
 }
 
 template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>

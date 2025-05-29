@@ -165,8 +165,15 @@ class ShmAllocator {
 
   /// @brief Get memory block with specified name
   /// @param name Instance name
-  /// @return Memory block, returns empty block if not found
+  /// @return Memory block, returns nullptr if not found
   [[nodiscard]] void* GetBlock(std::string_view name) const;
+
+  /// @brief Get typed pointer to object with specified name
+  /// @tparam T Object type
+  /// @param name Instance name
+  /// @return Typed pointer, returns nullptr if not found
+  template <typename T>
+  [[nodiscard]] T* Get(std::string_view name) const;
 
   /// @brief Check if instance with specified name exists
   /// @param name Instance name
@@ -179,8 +186,8 @@ class ShmAllocator {
   [[nodiscard]] bool IsConstructed(std::string_view name) const;
 
   /// @brief Get all instance names
-  /// @return List of instance names
-  [[nodiscard]] std::vector<std::string> GetInstanceNames() const;
+  /// @return List of instance names as string views to shared memory
+  [[nodiscard]] std::vector<std::string_view> GetInstanceNames() const;
 
   /// @brief Get current instance count
   /// @return Current instance count
@@ -336,9 +343,13 @@ T* ShmAllocator::Construct(std::string_view name, Args&&... args) {
   T* obj_ptr = static_cast<T*>(ptr);
   new (obj_ptr) T(std::forward<Args>(args)...);
 
-  // Update construction status using heterogeneous lookup
+  // Update construction status - the item was just inserted in AllocateImpl,
+  // so we can use the fact that it exists and update it
   auto find_it = index_->find(name);
   if (find_it != index_->end()) {
+    // We know this item was just inserted, so we can modify it directly
+    // Since FlatHashMap doesn't provide direct mutation of values,
+    // we still need to erase and re-emplace
     ShmName shm_name;
     ToShmName(name, shm_name);
     ShmInstanceMeta meta = find_it->second;
@@ -389,6 +400,15 @@ T* ShmAllocator::Find(std::string_view name) const {
   }
 
   void* ptr = static_cast<char*>(storage_) + it->second.offset;
+  return static_cast<T*>(ptr);
+}
+
+template <typename T>
+T* ShmAllocator::Get(std::string_view name) const {
+  static_assert(is_shm_compatible_v<T>,
+                "Type must be shared memory compatible");
+
+  void* ptr = GetBlock(name);
   return static_cast<T*>(ptr);
 }
 
