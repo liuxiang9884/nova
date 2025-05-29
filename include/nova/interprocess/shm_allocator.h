@@ -414,22 +414,21 @@ T* ShmAllocator::Get(std::string_view name) const {
 
 // Helper functions
 
-/// @brief Memory alignment helper function
-inline ShmAllocator::size_type align_up(ShmAllocator::size_type size,
-                                        ShmAllocator::size_type alignment) {
+/// @brief Align size up to the next multiple of alignment
+/// @param size Size to align
+/// @param alignment Alignment requirement (must be power of 2)
+/// @return Aligned size
+constexpr ShmAllocator::size_type AlignUp(ShmAllocator::size_type size,
+                                          ShmAllocator::size_type alignment) {
   return (size + alignment - 1) & ~(alignment - 1);
 }
 
-/// @brief Get alignment requirement of type
+/// @brief Get the aligned size of type T
+/// @tparam T Type to get aligned size for
+/// @return Size of T aligned to its natural alignment
 template <typename T>
-constexpr ShmAllocator::size_type alignment_of() {
-  return alignof(T);
-}
-
-/// @brief Get size of type
-template <typename T>
-constexpr ShmAllocator::size_type size_of() {
-  return sizeof(T);
+constexpr ShmAllocator::size_type AlignUp() {
+  return AlignUp(sizeof(T), alignof(T));
 }
 
 }  // namespace nova

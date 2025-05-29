@@ -177,10 +177,10 @@ ShmAllocator::LayoutSizes ShmAllocator::CalculateLayoutSizes(
   LayoutSizes layout;
 
   // Header size (aligned to 8 bytes)
-  layout.header_size = align_up(sizeof(ShmHeader), 8);
+  layout.header_size = AlignUp(sizeof(ShmHeader), 8);
 
   // Index size (aligned to 8 bytes)
-  layout.index_size = align_up(sizeof(IndexType), 8);
+  layout.index_size = AlignUp(sizeof(IndexType), 8);
 
   // Storage area offset
   layout.storage_offset = layout.header_size + layout.index_size;
@@ -204,8 +204,8 @@ void* ShmAllocator::AllocateImpl(std::string_view name, size_type size,
   }
 
   // Calculate aligned offset
-  size_type aligned_offset = align_up(header_->current_storage_used, alignment);
-  size_type aligned_size = align_up(size, alignment);
+  size_type aligned_offset = AlignUp(header_->current_storage_used, alignment);
+  size_type aligned_size = AlignUp(size, alignment);
 
   // Check if enough space available
   if (aligned_offset + aligned_size > header_->storage_size) {
