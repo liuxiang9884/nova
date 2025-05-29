@@ -27,9 +27,9 @@ class FlatHashMap {
   // Calculate capacity using the new logic
   static constexpr size_type CalculateCapacity() {
     // Find the smallest power of 2 greater than N
-    size_type n = std::bit_ceil(N + 1);
+    const size_type n = std::bit_ceil(N + 1);
 
-    // If N/n < loadfactor, use n as capacity
+    // If N/n < load_factor, use n as capacity
     if (static_cast<double>(N) / n < kLoadFactor) {
       return n;
     } else {
@@ -165,7 +165,7 @@ template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
 class FlatHashMap<Key, Value, N, Hash, KeyEqual>::iterator {
  public:
   using iterator_category = std::forward_iterator_tag;
-  using value_type = typename FlatHashMap::value_type;
+  using value_type = FlatHashMap::value_type;
   using difference_type = std::ptrdiff_t;
   using pointer = value_type*;
   using reference = value_type&;
@@ -203,7 +203,7 @@ class FlatHashMap<Key, Value, N, Hash, KeyEqual>::iterator {
     return !(*this == other);
   }
 
-  size_type index() const {
+  [[nodiscard]] size_type index() const {
     return index_;
   }
 
@@ -225,7 +225,7 @@ template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
 class FlatHashMap<Key, Value, N, Hash, KeyEqual>::const_iterator {
  public:
   using iterator_category = std::forward_iterator_tag;
-  using value_type = typename FlatHashMap::value_type;
+  using value_type = FlatHashMap::value_type;
   using difference_type = std::ptrdiff_t;
   using pointer = const value_type*;
   using reference = const value_type&;
@@ -237,7 +237,7 @@ class FlatHashMap<Key, Value, N, Hash, KeyEqual>::const_iterator {
   }
 
   // Convert from iterator
-  const_iterator(const iterator& it)
+  explicit const_iterator(const iterator& it)
       : container_(it.container_), index_(it.index_) {}
 
   reference operator*() const {
@@ -267,7 +267,7 @@ class FlatHashMap<Key, Value, N, Hash, KeyEqual>::const_iterator {
     return !(*this == other);
   }
 
-  size_type index() const {
+  [[nodiscard]] size_type index() const {
     return index_;
   }
 
