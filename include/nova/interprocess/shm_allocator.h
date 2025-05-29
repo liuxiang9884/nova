@@ -4,28 +4,23 @@
 
 #pragma once
 
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include <cstddef>
-#include <cstdint>
 #include <cstring>
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <type_traits>
-#include <vector>
 
 #include "nova/base/fixed_string.h"
 #include "nova/base/flat_hash_map.h"
 #include "nova/common/traits.h"
-#include <fcntl.h>
+
 
 namespace nova {
 
+static constexpr std::size_t kShmNameSize = 32;
+
 /// @brief Shared memory allocator exception class
-class ShmAllocatorError : public std::runtime_error {
+class ShmAllocatorError final : public std::runtime_error {
  public:
   explicit ShmAllocatorError(const std::string& message)
       : std::runtime_error("ShmAllocator: " + message) {}
@@ -43,14 +38,12 @@ class ShmAllocator {
  public:
   // Size and offset types
   using size_type = std::size_t;
-  using ShmOffset = size_type;
-  using ShmSize = size_type;
 
   // Shared memory instance name type
-  using ShmName = FixedString<32>;
+  using ShmName = FixedString<kShmNameSize>;
 
   // Hash function for ShmName
-  using ShmNameHash = FixedStringHash<32>;
+  using ShmNameHash = FixedStringHash<kShmNameSize>;
 
   // Comparison function for ShmName
   struct ShmNameEqual {
@@ -61,88 +54,50 @@ class ShmAllocator {
 
   // Metadata for instances stored in shared memory
   struct ShmInstanceMeta {
+    ShmInstanceMeta() = default;
+    ShmInstanceMeta(size_type off, size_type sz, size_type align,
+                    bool ctor = false)
+        : offset(off), size(sz), alignment(align), constructed(ctor) {}
+
     // Offset in storage area
-    ShmOffset offset;
+    size_type offset;
     // Size in bytes occupied by instance
-    ShmSize size;
+    size_type size;
     // Alignment requirement
-    ShmSize alignment;
+    size_type alignment;
     // Whether constructed
     bool constructed;
-
-    ShmInstanceMeta() = default;
-    ShmInstanceMeta(ShmOffset off, ShmSize sz, ShmSize align, bool ctor = false)
-        : offset(off), size(sz), alignment(align), constructed(ctor) {}
   };
 
   // Shared memory header information
   struct ShmHeader {
-    // Shared memory name
-    char name[64];
-    // Total size
-    ShmSize total_size;
-    // Maximum instance count
-    ShmSize max_instances;
-    // Storage area start offset
-    ShmSize storage_offset;
-    // Storage area size
-    ShmSize storage_size;
-    // Currently used storage size
-    ShmSize current_storage_used;
-    // Version number
-    std::uint32_t version;
-    // Whether initialized
-    bool initialized;
-
     ShmHeader() = default;
-    ShmHeader(const char* shm_name, ShmSize total_sz, ShmSize max_inst,
-              ShmSize storage_off, ShmSize storage_sz)
-        : total_size(total_sz),
+    ShmHeader(const char* shm_name, size_type total_sz, size_type max_inst,
+              size_type storage_off, size_type storage_sz)
+        : name{},
+          total_size(total_sz),
           max_instances(max_inst),
           storage_offset(storage_off),
           storage_size(storage_sz),
           current_storage_used(0),
-          version(1),
           initialized(true) {
       std::strncpy(name, shm_name, sizeof(name) - 1);
       name[sizeof(name) - 1] = '\0';
     }
-  };
-
-  // Shared memory block representing an allocated memory region
-  class ShmBlock {
-   public:
-    // Default constructor
-    ShmBlock() : ptr_(nullptr) {}
-
-    // Constructor
-    explicit ShmBlock(void* ptr) : ptr_(ptr) {}
-
-    // Get memory pointer
-    void* data() const {
-      return ptr_;
-    }
-
-    // Get typed pointer
-    template <typename T>
-    T* as() const {
-      static_assert(is_shm_compatible_v<T>,
-                    "Type must be shared memory compatible");
-      return static_cast<T*>(ptr_);
-    }
-
-    // Check if valid
-    bool valid() const {
-      return ptr_ != nullptr;
-    }
-
-    // Check if empty
-    bool empty() const {
-      return ptr_ == nullptr;
-    }
-
-   private:
-    void* ptr_;
+    // Shared memory name
+    char name[64];
+    // Total size
+    size_type total_size;
+    // Maximum instance count
+    size_type max_instances;
+    // Storage area start offset
+    size_type storage_offset;
+    // Storage area size
+    size_type storage_size;
+    // Currently used storage size
+    size_type current_storage_used;
+    // Whether initialized
+    bool initialized;
   };
 
   // Index type, using FlatHashMap to store instance metadata
@@ -155,8 +110,8 @@ class ShmAllocator {
   /// @param storage_size Storage area size in bytes
   /// @param max_instances Maximum instance count
   /// @param create_if_not_exists Whether to create if not exists
-  ShmAllocator(std::string_view name, ShmSize storage_size,
-               ShmSize max_instances, bool create_if_not_exists = true);
+  ShmAllocator(std::string_view name, size_type storage_size,
+               size_type max_instances, bool create_if_not_exists = true);
 
   /// @brief Destructor, automatically clean up resources
   ~ShmAllocator();
@@ -202,49 +157,49 @@ class ShmAllocator {
   /// @brief Get memory block with specified name
   /// @param name Instance name
   /// @return Memory block, returns empty block if not found
-  ShmBlock GetBlock(std::string_view name) const;
+  [[nodiscard]] void* GetBlock(std::string_view name) const;
 
   /// @brief Check if instance with specified name exists
   /// @param name Instance name
   /// @return Whether exists
-  bool Exists(std::string_view name) const;
+  [[nodiscard]] bool Exists(std::string_view name) const;
 
   /// @brief Check if instance with specified name is constructed
   /// @param name Instance name
   /// @return Whether constructed
-  bool IsConstructed(std::string_view name) const;
+  [[nodiscard]] bool IsConstructed(std::string_view name) const;
 
   /// @brief Get all instance names
   /// @return List of instance names
-  std::vector<std::string> GetInstanceNames() const;
+  [[nodiscard]] std::vector<std::string> GetInstanceNames() const;
 
   /// @brief Get current instance count
   /// @return Current instance count
-  ShmSize instance_count() const;
+  [[nodiscard]] size_type instance_count() const;
 
   /// @brief Get maximum instance count
   /// @return Maximum instance count
-  ShmSize max_instances() const;
+  [[nodiscard]] size_type max_instances() const;
 
   /// @brief Get total size
   /// @return Total size in bytes
-  ShmSize total_size() const;
+  [[nodiscard]] size_type total_size() const;
 
   /// @brief Get used storage size
   /// @return Used size in bytes
-  ShmSize used_storage_size() const;
+  [[nodiscard]] size_type used_storage_size() const;
 
   /// @brief Get available storage size
   /// @return Available size in bytes
-  ShmSize available_storage_size() const;
+  [[nodiscard]] size_type available_storage_size() const;
 
   /// @brief Get storage area total size
   /// @return Storage area size in bytes
-  ShmSize storage_size() const;
+  [[nodiscard]] size_type storage_size() const;
 
   /// @brief Get shared memory name
   /// @return Shared memory name
-  std::string_view shm_name() const;
+  [[nodiscard]] std::string_view shm_name() const;
 
   /// @brief Release all shared memory and delete shared memory object
   /// @note This object becomes unusable after calling this function
@@ -252,7 +207,7 @@ class ShmAllocator {
 
   /// @brief Check if shared memory is valid
   /// @return Whether valid
-  bool Valid() const;
+  [[nodiscard]] bool Valid() const;
 
  private:
   // Shared memory name
@@ -262,7 +217,7 @@ class ShmAllocator {
   // Shared memory pointer
   void* shm_ptr_;
   // Shared memory size
-  ShmSize shm_size_;
+  size_type shm_size_;
   // Header pointer
   ShmHeader* header_;
   // Index pointer
@@ -273,7 +228,7 @@ class ShmAllocator {
   /// @brief Initialize shared memory layout
   /// @param storage_size Storage area size
   /// @param max_instances Maximum instance count
-  void InitializeLayout(ShmSize storage_size, ShmSize max_instances);
+  void InitializeLayout(size_type storage_size, size_type max_instances);
 
   /// @brief Validate shared memory layout
   void ValidateLayout();
@@ -283,21 +238,22 @@ class ShmAllocator {
   /// @param max_instances Maximum instance count
   /// @return Size information for each part
   struct LayoutSizes {
-    ShmSize header_size;
-    ShmSize index_size;
-    ShmSize storage_offset;
-    ShmSize storage_size;
-    ShmSize total_size;  // Total shared memory size needed
+    size_type header_size;
+    size_type index_size;
+    size_type storage_offset;
+    size_type storage_size;
+    size_type total_size;  // Total shared memory size needed
   };
-  static LayoutSizes CalculateLayoutSizes(ShmSize storage_size,
-                                          ShmSize max_instances);
+  static LayoutSizes CalculateLayoutSizes(size_type storage_size,
+                                          size_type max_instances);
 
   /// @brief Internal implementation of memory allocation
   /// @param name Instance name
   /// @param size Size
   /// @param alignment Alignment requirement
   /// @return Allocated memory pointer
-  void* AllocateImpl(std::string_view name, ShmSize size, ShmSize alignment);
+  void* AllocateImpl(std::string_view name, size_type size,
+                     size_type alignment);
 
   /// @brief Convert string_view to ShmName
   /// @param name String view
@@ -415,20 +371,20 @@ T* ShmAllocator::Find(std::string_view name) const {
 // Helper functions
 
 /// @brief Memory alignment helper function
-inline ShmAllocator::ShmSize align_up(ShmAllocator::ShmSize size,
-                                      ShmAllocator::ShmSize alignment) {
+inline ShmAllocator::size_type align_up(ShmAllocator::size_type size,
+                                        ShmAllocator::size_type alignment) {
   return (size + alignment - 1) & ~(alignment - 1);
 }
 
 /// @brief Get alignment requirement of type
 template <typename T>
-constexpr ShmAllocator::ShmSize alignment_of() {
+constexpr ShmAllocator::size_type alignment_of() {
   return alignof(T);
 }
 
 /// @brief Get size of type
 template <typename T>
-constexpr ShmAllocator::ShmSize size_of() {
+constexpr ShmAllocator::size_type size_of() {
   return sizeof(T);
 }
 

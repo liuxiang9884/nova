@@ -139,7 +139,7 @@ IncludeCategories:
   - Regex:           '^"[^/]+\.h"'
     Priority:        1
     SortPriority:    1
-  - Regex:           '^<(sys/|unistd\.h|pthread\.h)'
+  - Regex:           '^<(sys/|unistd\.h|pthread\.h|fcntl\.h)'
     Priority:        2
     SortPriority:    2
   - Regex:           '^<[a-z_]+>$'

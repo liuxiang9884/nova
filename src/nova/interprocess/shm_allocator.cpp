@@ -7,10 +7,15 @@
 #include <algorithm>
 #include <cstring>
 
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+
 namespace nova {
 
-ShmAllocator::ShmAllocator(std::string_view name, ShmSize storage_size,
-                           ShmSize max_instances, bool create_if_not_exists)
+ShmAllocator::ShmAllocator(std::string_view name, size_type storage_size,
+                           size_type max_instances, bool create_if_not_exists)
     : shm_name_(name),
       shm_fd_(-1),
       shm_ptr_(nullptr),
@@ -87,8 +92,8 @@ ShmAllocator::~ShmAllocator() {
   }
 }
 
-void ShmAllocator::InitializeLayout(ShmSize storage_size,
-                                    ShmSize max_instances) {
+void ShmAllocator::InitializeLayout(size_type storage_size,
+                                    size_type max_instances) {
   auto layout = CalculateLayoutSizes(storage_size, max_instances);
 
   // Initialize header
@@ -131,7 +136,7 @@ void ShmAllocator::ValidateLayout() {
 }
 
 ShmAllocator::LayoutSizes ShmAllocator::CalculateLayoutSizes(
-    ShmSize storage_size, ShmSize /* max_instances */) {
+    size_type storage_size, size_type /* max_instances */) {
   LayoutSizes layout;
 
   // Header size (aligned to 8 bytes)
@@ -152,8 +157,8 @@ ShmAllocator::LayoutSizes ShmAllocator::CalculateLayoutSizes(
   return layout;
 }
 
-void* ShmAllocator::AllocateImpl(std::string_view name, ShmSize size,
-                                 ShmSize alignment) {
+void* ShmAllocator::AllocateImpl(std::string_view name, size_type size,
+                                 size_type alignment) {
   if (!Valid()) {
     throw ShmAllocatorError("Allocator is not valid");
   }
@@ -174,8 +179,8 @@ void* ShmAllocator::AllocateImpl(std::string_view name, ShmSize size,
   }
 
   // Calculate aligned offset
-  ShmOffset aligned_offset = align_up(header_->current_storage_used, alignment);
-  ShmSize aligned_size = align_up(size, alignment);
+  size_type aligned_offset = align_up(header_->current_storage_used, alignment);
+  size_type aligned_size = align_up(size, alignment);
 
   // Check if enough space available
   if (aligned_offset + aligned_size > header_->storage_size) {
@@ -211,9 +216,9 @@ std::string ShmAllocator::FromShmName(const ShmName& shm_name) {
   return shm_name.string();
 }
 
-ShmAllocator::ShmBlock ShmAllocator::GetBlock(std::string_view name) const {
+void* ShmAllocator::GetBlock(std::string_view name) const {
   if (!Valid()) {
-    return ShmBlock();
+    return nullptr;
   }
 
   ShmName shm_name;
@@ -221,11 +226,11 @@ ShmAllocator::ShmBlock ShmAllocator::GetBlock(std::string_view name) const {
 
   auto it = index_->find(shm_name);
   if (it == index_->end()) {
-    return ShmBlock();
+    return nullptr;
   }
 
   void* ptr = static_cast<char*>(storage_) + it->second.offset;
-  return ShmBlock(ptr);
+  return ptr;
 }
 
 bool ShmAllocator::Exists(std::string_view name) const {
@@ -264,27 +269,27 @@ std::vector<std::string> ShmAllocator::GetInstanceNames() const {
   return names;
 }
 
-ShmAllocator::ShmSize ShmAllocator::instance_count() const {
+ShmAllocator::size_type ShmAllocator::instance_count() const {
   return Valid() ? index_->size() : 0;
 }
 
-ShmAllocator::ShmSize ShmAllocator::max_instances() const {
+ShmAllocator::size_type ShmAllocator::max_instances() const {
   return Valid() ? header_->max_instances : 0;
 }
 
-ShmAllocator::ShmSize ShmAllocator::total_size() const {
+ShmAllocator::size_type ShmAllocator::total_size() const {
   return Valid() ? header_->total_size : 0;
 }
 
-ShmAllocator::ShmSize ShmAllocator::used_storage_size() const {
+ShmAllocator::size_type ShmAllocator::used_storage_size() const {
   return Valid() ? header_->current_storage_used : 0;
 }
 
-ShmAllocator::ShmSize ShmAllocator::available_storage_size() const {
+ShmAllocator::size_type ShmAllocator::available_storage_size() const {
   return Valid() ? (header_->storage_size - header_->current_storage_used) : 0;
 }
 
-ShmAllocator::ShmSize ShmAllocator::storage_size() const {
+ShmAllocator::size_type ShmAllocator::storage_size() const {
   return Valid() ? header_->storage_size : 0;
 }
 
