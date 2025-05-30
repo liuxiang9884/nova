@@ -65,6 +65,16 @@ add_executable(shm_allocator_demo shm_allocator_demo.cpp)
 target_include_directories(shm_allocator_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
 target_link_libraries(shm_allocator_demo PRIVATE fmt::fmt nova)
 
+# shm_allocator_test
+add_executable(shm_allocator_test shm_allocator_test.cpp)
+target_include_directories(shm_allocator_test PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
+target_link_libraries(shm_allocator_test PRIVATE fmt::fmt nova)
+
+# debug_shm_exists
+add_executable(debug_shm_exists debug_shm_exists.cpp)
+target_include_directories(debug_shm_exists PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
+target_link_libraries(debug_shm_exists PRIVATE fmt::fmt nova)
+
 # fixed_string_demo
 add_executable(fixed_string_demo fixed_string_demo.cpp)
 target_include_directories(fixed_string_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})

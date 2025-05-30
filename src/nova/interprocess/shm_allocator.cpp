@@ -246,11 +246,18 @@ void ShmAllocator::DeallocateAll() {
   // the ShmAllocator object becomes invalid and should not be used again.
   // All constructed objects should be destructed manually before calling this.
 
+  // Save the shared memory name before cleanup
+  std::string shm_name;
+  if (header_ != nullptr) {
+    shm_name = std::string(header_->name);
+  }
+
   // Cleanup mapped resources and file descriptor
   CleanupMappedResources();
-  // Delete shared memory object - use the name from header
-  if (header_ != nullptr) {
-    shm_unlink(header_->name);
+
+  // Delete shared memory object using the saved name
+  if (!shm_name.empty()) {
+    shm_unlink(shm_name.c_str());
   }
 
   // Reset pointers
