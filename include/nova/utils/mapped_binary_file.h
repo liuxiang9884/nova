@@ -1,5 +1,6 @@
 #pragma once
 
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -9,12 +10,6 @@
 #include <string>
 
 #include "nova/common/macros.h"
-#include <fcntl.h>
-
-// Define MAP_POPULATE for non-Linux systems
-#if !defined(MAP_POPULATE)
-#define MAP_POPULATE 0
-#endif
 
 namespace nova {
 

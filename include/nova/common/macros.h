@@ -39,6 +39,12 @@
 #define NOVA_FORCE_INLINE __attribute__((always_inline))
 #define NOVA_FORCE_NOINLINE __attribute__((noinline))
 
+// Platform-specific macros
+// MAP_POPULATE may not be available on all platforms
+#ifndef MAP_POPULATE
+#define MAP_POPULATE 0
+#endif
+
 // Define property macros
 // Pass by value
 #define DEFINE_BASIC_PROPERTY(type, name, ...) \

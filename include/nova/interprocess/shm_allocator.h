@@ -237,7 +237,7 @@ class ShmAllocator {
   /// @param cleanup_shm_on_failure Whether to unlink shared memory on mapping
   /// failure
   /// @return Mapped memory pointer
-  void* MapMemory(size_type size, int fd) const;
+  [[nodiscard]] void* MapMemory(size_type size) const;
 
   /// @brief Cleanup when creating new shared memory fails
   void CleanupNewShmOnFailure(const char* name);
@@ -297,9 +297,11 @@ class ShmAllocator {
   /// @param name Instance name
   /// @param size Size
   /// @param alignment Alignment requirement
-  /// @return Allocated memory pointer
-  void* AllocateImpl(std::string_view name, size_type size,
-                     size_type alignment);
+  /// @return Pair of allocated memory pointer and iterator to the inserted
+  /// element
+  std::pair<void*, IndexType::iterator> AllocateImpl(std::string_view name,
+                                                     size_type size,
+                                                     size_type alignment);
 
   /// @brief Convert string_view to ShmName
   /// @param name String view
@@ -319,7 +321,14 @@ T* ShmAllocator::Allocate(std::string_view name) {
   static_assert(is_shm_compatible_v<T>,
                 "Type must be shared memory compatible");
 
-  void* ptr = AllocateImpl(name, sizeof(T), alignof(T));
+  // Check if already exists using heterogeneous lookup
+  auto it = index_->find(name);
+  if (it != index_->end()) {
+    // Already exists, return existing pointer
+    return static_cast<T*>(static_cast<char*>(storage_) + it->second.offset);
+  }
+
+  auto [ptr, meta_it] = AllocateImpl(name, sizeof(T), alignof(T));
   return static_cast<T*>(ptr);
 }
 
@@ -348,16 +357,13 @@ T* ShmAllocator::Construct(std::string_view name, Args&&... args) {
   }
 
   // Allocate new memory and construct
-  void* ptr = AllocateImpl(name, sizeof(T), alignof(T));
+  auto [ptr, meta_it] = AllocateImpl(name, sizeof(T), alignof(T));
+
   T* obj_ptr = static_cast<T*>(ptr);
   new (obj_ptr) T(std::forward<Args>(args)...);
 
-  // Update construction status - the item was just inserted in AllocateImpl
-  auto find_it = index_->find(name);
-  if (find_it != index_->end()) {
-    // Directly modify the metadata
-    find_it->second.constructed = true;
-  }
+  // Update construction status using the returned iterator
+  meta_it->second.constructed = true;
 
   return obj_ptr;
 }

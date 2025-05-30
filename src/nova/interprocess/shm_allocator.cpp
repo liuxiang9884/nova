@@ -12,14 +12,9 @@
 #include <algorithm>
 #include <cstring>
 
-// MAP_POPULATE may not be available on all platforms
-#ifndef MAP_POPULATE
-#define MAP_POPULATE 0
-#endif
-
 namespace nova {
 
-void* ShmAllocator::MapMemory(size_type size, int fd) const {
+void* ShmAllocator::MapMemory(size_type size) const {
   // Set up mapping flags
   int map_flags = MAP_SHARED;
 
@@ -28,10 +23,11 @@ void* ShmAllocator::MapMemory(size_type size, int fd) const {
     map_flags |= MAP_POPULATE;  // Preload pages on Linux for better performance
   }
 
-  void* ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE, map_flags, fd, 0);
+  void* ptr =
+      mmap(nullptr, size, PROT_READ | PROT_WRITE, map_flags, shm_fd_, 0);
   if (ptr == MAP_FAILED) {
     // Always cleanup fd and potentially shm on failure
-    close(fd);
+    close(shm_fd_);
     throw ShmAllocatorError("Failed to map shared memory");
   }
 
@@ -153,15 +149,8 @@ ShmAllocator::LayoutSizes ShmAllocator::CalculateLayoutSizes(
   return layout;
 }
 
-void* ShmAllocator::AllocateImpl(std::string_view name, size_type size,
-                                 size_type alignment) {
-  // Check if already exists using heterogeneous lookup
-  auto it = index_->find(name);
-  if (it != index_->end()) {
-    // Already exists, return existing pointer
-    return static_cast<char*>(storage_) + it->second.offset;
-  }
-
+std::pair<void*, ShmAllocator::IndexType::iterator> ShmAllocator::AllocateImpl(
+    std::string_view name, size_type size, size_type alignment) {
   // Calculate aligned offset
   const size_type aligned_offset =
       AlignUp(header_->current_storage_used, alignment);
@@ -172,11 +161,9 @@ void* ShmAllocator::AllocateImpl(std::string_view name, size_type size,
     throw ShmAllocatorError("Not enough storage space");
   }
 
-  // Create metadata
-  ShmInstanceMeta meta(aligned_offset, aligned_size, alignment, false);
-
   // Insert into index using heterogeneous emplace with string_view
-  auto result = index_->emplace(name, meta);
+  auto result = index_->emplace(
+      name, ShmInstanceMeta(aligned_offset, aligned_size, alignment, false));
   if (!result.second) {
     throw ShmAllocatorError("Failed to insert instance metadata");
   }
@@ -184,7 +171,8 @@ void* ShmAllocator::AllocateImpl(std::string_view name, size_type size,
   // Update used size
   header_->current_storage_used = aligned_offset + aligned_size;
 
-  return static_cast<char*>(storage_) + aligned_offset;
+  void* ptr = static_cast<char*>(storage_) + aligned_offset;
+  return std::make_pair(ptr, result.first);
 }
 
 void ShmAllocator::ToShmName(std::string_view name, ShmName& shm_name) {
@@ -320,7 +308,7 @@ void ShmAllocator::CreateNewShm(const char* name, size_type storage_size) {
   }
 
   // Map memory using common function
-  shm_ptr_ = MapMemory(layout.total_size, shm_fd_);
+  shm_ptr_ = MapMemory(layout.total_size);
 
   // Initialize layout
   InitializeLayout(name, storage_size);
@@ -340,7 +328,7 @@ void ShmAllocator::OpenExistingShm() {
   shm_size_ = shm_stat.st_size;
 
   // Map memory using common function
-  shm_ptr_ = MapMemory(shm_size_, shm_fd_);
+  shm_ptr_ = MapMemory(shm_size_);
 
   // Validate layout
   ValidateLayout();
