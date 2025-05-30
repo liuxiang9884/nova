@@ -11,6 +11,8 @@
 
 #include <cstring>
 
+#include <fmt/format.h>
+
 #include "nova/common/macros.h"
 
 namespace nova {

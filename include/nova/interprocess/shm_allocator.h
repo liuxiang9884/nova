@@ -11,8 +11,8 @@
 #include <string_view>
 
 #include "nova/base/fixed_string.h"
-#include "nova/base/flat_hash_map.h"
 #include "nova/common/traits.h"
+#include "nova/exp/flat_hash_map.h"
 
 namespace nova {
 
@@ -112,9 +112,8 @@ class ShmAllocator {
   static constexpr size_type kMaxInstances = 1024;
 
   // Index type, using FlatHashMap to store instance metadata
-  using IndexType =
-      nova::static_impl::ShmFlatHashMap<ShmName, ShmInstanceMeta, kMaxInstances,
-                                        ShmNameHash, ShmNameEqual>;
+  using IndexType = nova::exp::static_impl::FlatHashMap<
+      ShmName, ShmInstanceMeta, kMaxInstances, ShmNameHash, ShmNameEqual>;
 
   /// @brief Constructor, create or open shared memory
   /// @param name Shared memory name
@@ -311,7 +310,8 @@ T* ShmAllocator::Allocate(std::string_view name) {
   auto it = index_->find(name);
   if (it != index_->end()) {
     // Already exists, return existing pointer
-    return static_cast<T*>(static_cast<char*>(storage_) + it->second.offset);
+    return reinterpret_cast<T*>(static_cast<char*>(storage_) +
+                                it->second.offset);
   }
 
   auto [ptr, meta_it] = AllocateImpl(name, sizeof(T), alignof(T));
