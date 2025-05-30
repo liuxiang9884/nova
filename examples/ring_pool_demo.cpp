@@ -393,7 +393,6 @@ void TestStaticRingPool() {
   std::cout << "Pool size: " << kPoolSize << std::endl;
   std::cout << "Data size: " << sizeof(PerformanceData) << std::endl;
   std::cout << "Alignment: " << alignof(PerformanceData) << std::endl;
-  std::cout << "Is POD: " << std::is_pod_v<PerformanceData> << std::endl;
   std::cout << "Is standard layout: "
             << std::is_standard_layout_v<PerformanceData> << std::endl;
   std::cout << "Is trivial: "

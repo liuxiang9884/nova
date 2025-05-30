@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 #include "nova/utils/mapped_binary_file.h"
 
