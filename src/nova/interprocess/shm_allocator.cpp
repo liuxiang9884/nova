@@ -253,7 +253,7 @@ void* ShmAllocator::GetBlock(std::string_view name) const {
   return ptr;
 }
 
-bool ShmAllocator::Exists(std::string_view name) const {
+bool ShmAllocator::Contains(std::string_view name) const {
   // Use heterogeneous lookup directly with string_view
   return index_->contains(name);
 }
@@ -325,12 +325,10 @@ bool ShmAllocator::Valid() const {
          storage_ != nullptr;
 }
 
-bool ShmAllocator::ShmExists(std::string_view name) {
-  // Convert to c string for shm_open
-  std::string shm_name_str(name);
+bool ShmAllocator::ShmExists(const char* shm_name) {
 
   // Try to open existing shared memory
-  int fd = shm_open(shm_name_str.c_str(), O_RDWR, 0666);
+  int fd = shm_open(shm_name, O_RDWR, 0666);
 
   if (fd == -1) {
     return false;  // Shared memory does not exist

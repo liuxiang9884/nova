@@ -178,7 +178,7 @@ class ShmAllocator {
   /// @brief Check if instance with specified name exists
   /// @param name Instance name
   /// @return Whether exists
-  [[nodiscard]] bool Exists(std::string_view name) const;
+  [[nodiscard]] bool Contains(std::string_view name) const;
 
   /// @brief Check if instance with specified name is constructed
   /// @param name Instance name
@@ -228,7 +228,7 @@ class ShmAllocator {
   /// @brief Check if a shared memory segment exists
   /// @param name Shared memory name
   /// @return True if the shared memory exists, false otherwise
-  [[nodiscard]] static bool ShmExists(std::string_view name);
+  [[nodiscard]] static bool ShmExists(const char* shm_name);
 
   /// @brief Map shared memory with platform-specific optimizations
   /// @param size Memory size to map
