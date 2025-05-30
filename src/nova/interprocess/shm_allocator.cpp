@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <cstring>
 
+#include "nova/common/macros.h"
+
 namespace nova {
 
 void* ShmAllocator::MapMemory(size_type size) const {

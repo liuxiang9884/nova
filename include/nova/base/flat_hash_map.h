@@ -204,10 +204,10 @@ class FlatHashMap<Key, Value, N, Hash, KeyEqual>::iterator {
   }
 
   reference operator*() const {
-    return container_->at(index_).data;
+    return (*container_)[index_].data;
   }
   pointer operator->() const {
-    return &container_->at(index_).data;
+    return &(*container_)[index_].data;
   }
 
   iterator& operator++() {
@@ -239,7 +239,7 @@ class FlatHashMap<Key, Value, N, Hash, KeyEqual>::iterator {
   size_type index_ = Capacity;
 
   void skip_empty() {
-    while (index_ < Capacity && !container_->at(index_).occupied) {
+    while (index_ < Capacity && !(*container_)[index_].occupied) {
       ++index_;
     }
   }
@@ -268,10 +268,10 @@ class FlatHashMap<Key, Value, N, Hash, KeyEqual>::const_iterator {
       : container_(it.container_), index_(it.index_) {}
 
   reference operator*() const {
-    return container_->at(index_).data;
+    return (*container_)[index_].data;
   }
   pointer operator->() const {
-    return &container_->at(index_).data;
+    return &(*container_)[index_].data;
   }
 
   const_iterator& operator++() {
@@ -303,7 +303,7 @@ class FlatHashMap<Key, Value, N, Hash, KeyEqual>::const_iterator {
   size_type index_ = Capacity;
 
   void skip_empty() {
-    while (index_ < Capacity && !container_->at(index_).occupied) {
+    while (index_ < Capacity && !(*container_)[index_].occupied) {
       ++index_;
     }
   }

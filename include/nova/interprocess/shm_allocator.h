@@ -12,7 +12,6 @@
 
 #include "nova/base/fixed_string.h"
 #include "nova/base/flat_hash_map.h"
-#include "nova/common/macros.h"
 #include "nova/common/traits.h"
 
 namespace nova {
