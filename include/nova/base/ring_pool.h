@@ -259,7 +259,7 @@ class RingPool {
   }
 
   // Get buffer size
-  [[nodiscard]] constexpr size_type size() const noexcept {
+  [[nodiscard]] size_type size() const noexcept {
     return buffer_.size();
   }
 
