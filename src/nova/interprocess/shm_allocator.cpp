@@ -34,21 +34,20 @@ void* ShmAllocator::MapMemory(size_type size, int fd,
   if (ptr == MAP_FAILED) {
     // Always cleanup fd and potentially shm on failure
     close(fd);
-    if (cleanup_shm_on_failure) {
-      shm_unlink(shm_name_.c_str());
-    }
+    // Note: cleanup_shm_on_failure parameter is not used here anymore
+    // as the name needs to be passed from the caller
     throw ShmAllocatorError(error_msg);
   }
 
   return ptr;
 }
 
-void ShmAllocator::CleanupNewShmOnFailure() {
+void ShmAllocator::CleanupNewShmOnFailure(const char* name) {
   if (shm_fd_ != -1) {
     close(shm_fd_);
     shm_fd_ = -1;
   }
-  shm_unlink(shm_name_.c_str());
+  shm_unlink(name);
 }
 
 void ShmAllocator::CleanupExistingShmOnFailure() {
@@ -69,62 +68,26 @@ void ShmAllocator::CleanupMappedResources() {
   }
 }
 
-ShmAllocator::ShmAllocator(std::string_view name, size_type storage_size,
+ShmAllocator::ShmAllocator(const char* name, size_type storage_size,
                            bool create_if_not_exists)
-    : shm_name_(name),
+    : shm_name_(),  // Will be set after header is initialized
       shm_fd_(-1),
       shm_ptr_(nullptr),
-      shm_size_(0),  // Will be set based on layout calculation
+      shm_size_(0),
       header_(nullptr),
       index_(nullptr),
       storage_(nullptr) {
-  // Calculate layout sizes based on desired storage size
-  const auto layout = CalculateLayoutSizes(storage_size);
-  shm_size_ = layout.total_size;
-
   // Try to open existing shared memory
-  shm_fd_ = shm_open(shm_name_.c_str(), O_RDWR, 0666);
+  shm_fd_ = shm_open(name, O_RDWR, 0666);
 
   if (shm_fd_ == -1) {
     if (!create_if_not_exists) {
-      throw ShmAllocatorError("Shared memory does not exist: " + shm_name_);
+      throw ShmAllocatorError("Shared memory does not exist: " +
+                              std::string(name));
     }
-
-    // Create new shared memory
-    shm_fd_ = shm_open(shm_name_.c_str(), O_CREAT | O_RDWR | O_EXCL, 0666);
-    if (shm_fd_ == -1) {
-      throw ShmAllocatorError("Failed to create shared memory: " + shm_name_ +
-                              ", error: " + std::strerror(errno));
-    }
-
-    // Set size to calculated total size
-    if (ftruncate(shm_fd_, static_cast<off_t>(layout.total_size)) == -1) {
-      CleanupNewShmOnFailure();
-      throw ShmAllocatorError("Failed to set shared memory size");
-    }
-
-    // Map memory using common function
-    shm_ptr_ = MapMemory(layout.total_size, shm_fd_,
-                         "Failed to map shared memory", true);
-
-    // Initialize layout
-    InitializeLayout(storage_size);
+    CreateNewShm(name, storage_size);
   } else {
-    // Get existing shared memory size
-    struct stat shm_stat{};
-    if (fstat(shm_fd_, &shm_stat) == -1) {
-      CleanupExistingShmOnFailure();
-      throw ShmAllocatorError("Failed to get shared memory size");
-    }
-
-    shm_size_ = shm_stat.st_size;
-
-    // Map memory using common function
-    shm_ptr_ = MapMemory(shm_size_, shm_fd_,
-                         "Failed to map existing shared memory", false);
-
-    // Validate layout
-    ValidateLayout();
+    OpenExistingShm(name);
   }
 }
 
@@ -132,13 +95,13 @@ ShmAllocator::~ShmAllocator() {
   CleanupMappedResources();
 }
 
-void ShmAllocator::InitializeLayout(size_type storage_size) {
+void ShmAllocator::InitializeLayout(const char* name, size_type storage_size) {
   const auto layout = CalculateLayoutSizes(storage_size);
 
   // Initialize header
   header_ = static_cast<ShmHeader*>(shm_ptr_);
-  new (header_) ShmHeader(shm_name_.c_str(), layout.total_size,
-                          layout.storage_offset, layout.storage_size);
+  new (header_) ShmHeader(name, layout.total_size, layout.storage_offset,
+                          layout.storage_size);
 
   // Initialize index (using placement new and default construction)
   index_ = reinterpret_cast<IndexType*>(static_cast<char*>(shm_ptr_) +
@@ -310,8 +273,10 @@ void ShmAllocator::DeallocateAll() {
   // Cleanup mapped resources and file descriptor
   CleanupMappedResources();
 
-  // Delete shared memory object
-  shm_unlink(shm_name_.c_str());
+  // Delete shared memory object - use the name from header
+  if (header_ != nullptr) {
+    shm_unlink(header_->name);
+  }
 
   // Reset pointers
   header_ = nullptr;
@@ -326,7 +291,6 @@ bool ShmAllocator::Valid() const {
 }
 
 bool ShmAllocator::ShmExists(const char* shm_name) {
-
   // Try to open existing shared memory
   int fd = shm_open(shm_name, O_RDWR, 0666);
 
@@ -337,6 +301,58 @@ bool ShmAllocator::ShmExists(const char* shm_name) {
   // Close the file descriptor since we only wanted to check existence
   close(fd);
   return true;  // Shared memory exists
+}
+
+void ShmAllocator::CreateNewShm(const char* name, size_type storage_size) {
+  // Calculate layout sizes based on desired storage size
+  const auto layout = CalculateLayoutSizes(storage_size);
+  shm_size_ = layout.total_size;
+
+  // Create new shared memory
+  shm_fd_ = shm_open(name, O_CREAT | O_RDWR | O_EXCL, 0666);
+  if (shm_fd_ == -1) {
+    throw ShmAllocatorError(
+        "Failed to create shared memory: " + std::string(name) +
+        ", error: " + std::strerror(errno));
+  }
+
+  // Set size to calculated total size
+  if (ftruncate(shm_fd_, static_cast<off_t>(layout.total_size)) == -1) {
+    close(shm_fd_);
+    shm_unlink(name);
+    throw ShmAllocatorError("Failed to set shared memory size");
+  }
+
+  // Map memory using common function
+  shm_ptr_ = MapMemory(layout.total_size, shm_fd_,
+                       "Failed to map shared memory", true);
+
+  // Initialize layout
+  InitializeLayout(name, storage_size);
+
+  // Set shm_name_ to point to the name stored in header
+  shm_name_ = std::string_view(header_->name);
+}
+
+void ShmAllocator::OpenExistingShm(const char* name) {
+  // Get existing shared memory size
+  struct stat shm_stat{};
+  if (fstat(shm_fd_, &shm_stat) == -1) {
+    close(shm_fd_);
+    throw ShmAllocatorError("Failed to get shared memory size");
+  }
+
+  shm_size_ = shm_stat.st_size;
+
+  // Map memory using common function
+  shm_ptr_ = MapMemory(shm_size_, shm_fd_,
+                       "Failed to map existing shared memory", false);
+
+  // Validate layout
+  ValidateLayout();
+
+  // Set shm_name_ to point to the name stored in header
+  shm_name_ = std::string_view(header_->name);
 }
 
 }  // namespace nova

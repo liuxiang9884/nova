@@ -119,7 +119,7 @@ class ShmAllocator {
   /// @param name Shared memory name
   /// @param storage_size Storage area size in bytes
   /// @param create_if_not_exists Whether to create if not exists
-  ShmAllocator(std::string_view name, size_type storage_size,
+  ShmAllocator(const char* name, size_type storage_size,
                bool create_if_not_exists = true);
 
   /// @brief Destructor, automatically clean up resources
@@ -154,7 +154,7 @@ class ShmAllocator {
   /// @param name Instance name
   /// @return Whether destruction was successful
   template <typename T>
-  bool Destruct(std::string_view name);
+  void Destruct(std::string_view name);
 
   /// @brief Get pointer to object with specified name
   /// @tparam T Object type
@@ -241,7 +241,7 @@ class ShmAllocator {
                   bool cleanup_shm_on_failure = false) const;
 
   /// @brief Cleanup when creating new shared memory fails
-  void CleanupNewShmOnFailure();
+  void CleanupNewShmOnFailure(const char* name);
 
   /// @brief Cleanup when opening existing shared memory fails
   void CleanupExistingShmOnFailure();
@@ -250,8 +250,8 @@ class ShmAllocator {
   void CleanupMappedResources();
 
  private:
-  // Shared memory name
-  std::string shm_name_;
+  // Shared memory name (view of the name stored in shared memory header)
+  std::string_view shm_name_;
   // Shared memory file descriptor
   int shm_fd_;
   // Shared memory pointer
@@ -265,9 +265,19 @@ class ShmAllocator {
   // Storage area pointer
   void* storage_;
 
-  /// @brief Initialize shared memory layout
+  /// @brief Handle creating new shared memory
+  /// @param name Shared memory name
   /// @param storage_size Storage area size
-  void InitializeLayout(size_type storage_size);
+  void CreateNewShm(const char* name, size_type storage_size);
+
+  /// @brief Handle opening existing shared memory
+  /// @param name Shared memory name
+  void OpenExistingShm(const char* name);
+
+  /// @brief Initialize shared memory layout
+  /// @param name Shared memory name
+  /// @param storage_size Storage area size
+  void InitializeLayout(const char* name, size_type storage_size);
 
   /// @brief Validate shared memory layout
   void ValidateLayout();
@@ -331,13 +341,8 @@ T* ShmAllocator::Construct(std::string_view name, Args&&... args) {
       T* obj_ptr = static_cast<T*>(ptr);
       new (obj_ptr) T(std::forward<Args>(args)...);
 
-      // Update metadata - need ShmName for erase/emplace operations
-      ShmName shm_name;
-      ToShmName(name, shm_name);
-      ShmInstanceMeta meta = it->second;
-      meta.constructed = true;
-      index_->erase(shm_name);
-      index_->emplace(shm_name, meta);
+      // Update metadata directly
+      it->second.constructed = true;
 
       return obj_ptr;
     }
@@ -348,33 +353,25 @@ T* ShmAllocator::Construct(std::string_view name, Args&&... args) {
   T* obj_ptr = static_cast<T*>(ptr);
   new (obj_ptr) T(std::forward<Args>(args)...);
 
-  // Update construction status - the item was just inserted in AllocateImpl,
-  // so we can use the fact that it exists and update it
+  // Update construction status - the item was just inserted in AllocateImpl
   auto find_it = index_->find(name);
   if (find_it != index_->end()) {
-    // We know this item was just inserted, so we can modify it directly
-    // Since FlatHashMap doesn't provide direct mutation of values,
-    // we still need to erase and re-emplace
-    ShmName shm_name;
-    ToShmName(name, shm_name);
-    ShmInstanceMeta meta = find_it->second;
-    meta.constructed = true;
-    index_->erase(shm_name);
-    index_->emplace(shm_name, meta);
+    // Directly modify the metadata
+    find_it->second.constructed = true;
   }
 
   return obj_ptr;
 }
 
 template <typename T>
-bool ShmAllocator::Destruct(std::string_view name) {
+void ShmAllocator::Destruct(std::string_view name) {
   static_assert(is_shm_compatible_v<T>,
                 "Type must be shared memory compatible");
 
   // Use heterogeneous lookup to check existence
   auto it = index_->find(name);
   if (it == index_->end() || !it->second.constructed) {
-    return false;
+    return;
   }
 
   // Call destructor
@@ -382,15 +379,8 @@ bool ShmAllocator::Destruct(std::string_view name) {
   T* obj_ptr = static_cast<T*>(ptr);
   obj_ptr->~T();
 
-  // Update metadata - need ShmName for erase/emplace operations
-  ShmName shm_name;
-  ToShmName(name, shm_name);
-  ShmInstanceMeta meta = it->second;
-  meta.constructed = false;
-  index_->erase(shm_name);
-  index_->emplace(shm_name, meta);
-
-  return true;
+  // Update metadata directly
+  it->second.constructed = false;
 }
 
 template <typename T>
