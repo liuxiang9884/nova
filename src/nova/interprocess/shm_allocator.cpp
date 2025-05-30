@@ -247,10 +247,8 @@ void ShmAllocator::DeallocateAll() {
 
   // Cleanup mapped resources and file descriptor
   CleanupMappedResources();
-  std::cout << "Deallocating shared memory" << std::endl;
   // Delete shared memory object - use the name from header
   if (header_ != nullptr) {
-    std::cout << "unlink shm" << std::endl;
     shm_unlink(header_->name);
   }
 
