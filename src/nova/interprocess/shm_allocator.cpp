@@ -30,13 +30,7 @@ void* ShmAllocator::MapMemory(size_type size) const {
 
   void* ptr =
       mmap(nullptr, size, PROT_READ | PROT_WRITE, map_flags, shm_fd_, 0);
-  if (ptr == MAP_FAILED) {
-    // Always cleanup fd and potentially shm on failure
-    close(shm_fd_);
-    throw ShmAllocatorError("Failed to map shared memory");
-  }
-
-  return ptr;
+  return ptr;  // Return MAP_FAILED if mmap fails, let caller handle cleanup
 }
 
 void ShmAllocator::CleanupNewShmOnFailure(const char* name) {
@@ -48,6 +42,10 @@ void ShmAllocator::CleanupNewShmOnFailure(const char* name) {
 }
 
 void ShmAllocator::CleanupExistingShmOnFailure() {
+  if (shm_ptr_ != nullptr && shm_ptr_ != MAP_FAILED) {
+    munmap(shm_ptr_, shm_size_);
+    shm_ptr_ = nullptr;
+  }
   if (shm_fd_ != -1) {
     close(shm_fd_);
     shm_fd_ = -1;
@@ -306,6 +304,10 @@ void ShmAllocator::CreateNewShm(const char* name, size_type storage_size) {
 
   // Map memory using common function
   shm_ptr_ = MapMemory(layout.total_size);
+  if (shm_ptr_ == MAP_FAILED) {
+    CleanupNewShmOnFailure(name);
+    throw ShmAllocatorError("Failed to map shared memory");
+  }
 
   // Initialize layout
   InitializeLayout(name, layout);
@@ -323,7 +325,12 @@ void ShmAllocator::OpenExistingShm() {
   }
 
   // Map memory using the file size
+  shm_size_ = shm_stat.st_size;  // Set size for potential cleanup
   shm_ptr_ = MapMemory(shm_stat.st_size);
+  if (shm_ptr_ == MAP_FAILED) {
+    CleanupExistingShmOnFailure();
+    throw ShmAllocatorError("Failed to map shared memory");
+  }
 
   // Read header to get the actual intended size
   header_ = static_cast<ShmHeader*>(shm_ptr_);

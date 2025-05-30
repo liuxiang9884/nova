@@ -425,11 +425,11 @@ int main() {
   std::cout << "Nova ShmAllocator Demo" << std::endl;
   std::cout << "======================" << std::endl;
 
-  // BasicFunctionalityDemo();
+  BasicFunctionalityDemo();
   PersistenceDemo();
-  // MultiProcessDemo();
-  // PerformanceTest();
-  // ErrorHandlingDemo();
+  MultiProcessDemo();
+  PerformanceTest();
+  ErrorHandlingDemo();
 
   std::cout << "\nDemo completed!" << std::endl;
   return 0;
