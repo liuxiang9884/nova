@@ -237,8 +237,7 @@ class ShmAllocator {
   /// @param cleanup_shm_on_failure Whether to unlink shared memory on mapping
   /// failure
   /// @return Mapped memory pointer
-  void* MapMemory(size_type size, int fd, const std::string& error_msg,
-                  bool cleanup_shm_on_failure = false) const;
+  void* MapMemory(size_type size, int fd) const;
 
   /// @brief Cleanup when creating new shared memory fails
   void CleanupNewShmOnFailure(const char* name);
@@ -272,7 +271,7 @@ class ShmAllocator {
 
   /// @brief Handle opening existing shared memory
   /// @param name Shared memory name
-  void OpenExistingShm(const char* name);
+  void OpenExistingShm();
 
   /// @brief Initialize shared memory layout
   /// @param name Shared memory name

@@ -19,9 +19,7 @@
 
 namespace nova {
 
-void* ShmAllocator::MapMemory(size_type size, int fd,
-                              const std::string& error_msg,
-                              bool cleanup_shm_on_failure) const {
+void* ShmAllocator::MapMemory(size_type size, int fd) const {
   // Set up mapping flags
   int map_flags = MAP_SHARED;
 
@@ -34,9 +32,7 @@ void* ShmAllocator::MapMemory(size_type size, int fd,
   if (ptr == MAP_FAILED) {
     // Always cleanup fd and potentially shm on failure
     close(fd);
-    // Note: cleanup_shm_on_failure parameter is not used here anymore
-    // as the name needs to be passed from the caller
-    throw ShmAllocatorError(error_msg);
+    throw ShmAllocatorError("Failed to map shared memory");
   }
 
   return ptr;
@@ -87,7 +83,7 @@ ShmAllocator::ShmAllocator(const char* name, size_type storage_size,
     }
     CreateNewShm(name, storage_size);
   } else {
-    OpenExistingShm(name);
+    OpenExistingShm();
   }
 }
 
@@ -324,8 +320,7 @@ void ShmAllocator::CreateNewShm(const char* name, size_type storage_size) {
   }
 
   // Map memory using common function
-  shm_ptr_ = MapMemory(layout.total_size, shm_fd_,
-                       "Failed to map shared memory", true);
+  shm_ptr_ = MapMemory(layout.total_size, shm_fd_);
 
   // Initialize layout
   InitializeLayout(name, storage_size);
@@ -334,7 +329,7 @@ void ShmAllocator::CreateNewShm(const char* name, size_type storage_size) {
   shm_name_ = std::string_view(header_->name);
 }
 
-void ShmAllocator::OpenExistingShm(const char* name) {
+void ShmAllocator::OpenExistingShm() {
   // Get existing shared memory size
   struct stat shm_stat{};
   if (fstat(shm_fd_, &shm_stat) == -1) {
@@ -345,8 +340,7 @@ void ShmAllocator::OpenExistingShm(const char* name) {
   shm_size_ = shm_stat.st_size;
 
   // Map memory using common function
-  shm_ptr_ = MapMemory(shm_size_, shm_fd_,
-                       "Failed to map existing shared memory", false);
+  shm_ptr_ = MapMemory(shm_size_, shm_fd_);
 
   // Validate layout
   ValidateLayout();
