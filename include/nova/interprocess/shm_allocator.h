@@ -12,7 +12,7 @@
 
 #include "nova/base/fixed_string.h"
 #include "nova/common/traits.h"
-#include "nova/exp/flat_hash_map.h"
+#include "nova/base/flat_hash_map.h"
 
 namespace nova {
 
@@ -112,7 +112,7 @@ class ShmAllocator {
   static constexpr size_type kMaxInstances = 1024;
 
   // Index type, using FlatHashMap to store instance metadata
-  using IndexType = nova::exp::static_impl::FlatHashMap<
+  using IndexType = nova::static_impl::FlatHashMap<
       ShmName, ShmInstanceMeta, kMaxInstances, ShmNameHash, ShmNameEqual>;
 
   /// @brief Constructor, create or open shared memory

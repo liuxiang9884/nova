@@ -30,6 +30,7 @@ file(GLOB_RECURSE SOURCES
 
 add_library(nova ${HEADERS} ${SOURCES})
 target_include_directories(nova PUBLIC ${NOVA_INCLUDE} ${VCPKG_INCLUDE})
+target_link_libraries(nova PRIVATE fmt::fmt-header-only)
 target_compile_options(nova PRIVATE -Wno-gnu-zero-variadic-macro-arguments)
 
 add_executable(nova_demo main.cpp)
