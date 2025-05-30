@@ -68,7 +68,7 @@ void BasicFunctionalityDemo() {
 
   try {
     // Create allocator
-    ShmAllocator allocator(shm_name, storage_size);
+    ShmAllocator allocator(shm_name.c_str(), storage_size);
 
     std::cout << "Created ShmAllocator:" << std::endl;
     std::cout << "  Name: " << allocator.shm_name() << std::endl;
@@ -99,11 +99,11 @@ void BasicFunctionalityDemo() {
 
     // Check existence
     std::cout << "\nExistence checks:" << std::endl;
-    std::cout << "  'my_int' exists: " << allocator.Exists("my_int")
+    std::cout << "  'my_int' exists: " << allocator.Contains("my_int")
               << std::endl;
     std::cout << "  'my_int' constructed: " << allocator.IsConstructed("my_int")
               << std::endl;
-    std::cout << "  'origin' exists: " << allocator.Exists("origin")
+    std::cout << "  'origin' exists: " << allocator.Contains("origin")
               << std::endl;
     std::cout << "  'origin' constructed: " << allocator.IsConstructed("origin")
               << std::endl;
@@ -146,7 +146,7 @@ void PersistenceDemo() {
   try {
     // Phase 1: Create and populate data
     {
-      ShmAllocator allocator(shm_name, storage_size);
+      ShmAllocator allocator(shm_name.c_str(), storage_size);
       std::cout << "Phase 1: Creating and populating data" << std::endl;
 
       // Create some employee data
@@ -164,7 +164,7 @@ void PersistenceDemo() {
 
     // Phase 2: Reconnect and read data
     {
-      ShmAllocator allocator(shm_name, storage_size, false);
+      ShmAllocator allocator(shm_name.c_str(), storage_size, false);
       // Don't create, only connect
       std::cout << "\nPhase 2: Reconnecting and reading data" << std::endl;
 
@@ -208,7 +208,7 @@ void MultiProcessDemo() {
       std::cout << "[Writer Process " << getpid() << "] Starting..."
                 << std::endl;
 
-      ShmAllocator allocator(shm_name, storage_size);
+      ShmAllocator allocator(shm_name.c_str(), storage_size);
 
       // Write some data
       for (int i = 0; i < 10; ++i) {
@@ -234,7 +234,7 @@ void MultiProcessDemo() {
       std::cout << "[Reader Process " << getpid() << "] Starting..."
                 << std::endl;
 
-      ShmAllocator allocator(shm_name, storage_size, false);
+      ShmAllocator allocator(shm_name.c_str(), storage_size, false);
 
       // Monitor data changes
       for (int i = 0; i < 15; ++i) {
@@ -284,7 +284,7 @@ void PerformanceTest() {
   CleanupShm(shm_name);
 
   try {
-    ShmAllocator allocator(shm_name, storage_size);
+    ShmAllocator allocator(shm_name.c_str(), storage_size);
 
     // Allocation performance test
     auto start = std::chrono::high_resolution_clock::now();
@@ -372,7 +372,7 @@ void ErrorHandlingDemo() {
   CleanupShm(shm_name);
 
   try {
-    ShmAllocator allocator(shm_name, storage_size);
+    ShmAllocator allocator(shm_name.c_str(), storage_size);
 
     std::cout << "Testing capacity limits..." << std::endl;
 

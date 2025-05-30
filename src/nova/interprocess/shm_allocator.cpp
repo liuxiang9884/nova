@@ -175,20 +175,6 @@ std::pair<void*, ShmAllocator::IndexType::iterator> ShmAllocator::AllocateImpl(
   return std::make_pair(ptr, result.first);
 }
 
-void ShmAllocator::ToShmName(std::string_view name, ShmName& shm_name) {
-  if (name.size() > ShmName::capacity()) {
-    throw ShmAllocatorError("Instance name too long (max " +
-                            std::to_string(ShmName::capacity()) +
-                            " characters)");
-  }
-
-  shm_name = ShmName(name);
-}
-
-std::string ShmAllocator::FromShmName(const ShmName& shm_name) {
-  return shm_name.string();
-}
-
 void* ShmAllocator::GetBlock(std::string_view name) const {
   // Use heterogeneous lookup directly with string_view
   auto it = index_->find(name);
@@ -302,8 +288,7 @@ void ShmAllocator::CreateNewShm(const char* name, size_type storage_size) {
 
   // Set size to calculated total size
   if (ftruncate(shm_fd_, static_cast<off_t>(layout.total_size)) == -1) {
-    close(shm_fd_);
-    shm_unlink(name);
+    CleanupNewShmOnFailure(name);
     throw ShmAllocatorError("Failed to set shared memory size");
   }
 
@@ -321,7 +306,7 @@ void ShmAllocator::OpenExistingShm() {
   // Get existing shared memory size
   struct stat shm_stat{};
   if (fstat(shm_fd_, &shm_stat) == -1) {
-    close(shm_fd_);
+    CleanupExistingShmOnFailure();
     throw ShmAllocatorError("Failed to get shared memory size");
   }
 

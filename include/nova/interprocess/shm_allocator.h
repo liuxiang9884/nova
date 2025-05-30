@@ -152,7 +152,6 @@ class ShmAllocator {
   /// @brief Destruct object with specified name
   /// @tparam T Object type
   /// @param name Instance name
-  /// @return Whether destruction was successful
   template <typename T>
   void Destruct(std::string_view name);
 
@@ -232,10 +231,6 @@ class ShmAllocator {
 
   /// @brief Map shared memory with platform-specific optimizations
   /// @param size Memory size to map
-  /// @param fd File descriptor (will be closed on failure)
-  /// @param error_msg Error message for exceptions
-  /// @param cleanup_shm_on_failure Whether to unlink shared memory on mapping
-  /// failure
   /// @return Mapped memory pointer
   [[nodiscard]] void* MapMemory(size_type size) const;
 
@@ -302,16 +297,6 @@ class ShmAllocator {
   std::pair<void*, IndexType::iterator> AllocateImpl(std::string_view name,
                                                      size_type size,
                                                      size_type alignment);
-
-  /// @brief Convert string_view to ShmName
-  /// @param name String view
-  /// @param shm_name Output ShmName
-  static void ToShmName(std::string_view name, ShmName& shm_name);
-
-  /// @brief Convert ShmName to string
-  /// @param shm_name ShmName
-  /// @return String
-  static std::string FromShmName(const ShmName& shm_name);
 };
 
 // Template function implementations
