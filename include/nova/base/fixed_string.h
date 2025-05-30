@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cassert>
 #include <cstring>
 #include <stdexcept>
 #include <string>
