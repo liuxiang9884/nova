@@ -125,7 +125,7 @@ void BasicFunctionalityDemo() {
               << " bytes" << std::endl;
 
     // Cleanup
-    // allocator.DeallocateAll();
+    allocator.DeallocateAll();
     std::cout << "\nCleaned up shared memory" << std::endl;
 
   } catch (const std::exception& e) {
@@ -182,7 +182,7 @@ void PersistenceDemo() {
       }
 
       // Cleanup
-      // allocator.DeallocateAll();
+      allocator.DeallocateAll();
     }
 
   } catch (const std::exception& e) {
@@ -260,7 +260,7 @@ void MultiProcessDemo() {
       wait(nullptr);
 
       // Cleanup
-      // allocator.DeallocateAll();
+      allocator.DeallocateAll();
       std::cout << "[Reader] Cleaned up shared memory" << std::endl;
 
     } catch (const std::exception& e) {
@@ -354,7 +354,7 @@ void PerformanceTest() {
               << "%" << std::endl;
 
     // Cleanup
-    // allocator.DeallocateAll();
+    allocator.DeallocateAll();
 
   } catch (const std::exception& e) {
     std::cerr << "Error: " << e.what() << std::endl;
@@ -414,7 +414,7 @@ void ErrorHandlingDemo() {
     }
 
     // Cleanup
-    // allocator.DeallocateAll();
+    allocator.DeallocateAll();
 
   } catch (const std::exception& e) {
     std::cerr << "Error: " << e.what() << std::endl;
