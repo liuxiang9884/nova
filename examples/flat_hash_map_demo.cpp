@@ -5,9 +5,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "nova/base/flat_hash_map.h"
+#include "nova/exp/flat_hash_map.h"
 
-using namespace nova::static_impl;
+using namespace nova::exp::static_impl;
 
 // Test data structures
 struct TestData {

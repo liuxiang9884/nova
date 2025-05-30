@@ -109,9 +109,11 @@ class ShmAllocator {
     bool initialized;
   };
 
+  static constexpr size_type kMaxInstances = 1024;
+
   // Index type, using FlatHashMap to store instance metadata
   using IndexType =
-      nova::static_impl::ShmFlatHashMap<ShmName, ShmInstanceMeta, 1024,
+      nova::static_impl::ShmFlatHashMap<ShmName, ShmInstanceMeta, kMaxInstances,
                                         ShmNameHash, ShmNameEqual>;
 
   /// @brief Constructor, create or open shared memory

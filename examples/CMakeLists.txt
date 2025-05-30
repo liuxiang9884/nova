@@ -54,3 +54,8 @@ target_link_libraries(ring_buffer_demo PRIVATE fmt::fmt-header-only nova)
 add_executable(ring_pool_demo ring_pool_demo.cpp)
 target_include_directories(ring_pool_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
 target_link_libraries(ring_pool_demo PRIVATE fmt::fmt-header-only nova)
+
+#flat_hash_map_demo
+add_executable(flat_hash_map_demo flat_hash_map_demo.cpp)
+target_include_directories(flat_hash_map_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
+target_link_libraries(flat_hash_map_demo PRIVATE fmt::fmt-header-only nova)

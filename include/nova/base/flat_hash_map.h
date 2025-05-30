@@ -44,7 +44,7 @@ class FlatHashMap {
   // Slot structure using value_type + bool
   struct Slot {
     value_type data;
-    bool occupied;
+    bool occupied = false;
   };
 
   // Container type
@@ -154,7 +154,7 @@ class FlatHashMap {
   }
 
  private:
-  Container container_;
+  Container container_{};
   size_type size_ = 0;
   hasher hash_;
   key_equal equal_;
@@ -337,7 +337,7 @@ FlatHashMap<Key, Value, N, Hash, KeyEqual>::find_slot(const K& key) const {
 
   // Linear probing
   for (size_type i = 0; i < Capacity; ++i) {
-    size_type current_index = (index + i) % Capacity;
+    size_type current_index = (index + i) & (Capacity - 1);
 
     if (!container_[current_index].occupied) {
       return Capacity;  // Not found
@@ -360,7 +360,7 @@ FlatHashMap<Key, Value, N, Hash, KeyEqual>::find_empty_slot(
 
   // Linear probing to find empty slot
   for (size_type i = 0; i < Capacity; ++i) {
-    size_type current_index = (index + i) % Capacity;
+    size_type current_index = (index + i) & (Capacity - 1);
 
     if (!container_[current_index].occupied) {
       return current_index;
@@ -412,13 +412,13 @@ FlatHashMap<Key, Value, N, Hash, KeyEqual>::at(const key_type& key) const {
 template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
 std::pair<typename FlatHashMap<Key, Value, N, Hash, KeyEqual>::iterator, bool>
 FlatHashMap<Key, Value, N, Hash, KeyEqual>::insert(const value_type& value) {
-  return emplace(value);
+  return emplace_impl(value.first, value.second);
 }
 
 template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
 std::pair<typename FlatHashMap<Key, Value, N, Hash, KeyEqual>::iterator, bool>
 FlatHashMap<Key, Value, N, Hash, KeyEqual>::insert(value_type&& value) {
-  return emplace(std::move(value));
+  return emplace_impl(std::move(value.first), std::move(value.second));
 }
 
 template <class Key, class Value, std::size_t N, class Hash, class KeyEqual>
@@ -509,7 +509,7 @@ FlatHashMap<Key, Value, N, Hash, KeyEqual>::erase(const key_type& key) {
   --size_;
 
   // Rehash elements that might have been displaced by linear probing
-  size_type next_index = (index + 1) % Capacity;
+  size_type next_index = (index + 1) & (Capacity - 1);
   while (container_[next_index].occupied) {
     value_type temp = std::move(container_[next_index].data);
     container_[next_index].occupied = false;
@@ -518,7 +518,7 @@ FlatHashMap<Key, Value, N, Hash, KeyEqual>::erase(const key_type& key) {
     // Reinsert the element
     emplace_impl(std::move(temp.first), std::move(temp.second));
 
-    next_index = (next_index + 1) % Capacity;
+    next_index = (next_index + 1) & (Capacity - 1);
   }
 
   return 1;
@@ -536,7 +536,7 @@ FlatHashMap<Key, Value, N, Hash, KeyEqual>::erase(const_iterator pos) {
   --size_;
 
   // Rehash elements that might have been displaced by linear probing
-  size_type next_index = (index + 1) % Capacity;
+  size_type next_index = (index + 1) & (Capacity - 1);
   while (container_[next_index].occupied) {
     value_type temp = std::move(container_[next_index].data);
     container_[next_index].occupied = false;
@@ -545,7 +545,7 @@ FlatHashMap<Key, Value, N, Hash, KeyEqual>::erase(const_iterator pos) {
     // Reinsert the element
     emplace_impl(std::move(temp.first), std::move(temp.second));
 
-    next_index = (next_index + 1) % Capacity;
+    next_index = (next_index + 1) & (Capacity - 1);
   }
 
   return iterator(&container_, index);
