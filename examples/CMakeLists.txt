@@ -63,7 +63,7 @@ target_link_libraries(flat_hash_map_demo PRIVATE fmt::fmt-header-only nova)
 # shm_allocator_demo
 add_executable(shm_allocator_demo shm_allocator_demo.cpp)
 target_include_directories(shm_allocator_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
-target_link_libraries(shm_allocator_demo PRIVATE fmt::fmt-header-only nova)
+target_link_libraries(shm_allocator_demo PRIVATE fmt::fmt nova)
 
 # fixed_string_demo
 add_executable(fixed_string_demo fixed_string_demo.cpp)

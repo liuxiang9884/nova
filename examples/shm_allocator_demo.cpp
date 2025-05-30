@@ -161,10 +161,10 @@ void PersistenceDemo() {
                 << std::endl;
       // allocator destructor will not delete shared memory
     }
-
+    std::cout << "\nStart Phase 2" << std::endl;
     // Phase 2: Reconnect and read data
     {
-      ShmAllocator allocator(shm_name.c_str(), storage_size, false);
+      ShmAllocator allocator(shm_name.c_str(), 100, false);
       // Don't create, only connect
       std::cout << "\nPhase 2: Reconnecting and reading data" << std::endl;
 
@@ -186,7 +186,7 @@ void PersistenceDemo() {
     }
 
   } catch (const std::exception& e) {
-    std::cerr << "Error: " << e.what() << std::endl;
+    std::cerr << "Phase2 Error: " << e.what() << std::endl;
   }
 }
 
@@ -234,7 +234,7 @@ void MultiProcessDemo() {
       std::cout << "[Reader Process " << getpid() << "] Starting..."
                 << std::endl;
 
-      ShmAllocator allocator(shm_name.c_str(), storage_size, false);
+      ShmAllocator allocator(shm_name.c_str(), 0, false);
 
       // Monitor data changes
       for (int i = 0; i < 15; ++i) {

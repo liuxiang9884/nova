@@ -92,9 +92,8 @@ ShmAllocator::~ShmAllocator() {
   CleanupMappedResources();
 }
 
-void ShmAllocator::InitializeLayout(const char* name, size_type storage_size) {
-  const auto layout = CalculateLayoutSizes(storage_size);
-
+void ShmAllocator::InitializeLayout(const char* name,
+                                    const LayoutSizes& layout) {
   // Initialize header
   header_ = static_cast<ShmHeader*>(shm_ptr_);
   new (header_) ShmHeader(name, layout.total_size, layout.storage_offset,
@@ -121,7 +120,9 @@ void ShmAllocator::ValidateLayout() {
   }
 
   if (header_->total_size != shm_size_) {
-    throw ShmAllocatorError("Shared memory size mismatch");
+    throw ShmAllocatorError(fmt::format(
+        "Shared memory size mismatch: header says {}, actual file size {}",
+        header_->total_size, shm_size_));
   }
 
   auto layout = CalculateLayoutSizes(header_->storage_size);
@@ -300,7 +301,7 @@ void ShmAllocator::CreateNewShm(const char* name, size_type storage_size) {
   shm_ptr_ = MapMemory(layout.total_size);
 
   // Initialize layout
-  InitializeLayout(name, storage_size);
+  InitializeLayout(name, layout);
 
   // Set shm_name_ to point to the name stored in header
   shm_name_ = std::string_view(header_->name);
@@ -314,12 +315,31 @@ void ShmAllocator::OpenExistingShm() {
     throw ShmAllocatorError("Failed to get shared memory size");
   }
 
-  shm_size_ = shm_stat.st_size;
+  const size_type file_size = shm_stat.st_size;
+  std::cout << "stat existing: " << shm_stat.st_size << std::endl;
+  // Map memory using the file size first to read the header
+  shm_ptr_ = MapMemory(file_size);
 
-  // Map memory using common function
-  shm_ptr_ = MapMemory(shm_size_);
+  // Read header to get the actual intended size
+  header_ = static_cast<ShmHeader*>(shm_ptr_);
+  if (!header_->initialized) {
+    CleanupExistingShmOnFailure();
+    throw ShmAllocatorError("Shared memory not properly initialized");
+  }
 
-  // Validate layout
+  // Use the size from header, not the file size
+  shm_size_ = header_->total_size;
+
+  // If file size doesn't match header size, we may need to remap with correct
+  // size
+  if (file_size != shm_size_) {
+    // Unmap and remap with correct size
+    munmap(shm_ptr_, file_size);
+    shm_ptr_ = MapMemory(shm_size_);
+    header_ = static_cast<ShmHeader*>(shm_ptr_);
+  }
+
+  // Validate layout (this will now pass the size check)
   ValidateLayout();
 
   // Set shm_name_ to point to the name stored in header

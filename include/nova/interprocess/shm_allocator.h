@@ -11,8 +11,8 @@
 #include <string_view>
 
 #include "nova/base/fixed_string.h"
-#include "nova/common/traits.h"
 #include "nova/base/flat_hash_map.h"
+#include "nova/common/traits.h"
 
 namespace nova {
 
@@ -112,8 +112,9 @@ class ShmAllocator {
   static constexpr size_type kMaxInstances = 1024;
 
   // Index type, using FlatHashMap to store instance metadata
-  using IndexType = nova::static_impl::FlatHashMap<
-      ShmName, ShmInstanceMeta, kMaxInstances, ShmNameHash, ShmNameEqual>;
+  using IndexType =
+      nova::static_impl::FlatHashMap<ShmName, ShmInstanceMeta, kMaxInstances,
+                                     ShmNameHash, ShmNameEqual>;
 
   /// @brief Constructor, create or open shared memory
   /// @param name Shared memory name
@@ -243,6 +244,28 @@ class ShmAllocator {
   /// @brief Cleanup mapped memory and file descriptor
   void CleanupMappedResources();
 
+  /// @brief Calculate layout sizes
+  /// @param storage_size Desired storage area size
+  /// @return Size information for each part
+  struct LayoutSizes {
+    size_type header_size;
+    size_type index_size;
+    size_type storage_offset;
+    size_type storage_size;
+    size_type total_size;  // Total shared memory size needed
+  };
+  static LayoutSizes CalculateLayoutSizes(size_type storage_size);
+
+  /// @brief Internal implementation of memory allocation
+  /// @param name Instance name
+  /// @param size Size
+  /// @param alignment Alignment requirement
+  /// @return Pair of allocated memory pointer and iterator to the inserted
+  /// element
+  std::pair<void*, IndexType::iterator> AllocateImpl(std::string_view name,
+                                                     size_type size,
+                                                     size_type alignment);
+
  private:
   // Shared memory name (view of the name stored in shared memory header)
   std::string_view shm_name_;
@@ -270,33 +293,11 @@ class ShmAllocator {
 
   /// @brief Initialize shared memory layout
   /// @param name Shared memory name
-  /// @param storage_size Storage area size
-  void InitializeLayout(const char* name, size_type storage_size);
+  /// @param layout Pre-calculated layout sizes
+  void InitializeLayout(const char* name, const LayoutSizes& layout);
 
   /// @brief Validate shared memory layout
   void ValidateLayout();
-
-  /// @brief Calculate layout sizes
-  /// @param storage_size Desired storage area size
-  /// @return Size information for each part
-  struct LayoutSizes {
-    size_type header_size;
-    size_type index_size;
-    size_type storage_offset;
-    size_type storage_size;
-    size_type total_size;  // Total shared memory size needed
-  };
-  static LayoutSizes CalculateLayoutSizes(size_type storage_size);
-
-  /// @brief Internal implementation of memory allocation
-  /// @param name Instance name
-  /// @param size Size
-  /// @param alignment Alignment requirement
-  /// @return Pair of allocated memory pointer and iterator to the inserted
-  /// element
-  std::pair<void*, IndexType::iterator> AllocateImpl(std::string_view name,
-                                                     size_type size,
-                                                     size_type alignment);
 };
 
 // Template function implementations
