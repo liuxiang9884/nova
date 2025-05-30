@@ -43,7 +43,7 @@ void ShmAllocator::CleanupNewShmOnFailure(const char* name) {
 
 void ShmAllocator::CleanupExistingShmOnFailure() {
   if (shm_ptr_ != nullptr && shm_ptr_ != MAP_FAILED) {
-    munmap(shm_ptr_, shm_size_);
+    munmap(shm_ptr_, mapped_size_);
     shm_ptr_ = nullptr;
   }
   if (shm_fd_ != -1) {
@@ -54,7 +54,7 @@ void ShmAllocator::CleanupExistingShmOnFailure() {
 
 void ShmAllocator::CleanupMappedResources() {
   if (shm_ptr_ != nullptr && shm_ptr_ != MAP_FAILED) {
-    munmap(shm_ptr_, shm_size_);
+    munmap(shm_ptr_, mapped_size_);
     shm_ptr_ = nullptr;
   }
   if (shm_fd_ != -1) {
@@ -68,7 +68,7 @@ ShmAllocator::ShmAllocator(const char* name, size_type storage_size,
     : shm_name_(),  // Will be set after header is initialized
       shm_fd_(-1),
       shm_ptr_(nullptr),
-      shm_size_(0),
+      mapped_size_(0),
       header_(nullptr),
       index_(nullptr),
       storage_(nullptr) {
@@ -108,7 +108,7 @@ void ShmAllocator::InitializeLayout(const char* name,
 }
 
 void ShmAllocator::ValidateLayout() {
-  if (shm_size_ < sizeof(ShmHeader)) {
+  if (mapped_size_ < sizeof(ShmHeader)) {
     throw ShmAllocatorError("Invalid shared memory: too small for header");
   }
 
@@ -117,10 +117,11 @@ void ShmAllocator::ValidateLayout() {
     throw ShmAllocatorError("Shared memory not properly initialized");
   }
 
-  if (header_->total_size != shm_size_) {
-    throw ShmAllocatorError(fmt::format(
-        "Shared memory size mismatch: header says {}, actual file size {}",
-        header_->total_size, shm_size_));
+  // Ensure mapped memory is large enough for the logical content
+  if (mapped_size_ < header_->total_size) {
+    throw ShmAllocatorError(
+        fmt::format("Mapped memory too small: mapped size {}, required {}",
+                    mapped_size_, header_->total_size));
   }
 
   auto layout = CalculateLayoutSizes(header_->storage_size);
@@ -286,7 +287,6 @@ bool ShmAllocator::ShmExists(const char* shm_name) {
 void ShmAllocator::CreateNewShm(const char* name, size_type storage_size) {
   // Calculate layout sizes based on desired storage size
   const auto layout = CalculateLayoutSizes(storage_size);
-  shm_size_ = layout.total_size;
 
   // Create new shared memory
   shm_fd_ = shm_open(name, O_CREAT | O_RDWR | O_EXCL, 0666);
@@ -303,6 +303,8 @@ void ShmAllocator::CreateNewShm(const char* name, size_type storage_size) {
   }
 
   // Map memory using common function
+  mapped_size_ =
+      layout.total_size;  // For new shm, mapped size equals logical size
   shm_ptr_ = MapMemory(layout.total_size);
   if (shm_ptr_ == MAP_FAILED) {
     CleanupNewShmOnFailure(name);
@@ -325,7 +327,7 @@ void ShmAllocator::OpenExistingShm() {
   }
 
   // Map memory using the file size
-  shm_size_ = shm_stat.st_size;  // Set size for potential cleanup
+  mapped_size_ = shm_stat.st_size;  // Actual file size (for munmap)
   shm_ptr_ = MapMemory(shm_stat.st_size);
   if (shm_ptr_ == MAP_FAILED) {
     CleanupExistingShmOnFailure();
@@ -339,10 +341,7 @@ void ShmAllocator::OpenExistingShm() {
     throw ShmAllocatorError("Shared memory not properly initialized");
   }
 
-  // Use the size from header, not the file size
-  shm_size_ = header_->total_size;
-
-  // Validate layout (this will now pass the size check)
+  // Validate layout
   ValidateLayout();
 
   // Set shm_name_ to point to the name stored in header

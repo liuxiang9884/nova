@@ -273,8 +273,9 @@ class ShmAllocator {
   int shm_fd_;
   // Shared memory pointer
   void* shm_ptr_;
-  // Shared memory size
-  size_type shm_size_;
+  // Actual mapped memory size (may differ from logical size due to file system
+  // alignment)
+  size_type mapped_size_;
   // Header pointer
   ShmHeader* header_;
   // Index pointer
