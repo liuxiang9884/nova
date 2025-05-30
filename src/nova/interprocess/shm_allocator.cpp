@@ -315,10 +315,8 @@ void ShmAllocator::OpenExistingShm() {
     throw ShmAllocatorError("Failed to get shared memory size");
   }
 
-  const size_type file_size = shm_stat.st_size;
-  std::cout << "stat existing: " << shm_stat.st_size << std::endl;
-  // Map memory using the file size first to read the header
-  shm_ptr_ = MapMemory(file_size);
+  // Map memory using the file size
+  shm_ptr_ = MapMemory(shm_stat.st_size);
 
   // Read header to get the actual intended size
   header_ = static_cast<ShmHeader*>(shm_ptr_);
@@ -329,15 +327,6 @@ void ShmAllocator::OpenExistingShm() {
 
   // Use the size from header, not the file size
   shm_size_ = header_->total_size;
-
-  // If file size doesn't match header size, we may need to remap with correct
-  // size
-  if (file_size != shm_size_) {
-    // Unmap and remap with correct size
-    munmap(shm_ptr_, file_size);
-    shm_ptr_ = MapMemory(shm_size_);
-    header_ = static_cast<ShmHeader*>(shm_ptr_);
-  }
 
   // Validate layout (this will now pass the size check)
   ValidateLayout();
