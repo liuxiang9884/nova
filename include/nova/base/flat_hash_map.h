@@ -2,6 +2,7 @@
 
 #include <array>
 #include <bit>
+#include <cassert>
 #include <functional>
 #include <stdexcept>
 #include <tuple>
@@ -479,6 +480,9 @@ FlatHashMap<Key, Value, N, Hash, KeyEqual>::emplace_impl(K&& key,
   if (container_[index].occupied && equal_(container_[index].data.first, key)) {
     return {iterator(&container_, index), false};
   }
+
+  // Assert in debug mode that we don't exceed the theoretical maximum
+  assert(size_ < N && "Exceeded theoretical maximum size N");
 
   // Insert new element using placement new for zero-copy construction
   new (&container_[index].data) value_type(
