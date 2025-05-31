@@ -19,7 +19,8 @@
 
 namespace nova {
 
-void* ShmAllocator::MapMemory(size_type size) const {
+template <std::size_t N>
+void* ShmAllocator<N>::MapMemory(size_type size) const {
   // Set up mapping flags
   int map_flags = MAP_SHARED;
 
@@ -33,7 +34,8 @@ void* ShmAllocator::MapMemory(size_type size) const {
   return ptr;  // Return MAP_FAILED if mmap fails, let caller handle cleanup
 }
 
-void ShmAllocator::CleanupNewShmOnFailure(const char* name) {
+template <std::size_t N>
+void ShmAllocator<N>::CleanupNewShmOnFailure(const char* name) {
   if (shm_fd_ != -1) {
     close(shm_fd_);
     shm_fd_ = -1;
@@ -41,7 +43,8 @@ void ShmAllocator::CleanupNewShmOnFailure(const char* name) {
   shm_unlink(name);
 }
 
-void ShmAllocator::CleanupExistingShmOnFailure() {
+template <std::size_t N>
+void ShmAllocator<N>::CleanupExistingShmOnFailure() {
   if (shm_ptr_ != nullptr && shm_ptr_ != MAP_FAILED) {
     munmap(shm_ptr_, mapped_size_);
     shm_ptr_ = nullptr;
@@ -52,7 +55,8 @@ void ShmAllocator::CleanupExistingShmOnFailure() {
   }
 }
 
-void ShmAllocator::CleanupMappedResources() {
+template <std::size_t N>
+void ShmAllocator<N>::CleanupMappedResources() {
   if (shm_ptr_ != nullptr && shm_ptr_ != MAP_FAILED) {
     munmap(shm_ptr_, mapped_size_);
     shm_ptr_ = nullptr;
@@ -63,8 +67,9 @@ void ShmAllocator::CleanupMappedResources() {
   }
 }
 
-ShmAllocator::ShmAllocator(const char* name, size_type storage_size,
-                           bool create_if_not_exists)
+template <std::size_t N>
+ShmAllocator<N>::ShmAllocator(const char* name, size_type storage_size,
+                              bool create_if_not_exists)
     : shm_name_(),  // Will be set after header is initialized
       shm_fd_(-1),
       shm_ptr_(nullptr),
@@ -86,12 +91,14 @@ ShmAllocator::ShmAllocator(const char* name, size_type storage_size,
   }
 }
 
-ShmAllocator::~ShmAllocator() {
+template <std::size_t N>
+ShmAllocator<N>::~ShmAllocator() {
   CleanupMappedResources();
 }
 
-void ShmAllocator::InitializeLayout(const char* name,
-                                    const LayoutSizes& layout) {
+template <std::size_t N>
+void ShmAllocator<N>::InitializeLayout(const char* name,
+                                       const LayoutSizes& layout) {
   // Initialize header
   header_ = static_cast<ShmHeader*>(shm_ptr_);
   new (header_) ShmHeader(name, layout.total_size, layout.storage_offset,
@@ -107,7 +114,8 @@ void ShmAllocator::InitializeLayout(const char* name,
   storage_ = static_cast<char*>(shm_ptr_) + layout.storage_offset;
 }
 
-void ShmAllocator::ValidateLayout() {
+template <std::size_t N>
+void ShmAllocator<N>::ValidateLayout() {
   if (mapped_size_ < sizeof(ShmHeader)) {
     throw ShmAllocatorError("Invalid shared memory: too small for header");
   }
@@ -132,15 +140,16 @@ void ShmAllocator::ValidateLayout() {
   storage_ = static_cast<char*>(shm_ptr_) + layout.storage_offset;
 }
 
-ShmAllocator::LayoutSizes ShmAllocator::CalculateLayoutSizes(
+template <std::size_t N>
+typename ShmAllocator<N>::LayoutSizes ShmAllocator<N>::CalculateLayoutSizes(
     size_type storage_size) {
   LayoutSizes layout{};
 
   // Header size (aligned to 8 bytes)
-  layout.header_size = AlignUp(sizeof(ShmHeader), 8);
+  layout.header_size = AlignUp<N>(sizeof(ShmHeader), 8);
 
   // Index size (aligned to 8 bytes)
-  layout.index_size = AlignUp(sizeof(IndexType), 8);
+  layout.index_size = AlignUp<N>(sizeof(IndexType), 8);
 
   // Storage area offset
   layout.storage_offset = layout.header_size + layout.index_size;
@@ -154,12 +163,14 @@ ShmAllocator::LayoutSizes ShmAllocator::CalculateLayoutSizes(
   return layout;
 }
 
-std::pair<void*, ShmAllocator::IndexType::iterator> ShmAllocator::AllocateImpl(
-    std::string_view name, size_type size, size_type alignment) {
+template <std::size_t N>
+std::pair<void*, typename ShmAllocator<N>::IndexType::iterator>
+ShmAllocator<N>::AllocateImpl(std::string_view name, size_type size,
+                              size_type alignment) {
   // Calculate aligned offset
   const size_type aligned_offset =
-      AlignUp(header_->current_storage_used, alignment);
-  const size_type aligned_size = AlignUp(size, alignment);
+      AlignUp<N>(header_->current_storage_used, alignment);
+  const size_type aligned_size = AlignUp<N>(size, alignment);
 
   // Check if enough space available
   if (aligned_offset + aligned_size > header_->storage_size) {
@@ -180,7 +191,8 @@ std::pair<void*, ShmAllocator::IndexType::iterator> ShmAllocator::AllocateImpl(
   return std::make_pair(ptr, result.first);
 }
 
-void* ShmAllocator::GetBlock(std::string_view name) const {
+template <std::size_t N>
+void* ShmAllocator<N>::GetBlock(std::string_view name) const {
   // Use heterogeneous lookup directly with string_view
   auto it = index_->find(name);
   if (it == index_->end()) {
@@ -191,18 +203,21 @@ void* ShmAllocator::GetBlock(std::string_view name) const {
   return ptr;
 }
 
-bool ShmAllocator::Contains(std::string_view name) const {
+template <std::size_t N>
+bool ShmAllocator<N>::Contains(std::string_view name) const {
   // Use heterogeneous lookup directly with string_view
   return index_->contains(name);
 }
 
-bool ShmAllocator::IsConstructed(std::string_view name) const {
+template <std::size_t N>
+bool ShmAllocator<N>::IsConstructed(std::string_view name) const {
   // Use heterogeneous lookup directly with string_view
   auto it = index_->find(name);
   return it != index_->end() && it->second.constructed;
 }
 
-std::vector<std::string_view> ShmAllocator::GetInstanceNames() const {
+template <std::size_t N>
+std::vector<std::string_view> ShmAllocator<N>::GetInstanceNames() const {
   std::vector<std::string_view> names;
   names.reserve(index_->size());
   for (const auto& pair : *index_) {
@@ -212,35 +227,8 @@ std::vector<std::string_view> ShmAllocator::GetInstanceNames() const {
   return names;
 }
 
-ShmAllocator::size_type ShmAllocator::instance_count() const {
-  return index_->size();
-}
-
-ShmAllocator::size_type ShmAllocator::max_instances() const {
-  return 1024;  // This matches the N template parameter in IndexType definition
-}
-
-ShmAllocator::size_type ShmAllocator::total_size() const {
-  return header_->total_size;
-}
-
-ShmAllocator::size_type ShmAllocator::used_storage_size() const {
-  return header_->current_storage_used;
-}
-
-ShmAllocator::size_type ShmAllocator::available_storage_size() const {
-  return header_->storage_size - header_->current_storage_used;
-}
-
-ShmAllocator::size_type ShmAllocator::storage_size() const {
-  return header_->storage_size;
-}
-
-std::string_view ShmAllocator::shm_name() const {
-  return shm_name_;
-}
-
-void ShmAllocator::DeallocateAll() {
+template <std::size_t N>
+void ShmAllocator<N>::DeallocateAll() {
   // Note: This function can only be called once. After calling this function,
   // the ShmAllocator object becomes invalid and should not be used again.
   // All constructed objects should be destructed manually before calling this.
@@ -265,26 +253,24 @@ void ShmAllocator::DeallocateAll() {
   storage_ = nullptr;
 }
 
-bool ShmAllocator::Valid() const {
-  return shm_ptr_ != nullptr && shm_ptr_ != MAP_FAILED && shm_fd_ != -1 &&
-         header_ != nullptr && header_->initialized && index_ != nullptr &&
-         storage_ != nullptr;
-}
-
-bool ShmAllocator::ShmExists(const char* shm_name) {
+template <std::size_t N>
+bool ShmAllocator<N>::ShmExists(const char* shm_name) {
   // Try to open existing shared memory
   int fd = shm_open(shm_name, O_RDWR, 0666);
 
   if (fd == -1) {
-    return false;  // Shared memory does not exist
+    // Shared memory does not exist
+    return false;
   }
 
   // Close the file descriptor since we only wanted to check existence
   close(fd);
-  return true;  // Shared memory exists
+  // Shared memory exists
+  return true;
 }
 
-void ShmAllocator::CreateNewShm(const char* name, size_type storage_size) {
+template <std::size_t N>
+void ShmAllocator<N>::CreateNewShm(const char* name, size_type storage_size) {
   // Calculate layout sizes based on desired storage size
   const auto layout = CalculateLayoutSizes(storage_size);
 
@@ -318,7 +304,8 @@ void ShmAllocator::CreateNewShm(const char* name, size_type storage_size) {
   shm_name_ = std::string_view(header_->name);
 }
 
-void ShmAllocator::OpenExistingShm() {
+template <std::size_t N>
+void ShmAllocator<N>::OpenExistingShm() {
   // Get existing shared memory size
   struct stat shm_stat{};
   if (fstat(shm_fd_, &shm_stat) == -1) {
@@ -347,5 +334,9 @@ void ShmAllocator::OpenExistingShm() {
   // Set shm_name_ to point to the name stored in header
   shm_name_ = std::string_view(header_->name);
 }
+
+// Explicit template instantiations for supported sizes
+template class ShmAllocator<64>;
+template class ShmAllocator<1024>;
 
 }  // namespace nova

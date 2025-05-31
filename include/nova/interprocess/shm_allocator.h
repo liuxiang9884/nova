@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <sys/mman.h>
+
 #include <cstddef>
 #include <cstring>
 #include <stdexcept>
@@ -31,8 +33,10 @@ class ShmAllocatorError final : public std::runtime_error {
 /// construction of multiple named instances. Memory layout:
 /// [Header][Index(FlatHashMap)][Storage]
 ///
+/// @tparam N Maximum number of instances that can be stored
 /// @note This allocator does not support deallocating individual instances,
 /// only supports releasing all memory at once
+template <std::size_t N>
 class ShmAllocator {
  public:
   // Size and offset types
@@ -109,12 +113,11 @@ class ShmAllocator {
     bool initialized;
   };
 
-  static constexpr size_type kMaxInstances = 1024;
+  static constexpr size_type kMaxInstances = N;
 
   // Index type, using FlatHashMap to store instance metadata
-  using IndexType =
-      nova::static_impl::FlatHashMap<ShmName, ShmInstanceMeta, kMaxInstances,
-                                     ShmNameHash, ShmNameEqual>;
+  using IndexType = nova::static_impl::FlatHashMap<ShmName, ShmInstanceMeta, N,
+                                                   ShmNameHash, ShmNameEqual>;
 
   /// @brief Constructor, create or open shared memory
   /// @param name Shared memory name
@@ -173,7 +176,13 @@ class ShmAllocator {
   /// @param name Instance name
   /// @return Typed pointer, returns nullptr if not found
   template <typename T>
-  [[nodiscard]] T* Get(std::string_view name) const;
+  [[nodiscard]] T* Get(std::string_view name) const {
+    static_assert(is_shm_compatible_v<T>,
+                  "Type must be shared memory compatible");
+
+    void* ptr = GetBlock(name);
+    return static_cast<T*>(ptr);
+  }
 
   /// @brief Check if instance with specified name exists
   /// @param name Instance name
@@ -191,39 +200,57 @@ class ShmAllocator {
 
   /// @brief Get current instance count
   /// @return Current instance count
-  [[nodiscard]] size_type instance_count() const;
+  [[nodiscard]] size_type instance_count() const {
+    return index_->size();
+  }
 
   /// @brief Get maximum instance count
   /// @return Maximum instance count
-  [[nodiscard]] size_type max_instances() const;
+  [[nodiscard]] size_type max_instances() const {
+    return N;
+  }
 
   /// @brief Get total size
   /// @return Total size in bytes
-  [[nodiscard]] size_type total_size() const;
+  [[nodiscard]] size_type total_size() const {
+    return header_->total_size;
+  }
 
   /// @brief Get used storage size
   /// @return Used size in bytes
-  [[nodiscard]] size_type used_storage_size() const;
+  [[nodiscard]] size_type used_storage_size() const {
+    return header_->current_storage_used;
+  }
 
   /// @brief Get available storage size
   /// @return Available size in bytes
-  [[nodiscard]] size_type available_storage_size() const;
+  [[nodiscard]] size_type available_storage_size() const {
+    return header_->storage_size - header_->current_storage_used;
+  }
 
   /// @brief Get storage area total size
   /// @return Storage area size in bytes
-  [[nodiscard]] size_type storage_size() const;
+  [[nodiscard]] size_type storage_size() const {
+    return header_->storage_size;
+  }
 
   /// @brief Get shared memory name
   /// @return Shared memory name
-  [[nodiscard]] std::string_view shm_name() const;
+  [[nodiscard]] std::string_view shm_name() const {
+    return shm_name_;
+  }
+
+  /// @brief Check if shared memory is valid
+  /// @return Whether valid
+  [[nodiscard]] bool Valid() const {
+    return shm_ptr_ != nullptr && shm_ptr_ != MAP_FAILED && shm_fd_ != -1 &&
+           header_ != nullptr && header_->initialized && index_ != nullptr &&
+           storage_ != nullptr;
+  }
 
   /// @brief Release all shared memory and delete shared memory object
   /// @note This object becomes unusable after calling this function
   void DeallocateAll();
-
-  /// @brief Check if shared memory is valid
-  /// @return Whether valid
-  [[nodiscard]] bool Valid() const;
 
   /// @brief Check if a shared memory segment exists
   /// @param name Shared memory name
@@ -262,9 +289,8 @@ class ShmAllocator {
   /// @param alignment Alignment requirement
   /// @return Pair of allocated memory pointer and iterator to the inserted
   /// element
-  std::pair<void*, IndexType::iterator> AllocateImpl(std::string_view name,
-                                                     size_type size,
-                                                     size_type alignment);
+  std::pair<void*, typename IndexType::iterator> AllocateImpl(
+      std::string_view name, size_type size, size_type alignment);
 
  private:
   // Shared memory name (view of the name stored in shared memory header)
@@ -303,8 +329,9 @@ class ShmAllocator {
 
 // Template function implementations
 
+template <std::size_t N>
 template <typename T>
-T* ShmAllocator::Allocate(std::string_view name) {
+T* ShmAllocator<N>::Allocate(std::string_view name) {
   static_assert(is_shm_compatible_v<T>,
                 "Type must be shared memory compatible");
 
@@ -320,8 +347,9 @@ T* ShmAllocator::Allocate(std::string_view name) {
   return static_cast<T*>(ptr);
 }
 
+template <std::size_t N>
 template <typename T, typename... Args>
-T* ShmAllocator::Construct(std::string_view name, Args&&... args) {
+T* ShmAllocator<N>::Construct(std::string_view name, Args&&... args) {
   static_assert(is_shm_compatible_v<T>,
                 "Type must be shared memory compatible");
 
@@ -356,8 +384,9 @@ T* ShmAllocator::Construct(std::string_view name, Args&&... args) {
   return obj_ptr;
 }
 
+template <std::size_t N>
 template <typename T>
-void ShmAllocator::Destruct(std::string_view name) {
+void ShmAllocator<N>::Destruct(std::string_view name) {
   static_assert(is_shm_compatible_v<T>,
                 "Type must be shared memory compatible");
 
@@ -376,8 +405,9 @@ void ShmAllocator::Destruct(std::string_view name) {
   it->second.constructed = false;
 }
 
+template <std::size_t N>
 template <typename T>
-T* ShmAllocator::Find(std::string_view name) const {
+T* ShmAllocator<N>::Find(std::string_view name) const {
   static_assert(is_shm_compatible_v<T>,
                 "Type must be shared memory compatible");
 
@@ -391,32 +421,30 @@ T* ShmAllocator::Find(std::string_view name) const {
   return static_cast<T*>(ptr);
 }
 
-template <typename T>
-T* ShmAllocator::Get(std::string_view name) const {
-  static_assert(is_shm_compatible_v<T>,
-                "Type must be shared memory compatible");
-
-  void* ptr = GetBlock(name);
-  return static_cast<T*>(ptr);
-}
-
 // Helper functions
 
 /// @brief Align size up to the next multiple of alignment
 /// @param size Size to align
 /// @param alignment Alignment requirement (must be power of 2)
 /// @return Aligned size
-constexpr ShmAllocator::size_type AlignUp(ShmAllocator::size_type size,
-                                          ShmAllocator::size_type alignment) {
+template <std::size_t N>
+constexpr typename ShmAllocator<N>::size_type AlignUp(
+    typename ShmAllocator<N>::size_type size,
+    typename ShmAllocator<N>::size_type alignment) {
   return (size + alignment - 1) & ~(alignment - 1);
 }
 
 /// @brief Get the aligned size of type T
 /// @tparam T Type to get aligned size for
 /// @return Size of T aligned to its natural alignment
-template <typename T>
-constexpr ShmAllocator::size_type AlignUp() {
-  return AlignUp(sizeof(T), alignof(T));
+template <typename T, std::size_t N>
+constexpr typename ShmAllocator<N>::size_type AlignUp() {
+  return AlignUp<N>(sizeof(T), alignof(T));
 }
+
+// External template declarations to prevent automatic instantiation
+// in other translation units - implementations are in shm_allocator.cpp
+extern template class ShmAllocator<64>;
+extern template class ShmAllocator<1024>;
 
 }  // namespace nova
