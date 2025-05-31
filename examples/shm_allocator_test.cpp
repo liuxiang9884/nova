@@ -479,6 +479,52 @@ void TestShmExists() {
   }
 }
 
+// Test small allocator with capacity limit behavior
+void TestSmallAllocator() {
+  const std::string shm_name = "/test_small_allocator_64";
+  CleanupShm(shm_name);
+
+  try {
+    // Create small allocator with max 64 instances
+    ShmAllocator<64> allocator(shm_name.c_str(), 1024 * 1024);
+
+    RunTest("TestSmallAllocator::max_instances",
+            allocator.max_instances() == 64);
+    RunTest("TestSmallAllocator::initial_state",
+            allocator.instance_count() == 0);
+
+    // Test creating instances up to the theoretical limit
+    int created_count = 0;
+    for (int i = 0; i < 80; ++i) {  // Try to create more than 64
+      std::string name = "small_obj_" + std::to_string(i);
+      try {
+        auto ptr = allocator.Allocate<int>(name);
+        *ptr = i;
+        created_count++;
+      } catch (const std::exception&) {
+        // Expected when capacity is reached
+        break;
+      }
+    }
+
+    RunTest("TestSmallAllocator::created_more_than_theoretical_max",
+            created_count > 64);
+
+    RunTest("TestSmallAllocator::final_instance_count",
+            allocator.instance_count() == static_cast<size_t>(created_count));
+
+    // Verify some instances work correctly
+    auto ptr0 = allocator.Find<int>("small_obj_0");
+    auto ptr5 = allocator.Find<int>("small_obj_5");
+    RunTest("TestSmallAllocator::instance_data_integrity",
+            ptr0 != nullptr && ptr5 != nullptr && *ptr0 == 0 && *ptr5 == 5);
+
+    allocator.DeallocateAll();
+  } catch (const std::exception& e) {
+    RunTest("TestSmallAllocator", false, e.what());
+  }
+}
+
 int main() {
   std::cout << "ShmAllocator Comprehensive Test Suite" << std::endl;
   std::cout << "======================================" << std::endl;
@@ -493,6 +539,7 @@ int main() {
   TestErrorHandling();
   TestAlignment();
   TestShmExists();
+  TestSmallAllocator();
 
   // Summary
   std::cout << "\nTest Summary:" << std::endl;
