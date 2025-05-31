@@ -382,11 +382,12 @@ class FlatHashMapBase {
     const size_type n = std::bit_ceil(max_size + 1);
 
     // If max_size/n < load_factor, use n as capacity
-    if (static_cast<double>(max_size) / n < kLoadFactor) {
+    if (static_cast<double>(max_size) / static_cast<double>(n) < kLoadFactor) {
       return n;
     } else {
       // Otherwise use the original calculation
-      return std::bit_ceil(static_cast<size_type>(max_size / kLoadFactor));
+      return std::bit_ceil(
+          static_cast<size_type>(static_cast<double>(max_size) / kLoadFactor));
     }
   }
 
@@ -668,8 +669,8 @@ class FlatHashMap
   }
 
  private:
-  size_type max_size_;
-  size_type capacity_;
+  size_type max_size_{0};
+  size_type capacity_{0};
   std::unique_ptr<Slot[]> slots_;
 
   // Calculate capacity using the same logic as static version

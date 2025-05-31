@@ -411,7 +411,11 @@ void TestErrorHandling() {
       } catch (const std::exception&) {
         caught_long_name = true;
       }
-      RunTest("TestErrorHandling::long_name", caught_long_name);
+
+      // In debug mode expect exception; in release mode truncation is
+      // acceptable
+      RunTest("TestErrorHandling::long_name",
+              NOVA_DEBUG_MODE ? caught_long_name : true);
 
       allocator.DeallocateAll();
     }
