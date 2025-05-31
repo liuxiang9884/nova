@@ -61,14 +61,14 @@ void BasicFunctionalityDemo() {
 
   const std::string shm_name = "/nova_shm_demo";
   // 1MB storage
-  const ShmAllocator::size_type storage_size = 1024 * 1024;
+  const ShmAllocator<1024>::size_type storage_size = 1024 * 1024;
 
   // Clean up any existing shared memory
   CleanupShm(shm_name);
 
   try {
     // Create allocator
-    ShmAllocator allocator(shm_name.c_str(), storage_size);
+    ShmAllocator<1024> allocator(shm_name.c_str(), storage_size);
 
     std::cout << "Created ShmAllocator:" << std::endl;
     std::cout << "  Name: " << allocator.shm_name() << std::endl;
@@ -138,7 +138,7 @@ void PersistenceDemo() {
 
   const std::string shm_name = "/nova_shm_persist";
   // 512KB storage
-  const ShmAllocator::size_type storage_size = 512 * 1024;
+  const ShmAllocator<1024>::size_type storage_size = 512 * 1024;
 
   // Clean up any existing shared memory
   CleanupShm(shm_name);
@@ -146,7 +146,7 @@ void PersistenceDemo() {
   try {
     // Phase 1: Create and populate data
     {
-      ShmAllocator allocator(shm_name.c_str(), storage_size);
+      ShmAllocator<1024> allocator(shm_name.c_str(), storage_size);
       std::cout << "Phase 1: Creating and populating data" << std::endl;
 
       // Create some employee data
@@ -164,7 +164,7 @@ void PersistenceDemo() {
     std::cout << "\nStart Phase 2" << std::endl;
     // Phase 2: Reconnect and read data
     {
-      ShmAllocator allocator(shm_name.c_str(), 100, false);
+      ShmAllocator<1024> allocator(shm_name.c_str(), 100, false);
       // Don't create, only connect
       std::cout << "\nPhase 2: Reconnecting and reading data" << std::endl;
 
@@ -195,7 +195,7 @@ void MultiProcessDemo() {
 
   const std::string shm_name = "/nova_shm_multiproc";
   // 1MB storage
-  const ShmAllocator::size_type storage_size = 1024 * 1024;
+  const ShmAllocator<1024>::size_type storage_size = 1024 * 1024;
 
   // Clean up any existing shared memory
   CleanupShm(shm_name);
@@ -208,7 +208,7 @@ void MultiProcessDemo() {
       std::cout << "[Writer Process " << getpid() << "] Starting..."
                 << std::endl;
 
-      ShmAllocator allocator(shm_name.c_str(), storage_size);
+      ShmAllocator<1024> allocator(shm_name.c_str(), storage_size);
 
       // Write some data
       for (int i = 0; i < 10; ++i) {
@@ -234,7 +234,7 @@ void MultiProcessDemo() {
       std::cout << "[Reader Process " << getpid() << "] Starting..."
                 << std::endl;
 
-      ShmAllocator allocator(shm_name.c_str(), 0, false);
+      ShmAllocator<1024> allocator(shm_name.c_str(), 0, false);
 
       // Monitor data changes
       for (int i = 0; i < 15; ++i) {
@@ -277,14 +277,14 @@ void PerformanceTest() {
 
   const std::string shm_name = "/nova_shm_perf";
   // 10MB storage
-  const ShmAllocator::size_type storage_size = 10 * 1024 * 1024;
+  const ShmAllocator<1024>::size_type storage_size = 10 * 1024 * 1024;
   const int num_objects = 1000;
 
   // Clean up any existing shared memory
   CleanupShm(shm_name);
 
   try {
-    ShmAllocator allocator(shm_name.c_str(), storage_size);
+    ShmAllocator<1024> allocator(shm_name.c_str(), storage_size);
 
     // Allocation performance test
     auto start = std::chrono::high_resolution_clock::now();
@@ -366,19 +366,19 @@ void ErrorHandlingDemo() {
 
   const std::string shm_name = "/nova_shm_error";
   // 1MB storage, large enough
-  const ShmAllocator::size_type storage_size = 1024 * 1024;
+  const ShmAllocator<1024>::size_type storage_size = 1024 * 1024;
 
   // Clean up any existing shared memory
   CleanupShm(shm_name);
 
   try {
-    ShmAllocator allocator(shm_name.c_str(), storage_size);
+    ShmAllocator<1024> allocator(shm_name.c_str(), storage_size);
 
     std::cout << "Testing capacity limits..." << std::endl;
 
     // Test instance count limit
     try {
-      for (ShmAllocator::size_type i = 0; i < 10; ++i) {
+      for (ShmAllocator<1024>::size_type i = 0; i < 10; ++i) {
         std::string name = "test_" + std::to_string(i);
         allocator.Construct<Point>(name, i, i, i, static_cast<int>(i));
         std::cout << "  Created instance " << i << std::endl;

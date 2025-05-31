@@ -82,7 +82,7 @@ void TestBasicAllocation() {
   CleanupShm(shm_name);
 
   try {
-    ShmAllocator allocator(shm_name.c_str(), 1024 * 1024);
+    ShmAllocator<1024> allocator(shm_name.c_str(), 1024 * 1024);
 
     // Test int allocation
     auto int_ptr = allocator.Allocate<int>("test_int");
@@ -113,7 +113,7 @@ void TestConstruction() {
   CleanupShm(shm_name);
 
   try {
-    ShmAllocator allocator(shm_name.c_str(), 1024 * 1024);
+    ShmAllocator<1024> allocator(shm_name.c_str(), 1024 * 1024);
 
     // Test point construction
     auto point_ptr =
@@ -162,7 +162,7 @@ void TestFindAndGet() {
   CleanupShm(shm_name);
 
   try {
-    ShmAllocator allocator(shm_name.c_str(), 1024 * 1024);
+    ShmAllocator<1024> allocator(shm_name.c_str(), 1024 * 1024);
 
     // Create test objects
     auto point_ptr =
@@ -203,7 +203,7 @@ void TestHeterogeneousLookup() {
   CleanupShm(shm_name);
 
   try {
-    ShmAllocator allocator(shm_name.c_str(), 1024 * 1024);
+    ShmAllocator<1024> allocator(shm_name.c_str(), 1024 * 1024);
 
     // Create test object
     auto point_ptr =
@@ -240,7 +240,7 @@ void TestInstanceEnumeration() {
   CleanupShm(shm_name);
 
   try {
-    ShmAllocator allocator(shm_name.c_str(), 1024 * 1024);
+    ShmAllocator<1024> allocator(shm_name.c_str(), 1024 * 1024);
 
     // Create multiple instances
     allocator.Construct<TestPoint>("point1", 1.0, 1.0, 1.0, 1);
@@ -293,7 +293,7 @@ void TestMemoryStatistics() {
   const size_t storage_size = 1024 * 1024;
 
   try {
-    ShmAllocator allocator(shm_name.c_str(), storage_size);
+    ShmAllocator<1024> allocator(shm_name.c_str(), storage_size);
 
     // Test initial state
     RunTest("TestMemoryStatistics::initial_used_storage",
@@ -331,7 +331,7 @@ void TestPersistence() {
   try {
     // Phase 1: Create and populate
     {
-      ShmAllocator allocator(shm_name.c_str(), 1024 * 1024);
+      ShmAllocator<1024> allocator(shm_name.c_str(), 1024 * 1024);
       allocator.Construct<TestPoint>("persist_point", 100.0, 200.0, 300.0,
                                      12345);
       allocator.Construct<TestEmployee>("persist_emp", "David", 4004, 80000.0);
@@ -342,7 +342,7 @@ void TestPersistence() {
 
     // Phase 2: Reconnect and verify
     {
-      ShmAllocator allocator(shm_name.c_str(), 0, false);  // Don't create
+      ShmAllocator<1024> allocator(shm_name.c_str(), 0, false);  // Don't create
 
       RunTest("TestPersistence::phase2_instance_count",
               allocator.instance_count() == 2);
@@ -374,7 +374,7 @@ void TestErrorHandling() {
     // Test opening non-existent shared memory
     bool caught_exception = false;
     try {
-      ShmAllocator allocator("/non_existent_shm", 0, false);
+      ShmAllocator<1024> allocator("/non_existent_shm", 0, false);
     } catch (const ShmAllocatorError&) {
       caught_exception = true;
     }
@@ -382,7 +382,7 @@ void TestErrorHandling() {
 
     // Test memory exhaustion
     {
-      ShmAllocator allocator(shm_name.c_str(), 1024);  // Small size
+      ShmAllocator<1024> allocator(shm_name.c_str(), 1024);  // Small size
 
       struct LargeObject {
         char data[2048];  // Larger than available space
@@ -401,7 +401,7 @@ void TestErrorHandling() {
 
     // Test long name handling
     {
-      ShmAllocator allocator(shm_name.c_str(), 1024 * 1024);
+      ShmAllocator<1024> allocator(shm_name.c_str(), 1024 * 1024);
 
       // Name longer than FixedString capacity (32 chars)
       std::string long_name(50, 'x');
@@ -431,7 +431,7 @@ void TestAlignment() {
   CleanupShm(shm_name);
 
   try {
-    ShmAllocator allocator(shm_name.c_str(), 1024 * 1024);
+    ShmAllocator<1024> allocator(shm_name.c_str(), 1024 * 1024);
 
     // Test different types with different alignment requirements
     auto char_ptr = allocator.Allocate<char>("test_char");
@@ -460,19 +460,19 @@ void TestShmExists() {
   try {
     // Test non-existent
     RunTest("TestShmExists::non_existent",
-            !ShmAllocator::ShmExists(shm_name.c_str()));
+            !ShmAllocator<1024>::ShmExists(shm_name.c_str()));
 
     // Create and test existent
     {
-      ShmAllocator allocator(shm_name.c_str(), 1024);
+      ShmAllocator<1024> allocator(shm_name.c_str(), 1024);
       RunTest("TestShmExists::existent",
-              ShmAllocator::ShmExists(shm_name.c_str()));
+              ShmAllocator<1024>::ShmExists(shm_name.c_str()));
       allocator.DeallocateAll();
     }
 
     // Test after cleanup
     RunTest("TestShmExists::after_cleanup",
-            !ShmAllocator::ShmExists(shm_name.c_str()));
+            !ShmAllocator<1024>::ShmExists(shm_name.c_str()));
 
   } catch (const std::exception& e) {
     RunTest("TestShmExists", false, e.what());
