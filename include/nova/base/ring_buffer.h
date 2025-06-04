@@ -160,6 +160,11 @@ class RingBuffer {
     return write_pos_ & mask_;
   }
 
+  // Get latest write position
+  [[nodiscard]] constexpr size_type latest_pos() const {
+    return (write_pos_ - 1) & mask_;
+  }
+
   // Get the number of elements written so far
   [[nodiscard]] size_type write_count() const {
     return write_pos_;
@@ -305,6 +310,11 @@ class RingBuffer {
   // Get current write position in buffer
   [[nodiscard]] constexpr size_type write_position() const {
     return write_pos_ & kMask;
+  }
+
+  // Get latest write position
+  [[nodiscard]] constexpr size_type latest_pos() const {
+    return (write_pos_ - 1) & kMask;
   }
 
   // Get the number of elements written so far
