@@ -229,6 +229,7 @@ void LogManager::InitializeFrontend() {
   format_options.timestamp_pattern = config_.timestamp_pattern();
   format_options.timestamp_timezone = quill::Timezone::LocalTime;
   logger_ = NovaFrontend::create_or_get_logger("logger", sinks, format_options);
+  logger_->set_log_level(LogLevelArray[config_.log_level()]);
 }
 
 LogManager::~LogManager() {
