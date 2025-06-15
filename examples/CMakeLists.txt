@@ -74,3 +74,8 @@ target_link_libraries(shm_allocator_test PRIVATE fmt::fmt nova)
 add_executable(fixed_string_demo fixed_string_demo.cpp)
 target_include_directories(fixed_string_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
 target_link_libraries(fixed_string_demo PRIVATE fmt::fmt-header-only nova)
+
+# fixed_array_demo
+add_executable(fixed_array_demo fixed_array_demo.cpp)
+target_include_directories(fixed_array_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
+target_link_libraries(fixed_array_demo PRIVATE fmt::fmt-header-only nova)
