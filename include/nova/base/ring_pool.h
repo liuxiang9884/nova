@@ -180,6 +180,14 @@ class RingPool {
     return reinterpret_cast<T&>(buffer_[offset]);
   }
 
+  std::byte* ReadBuffer(size_type offset) noexcept {
+    return buffer_.data() + offset;
+  }
+
+  [[nodiscard]] std::byte* ReadBuffer(size_type offset) const noexcept {
+    return const_cast<std::byte*>(buffer_.data() + offset);
+  }
+
   template <typename T>
     requires MMapType<T>
   T& operator[](size_type offset) {
@@ -408,6 +416,14 @@ class RingPool {
       }
     }
     return reinterpret_cast<T&>(buffer_[offset]);
+  }
+
+  std::byte* ReadBuffer(size_type offset) noexcept {
+    return buffer_.data() + offset;
+  }
+
+  [[nodiscard]] std::byte* ReadBuffer(size_type offset) const noexcept {
+    return const_cast<std::byte*>(buffer_.data() + offset);
   }
 
   template <typename T>
