@@ -45,14 +45,7 @@ void ShmAllocator<N>::CleanupNewShmOnFailure(const char* name) {
 
 template <std::size_t N>
 void ShmAllocator<N>::CleanupExistingShmOnFailure() {
-  if (shm_ptr_ != nullptr && shm_ptr_ != MAP_FAILED) {
-    munmap(shm_ptr_, mapped_size_);
-    shm_ptr_ = nullptr;
-  }
-  if (shm_fd_ != -1) {
-    close(shm_fd_);
-    shm_fd_ = -1;
-  }
+  CleanupMappedResources();
 }
 
 template <std::size_t N>
