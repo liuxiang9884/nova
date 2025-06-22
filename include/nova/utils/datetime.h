@@ -194,14 +194,15 @@ inline void MicrosecondToStr(char *str, const int64_t us,
   if (str == nullptr) return;
 
   struct tm tp{};
-  char tmp[32];
   time_t second = us / 1000000;
   time_t decimal = us % 1000000;
   localtime_r(&second, &tp);
   tp.tm_isdst = 0;
+
+  char tmp[32];
   strftime(tmp, sizeof(tmp), format, &tp);
 
-  fmt::format_to(str, "{}.{:06d}", tmp, decimal);
+  fmt::format_to(str, "{}.{:06d}\0", tmp, decimal);
 }
 
 /**
@@ -216,13 +217,15 @@ inline void NanosecondToMilliStr(char *str, const int64_t ns,
   if (str == nullptr) return;
 
   struct tm tp{};
-  char tmp[32];
   time_t second = ns / 1000000000;
   time_t decimal = ns % 1000000000 / 1000000;
   localtime_r(&second, &tp);
   tp.tm_isdst = 0;
+
+  char tmp[32];
   strftime(tmp, sizeof(tmp), format, &tp);
-  fmt::format_to(str, "{}.{:03d}", tmp, decimal);
+
+  fmt::format_to(str, "{}.{:03d}\0", tmp, decimal);
 }
 
 /**
@@ -237,13 +240,15 @@ inline void NanosecondToDatetime(char *str, const int64_t ns,
   if (str == nullptr) return;
 
   struct tm tp{};
-  char tmp[32];
   time_t second = ns / 1000000000;
   time_t decimal = ns % 1000000000;
+
+  char tmp[32];
   localtime_r(&second, &tp);
   tp.tm_isdst = 0;
   strftime(tmp, sizeof(tmp), format, &tp);
-  fmt::format_to(str, "{}.{:09d}", tmp, decimal);
+
+  fmt::format_to(str, "{}.{:09d}\0", tmp, decimal);
 }
 
 /**
