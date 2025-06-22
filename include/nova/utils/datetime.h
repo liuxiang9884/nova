@@ -226,6 +226,27 @@ inline void NanosecondToMilliStr(char *str, const int64_t ns,
 }
 
 /**
+ * @brief Convert nanoseconds to formatted time string with milliseconds
+ * @param str Output buffer for the formatted string
+ * @param ns Time in nanoseconds
+ * @param format Time format string
+ * @note Ensure str buffer is large enough
+ */
+inline void NanosecondToDatetime(char *str, const int64_t ns,
+                                 const char *format = "%Y-%m-%d %H:%M:%S") {
+  if (str == nullptr) return;
+
+  struct tm tp{};
+  char tmp[32];
+  time_t second = ns / 1000000000;
+  time_t decimal = ns % 1000000000;
+  localtime_r(&second, &tp);
+  tp.tm_isdst = 0;
+  strftime(tmp, sizeof(tmp), format, &tp);
+  fmt::format_to(str, "{}.{:09d}", tmp, decimal);
+}
+
+/**
  * @brief Create a timestamp for a specific time point
  * @param year Year
  * @param mon Month (1-12)
