@@ -26,6 +26,13 @@ static constexpr int64_t kMilliPerSecond = 1000;
 static constexpr int64_t kMicroPerSecond = 1000000;
 static constexpr int64_t kNanoPerSecond = 1000000000;
 
+// format "2025-05-13 15:45:08.973"
+static constexpr auto kMilliDatetimeFormatSize = 23;
+// format "2025-05-13 15:45:08.973000"
+static constexpr auto kMicroDatetimeFormatSize = 26;
+// format "2025-05-13 15:45:08.973000000"
+static constexpr auto kNanoDatetimeFormatSize = 29;
+
 /**
  * @brief Introduces a CPU delay using pause instruction
  * @param delay Number of pause iterations
@@ -202,7 +209,9 @@ inline void MicrosecondToStr(char *str, const int64_t us,
   char tmp[32];
   strftime(tmp, sizeof(tmp), format, &tp);
 
-  fmt::format_to(str, "{}.{:06d}\0", tmp, decimal);
+  auto [out, size] = fmt::format_to_n(str, kMicroDatetimeFormatSize,
+                                      "{}.{:06d}", tmp, decimal);
+  str[size] = '\0';
 }
 
 /**
@@ -225,7 +234,9 @@ inline void NanosecondToMilliStr(char *str, const int64_t ns,
   char tmp[32];
   strftime(tmp, sizeof(tmp), format, &tp);
 
-  fmt::format_to(str, "{}.{:03d}\0", tmp, decimal);
+  auto [out, size] = fmt::format_to_n(str, kMilliDatetimeFormatSize,
+                                      "{}.{:03d}", tmp, decimal);
+  str[size] = '\0';
 }
 
 /**
@@ -248,7 +259,9 @@ inline void NanosecondToDatetime(char *str, const int64_t ns,
   tp.tm_isdst = 0;
   strftime(tmp, sizeof(tmp), format, &tp);
 
-  fmt::format_to(str, "{}.{:09d}\0", tmp, decimal);
+  auto [out, size] =
+      fmt::format_to_n(str, kNanoDatetimeFormatSize, "{}.{:09d}", tmp, decimal);
+  str[size] = '\0';
 }
 
 /**
