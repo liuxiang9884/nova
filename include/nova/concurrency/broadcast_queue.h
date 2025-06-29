@@ -41,10 +41,8 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
     // Check if we need to wrap around
     if (cached_write_pos_ + write_size > buffer_.size() - sizeof(size_type))
         [[unlikely]] {
-      memset(buffer_.data() + cached_write_pos_, 0, sizeof(size_type));
-      cached_write_pos_ = 0;
-      object_start_pos =
-          AlignUp<alignof(T)>(sizeof(size_type));  // Simplified calculation
+      HandleWriteWrapAround<T>();
+      object_start_pos = AlignUp<alignof(T)>(sizeof(size_type));
       write_size = object_start_pos + sizeof(T);
     }
 
@@ -83,35 +81,10 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
     size_type entry_size = *reinterpret_cast<const size_type*>(size_ptr);
 
     // Check for wrap-around marker (size = 0)
-    if (entry_size == 0) {
+    if (entry_size == 0) [[unlikely]] {
       // This is a wrap-around marker, jump to beginning
-      read_pos = 0;
-      if (read_pos == current_write_pos) {
-        return std::nullopt;
-      }
-
-      // Read size from the beginning
-      size_ptr = buffer_.data() + read_pos;
-      entry_size = *reinterpret_cast<const size_type*>(size_ptr);
+      HandleReadWrapAround(read_pos, entry_size);
     }
-
-    // Validate entry size
-    if (entry_size == 0 || entry_size > N) {
-      return std::nullopt;
-    }
-
-    // Ensure we don't read beyond valid data
-    // When read_pos >= current_write_pos, it means writer has wrapped around
-    // In this case, we can read until we hit a wrap marker (size = 0)
-    // The wrap marker check above already handled this case
-    if (read_pos < current_write_pos) {
-      // Normal case: ensure we don't read beyond write position
-      if (read_pos + entry_size > current_write_pos) {
-        return std::nullopt;
-      }
-    }
-    // If read_pos >= current_write_pos, we rely on the wrap marker (size = 0)
-    // to detect when to wrap around, which was already handled above
 
     // Calculate object position with proper alignment
     constexpr size_type object_offset = AlignUp<alignof(T)>(sizeof(size_type));
@@ -127,6 +100,28 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
   // Get current write position for new readers
   size_type GetCurrentWritePos() const noexcept {
     return write_pos_.load(std::memory_order_acquire);
+  }
+
+ private:
+  // Handle write wrap-around logic
+  template <typename T>
+  void HandleWriteWrapAround() noexcept {
+    // Set wrap-around marker at current position
+    memset(buffer_.data() + cached_write_pos_, 0, sizeof(size_type));
+
+    // Reset to beginning of buffer
+    cached_write_pos_ = 0;
+  }
+
+  // Handle read wrap-around logic
+  void HandleReadWrapAround(size_type& read_pos,
+                            size_type& entry_size) noexcept {
+    // Jump to beginning of buffer
+    read_pos = 0;
+
+    // Read size from the beginning
+    auto size_ptr = buffer_.data() + read_pos;
+    entry_size = *reinterpret_cast<const size_type*>(size_ptr);
   }
 
  private:
