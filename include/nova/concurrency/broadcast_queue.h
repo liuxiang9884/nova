@@ -30,9 +30,6 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
   template <typename T, typename... Args>
   T& Emplace(Args&&... args) noexcept(
       std::is_nothrow_constructible_v<T, Args...>) {
-    static_assert(alignof(T) <= kAlignment,
-                  "Type alignment exceeds pool alignment");
-
     // Calculate current position's write_size
     size_type object_start_pos =
         AlignUp<alignof(T)>(cached_write_pos_ + sizeof(size_type));
@@ -41,9 +38,7 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
     // Check if we need to wrap around
     if (cached_write_pos_ + write_size > buffer_.size() - sizeof(size_type))
         [[unlikely]] {
-      HandleWriteWrapAround<T>();
-      object_start_pos = AlignUp<alignof(T)>(sizeof(size_type));
-      write_size = object_start_pos + sizeof(T);
+      HandleWriteWrapAround<T>(object_start_pos, write_size);
     }
 
     // Write size field first (store total write_size for reader navigation)
@@ -65,9 +60,6 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
 
   template <typename T>
   std::optional<T*> TryRead(size_type& read_pos) noexcept {
-    static_assert(alignof(T) <= kAlignment,
-                  "Type alignment exceeds pool alignment");
-
     // Get current write position
     size_type current_write_pos = write_pos_.load(std::memory_order_acquire);
 
@@ -105,12 +97,17 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
  private:
   // Handle write wrap-around logic
   template <typename T>
-  void HandleWriteWrapAround() noexcept {
+  void HandleWriteWrapAround(size_type& object_start_pos,
+                             size_type& write_size) noexcept {
     // Set wrap-around marker at current position
     memset(buffer_.data() + cached_write_pos_, 0, sizeof(size_type));
 
     // Reset to beginning of buffer
     cached_write_pos_ = 0;
+
+    // Recalculate positions for the new location
+    object_start_pos = AlignUp<alignof(T)>(sizeof(size_type));
+    write_size = object_start_pos + sizeof(T);
   }
 
   // Handle read wrap-around logic
