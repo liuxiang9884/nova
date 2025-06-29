@@ -79,3 +79,8 @@ target_link_libraries(fixed_string_demo PRIVATE fmt::fmt-header-only nova)
 add_executable(fixed_array_demo fixed_array_demo.cpp)
 target_include_directories(fixed_array_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
 target_link_libraries(fixed_array_demo PRIVATE fmt::fmt-header-only nova)
+
+# broadcast_queue_demo
+add_executable(broadcast_queue_demo broadcast_queue_demo.cpp)
+target_include_directories(broadcast_queue_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
+target_link_libraries(broadcast_queue_demo PRIVATE fmt::fmt-header-only nova)
