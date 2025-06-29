@@ -97,11 +97,11 @@ class RingBuffer {
 
   // Emplace an element directly in the buffer at current write position
   template <typename... Args>
-  T& Emplace(Args&&... args) {
-    T& item = buffer_[write_pos_ & mask_];
-    item = T(std::forward<Args>(args)...);
+  constexpr T& Emplace(Args&&... args) {
+    T* ptr = &buffer_[write_pos_ & mask_];
+    new (ptr) T(std::forward<Args>(args)...);
     ++write_pos_;
-    return item;
+    return *ptr;
   }
 
   // Allocate memory at current write position without initialization
@@ -250,10 +250,10 @@ class RingBuffer {
   // Emplace an element directly in the buffer at current write position
   template <typename... Args>
   constexpr T& Emplace(Args&&... args) {
-    T& item = buffer_[write_pos_ & kMask];
-    item = T(std::forward<Args>(args)...);
+    T* ptr = &buffer_[write_pos_ & kMask];
+    new (ptr) T(std::forward<Args>(args)...);
     ++write_pos_;
-    return item;
+    return *ptr;
   }
 
   // Allocate memory at current write position without initialization
