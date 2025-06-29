@@ -528,9 +528,7 @@ class RingPool {
 
   void CalculateWritePos(size_type size, size_type alignment) noexcept {
     write_pos_ = AlignUp(write_pos_, alignment);
-    if (write_pos_ + size > N) [[unlikely]] {
-      write_pos_ = 0;
-    }
+    write_pos_ *= (write_pos_ + size <= buffer_.size());
   }
 };
 
