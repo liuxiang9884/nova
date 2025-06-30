@@ -7,8 +7,8 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
-#include <new>
 #include <optional>
+#include <cstring>
 
 #include "nova/common/hardware.h"
 
@@ -16,7 +16,7 @@ namespace nova {
 
 namespace static_impl {
 
-template <std::size_t N>
+template <typename Type, std::size_t N>
 class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
  public:
   using size_type = std::size_t;
@@ -27,23 +27,29 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
     return (value + Alignment - 1) & ~(Alignment - 1);
   }
 
+  struct alignas(kAlignment) Header {
+    uint32_t length;
+    Type type;
+  };
+
   template <typename T, typename... Args>
-  T& Emplace(Args&&... args) noexcept(
+  T& Emplace(Type type, Args&&... args) noexcept(
       std::is_nothrow_constructible_v<T, Args...>) {
     // Calculate current position's write_size
     size_type object_start_pos =
-        AlignUp<alignof(T)>(cached_write_pos_ + sizeof(size_type));
+        AlignUp<alignof(T)>(cached_write_pos_ + sizeof(Header));
     size_type write_size = object_start_pos - cached_write_pos_ + sizeof(T);
 
     // Check if we need to wrap around
-    if (cached_write_pos_ + write_size > buffer_.size() - sizeof(size_type))
+    if (cached_write_pos_ + write_size > buffer_.size() - sizeof(Header))
         [[unlikely]] {
       HandleWriteWrapAround<T>(object_start_pos, write_size);
     }
 
     // Write size field first (store total write_size for reader navigation)
-    auto write_ptr = buffer_.data() + cached_write_pos_;
-    *reinterpret_cast<size_type*>(write_ptr) = write_size;
+    auto header = reinterpret_cast<Header*>(buffer_.data() + cached_write_pos_);
+    header->type = type;
+    header->length = write_size;
 
     // Write T object at properly aligned absolute position
     auto object_ptr = buffer_.data() + object_start_pos;
@@ -59,7 +65,7 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
   }
 
   template <typename T>
-  std::optional<T*> TryRead(size_type& read_pos) noexcept {
+  std::optional<std::pair<Type, T*>> TryRead(size_type& read_pos) noexcept {
     // Get current write position
     size_type current_write_pos = write_pos_.load(std::memory_order_acquire);
 
@@ -69,24 +75,24 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
     }
 
     // Read the size field at current position
-    auto size_ptr = buffer_.data() + read_pos;
-    size_type entry_size = *reinterpret_cast<const size_type*>(size_ptr);
+    const auto* header =
+        reinterpret_cast<const Header*>(buffer_.data() + read_pos);
 
     // Check for wrap-around marker (size = 0)
-    if (entry_size == 0) [[unlikely]] {
-      // This is a wrap-around marker, jump to beginning
-      HandleReadWrapAround(read_pos, entry_size);
+    if (header->length == 0) [[unlikely]] {
+      read_pos = 0;
+      header = reinterpret_cast<Header*>(buffer_.data() + read_pos);
     }
 
     // Calculate object position with proper alignment
-    constexpr size_type object_offset = AlignUp<alignof(T)>(sizeof(size_type));
+    constexpr size_type object_offset = AlignUp<alignof(T)>(sizeof(Header));
     auto object_ptr = buffer_.data() + read_pos + object_offset;
 
     // Advance read position
-    read_pos += entry_size;
+    read_pos += header->length;
 
     // Return pointer to the constructed object
-    return reinterpret_cast<T*>(object_ptr);
+    return std::make_pair<Type, T*>{header->type, reinterpret_cast<T*>(object_ptr)};
   }
 
   // Get current write position for new readers
@@ -100,25 +106,14 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
   void HandleWriteWrapAround(size_type& object_start_pos,
                              size_type& write_size) noexcept {
     // Set wrap-around marker at current position
-    memset(buffer_.data() + cached_write_pos_, 0, sizeof(size_type));
+    memset(buffer_.data() + cached_write_pos_, 0, sizeof(Header));
 
     // Reset to beginning of buffer
     cached_write_pos_ = 0;
 
     // Recalculate positions for the new location
-    object_start_pos = AlignUp<alignof(T)>(sizeof(size_type));
+    object_start_pos = AlignUp<alignof(T)>(sizeof(Header));
     write_size = object_start_pos + sizeof(T);
-  }
-
-  // Handle read wrap-around logic
-  void HandleReadWrapAround(size_type& read_pos,
-                            size_type& entry_size) noexcept {
-    // Jump to beginning of buffer
-    read_pos = 0;
-
-    // Read size from the beginning
-    auto size_ptr = buffer_.data() + read_pos;
-    entry_size = *reinterpret_cast<const size_type*>(size_ptr);
   }
 
  private:
