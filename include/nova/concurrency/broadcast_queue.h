@@ -64,8 +64,13 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
     return *ptr;
   }
 
-  template <typename T>
-  std::optional<std::pair<Type, T*>> TryRead(size_type& read_pos) noexcept {
+  // Read entry info and return header with entry position
+  struct EntryInfo {
+    const Header* header;
+    size_type entry_pos;
+  };
+
+  std::optional<EntryInfo> TryRead(size_type& read_pos) noexcept {
     // Get current write position
     size_type current_write_pos = write_pos_.load(std::memory_order_acquire);
 
@@ -74,25 +79,33 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
       return std::nullopt;
     }
 
-    // Read the size field at current position
+    // Store original entry position
+    size_type entry_pos = read_pos;
+
+    // Read the header at current position
     const auto* header =
         reinterpret_cast<const Header*>(buffer_.data() + read_pos);
 
     // Check for wrap-around marker (length = 0)
     if (header->length == 0) [[unlikely]] {
       read_pos = 0;
+      entry_pos = 0;
       header = reinterpret_cast<const Header*>(buffer_.data() + read_pos);
     }
-
-    // Calculate object position with same logic as Emplace
-    size_type object_start_pos = AlignUp<alignof(T)>(read_pos + sizeof(Header));
-    auto object_ptr = buffer_.data() + object_start_pos;
 
     // Advance read position
     read_pos += header->length;
 
-    // Return pointer to the constructed object
-    return std::make_pair(header->type, reinterpret_cast<T*>(object_ptr));
+    return EntryInfo{header, entry_pos};
+  }
+
+  // Get typed object pointer based on entry info
+  template <typename T>
+  T* Get(const EntryInfo& entry_info) noexcept {
+    // Calculate object position with same logic as Emplace
+    size_type object_start_pos =
+        AlignUp<alignof(T)>(entry_info.entry_pos + sizeof(Header));
+    return reinterpret_cast<T*>(buffer_.data() + object_start_pos);
   }
 
   // Get current write position for new readers
