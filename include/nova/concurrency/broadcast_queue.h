@@ -113,6 +113,23 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
     return write_pos_.load(std::memory_order_acquire);
   }
 
+  // Alternative reading method: direct header access
+  const Header* GetHeader(size_type pos) const noexcept {
+    return reinterpret_cast<const Header*>(buffer_.data() + pos);
+  }
+
+  // Get object pointer at specific position with manual alignment calculation
+  template <typename T>
+  const T* GetObjectAt(size_type entry_pos) const noexcept {
+    size_type object_start_pos =
+        AlignUp<alignof(T)>(entry_pos + sizeof(Header));
+    return reinterpret_cast<const T*>(buffer_.data() + object_start_pos);
+  }
+
+  Header* GetHeader(size_type pos) noexcept {
+    return reinterpret_cast<Header*>(buffer_.data() + pos);
+  }
+
  private:
   // Handle write wrap-around logic
   template <typename T>

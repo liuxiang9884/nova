@@ -414,6 +414,97 @@ void AlignmentDemo() {
   }
 }
 
+void AlternativeReadingDemo() {
+  std::cout << "\n=== Alternative Reading Method Demo ===\n";
+
+  BroadcastQueue queue;
+  std::atomic<bool> producer_done{false};
+
+  // Producer thread
+  std::thread producer([&queue, &producer_done]() {
+    std::cout << "Producer: Starting alternative reading test...\n";
+
+    for (int i = 0; i < 6; ++i) {
+      if (i % 2 == 0) {
+        auto& msg = queue.Emplace<Message>(MessageType::STRING_MSG, i,
+                                           "Alt " + std::to_string(i));
+        std::cout << "Producer: Emplaced Message " << msg.id << "\n";
+      } else {
+        auto& num = queue.Emplace<int>(MessageType::INT_MSG, i * 50);
+        std::cout << "Producer: Emplaced int " << num << "\n";
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(120));
+    }
+
+    producer_done = true;
+    std::cout << "Producer: Finished alternative test\n";
+  });
+
+  // Consumer using alternative reading method
+  std::thread consumer([&queue, &producer_done]() {
+    std::cout << "Consumer: Using alternative reading method...\n";
+
+    size_t last_pos = 0;
+    int messages_read = 0;
+
+    while (!producer_done || messages_read < 6) {
+      auto current_pos = queue.GetCurrentWritePos();
+
+      // Process all new messages between last_pos and current_pos
+      for (auto read_pos = last_pos; read_pos != current_pos;) {
+        const auto* header = queue.GetHeader(read_pos);
+
+        // Handle wrap-around marker
+        if (header->length == 0) {
+          std::cout << "Consumer: Detected wrap-around marker at pos "
+                    << read_pos << "\n";
+          read_pos = 0;
+          header = queue.GetHeader(read_pos);
+        }
+
+        std::cout << "Consumer: Processing entry at pos " << read_pos
+                  << ", type=" << static_cast<int>(header->type)
+                  << ", length=" << header->length << "\n";
+
+        switch (header->type) {
+          case MessageType::STRING_MSG: {
+            // Use the new GetObjectAt method
+            auto* msg = queue.GetObjectAt<Message>(read_pos);
+            std::cout << "Consumer: [ALT] Message id=" << msg->id
+                      << ", content=" << msg->content << "\n";
+            break;
+          }
+          case MessageType::INT_MSG: {
+            // Use the new GetObjectAt method
+            auto* num = queue.GetObjectAt<int>(read_pos);
+            std::cout << "Consumer: [ALT] int=" << *num << "\n";
+            break;
+          }
+          default:
+            std::cout << "Consumer: [ALT] Unknown type\n";
+            break;
+        }
+
+        read_pos += header->length;
+        ++messages_read;
+      }
+
+      last_pos = current_pos;
+
+      if (last_pos == current_pos) {
+        // No new data, wait briefly
+        std::this_thread::sleep_for(std::chrono::milliseconds(15));
+      }
+    }
+
+    std::cout << "Consumer: Finished alternative reading, processed "
+              << messages_read << " messages\n";
+  });
+
+  producer.join();
+  consumer.join();
+}
+
 int main() {
   std::cout << "FlexibleSPBroadcastQueue Comprehensive Demo\n";
   std::cout << "==========================================\n";
@@ -422,6 +513,7 @@ int main() {
   WrapAroundDemo();
   MultipleTypesDemo();
   MultipleReadersDemo();
+  AlternativeReadingDemo();
   AlignmentDemo();
 
   std::cout << "\n=== All Demos Completed ===\n";
