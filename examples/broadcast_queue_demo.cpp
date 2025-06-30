@@ -452,14 +452,14 @@ void AlternativeReadingDemo() {
 
       // Process all new messages between last_pos and current_pos
       for (auto read_pos = last_pos; read_pos != current_pos;) {
-        const auto* header = queue.GetHeader(read_pos);
+        auto original_pos = read_pos;
+        const auto* header =
+            queue.GetHeader(read_pos);  // GetHeader now handles wrap-around
 
-        // Handle wrap-around marker
-        if (header->length == 0) {
-          std::cout << "Consumer: Detected wrap-around marker at pos "
-                    << read_pos << "\n";
-          read_pos = 0;
-          header = queue.GetHeader(read_pos);
+        // Check if wrap-around occurred
+        if (read_pos != original_pos) {
+          std::cout << "Consumer: Detected wrap-around, jumped from "
+                    << original_pos << " to " << read_pos << "\n";
         }
 
         std::cout << "Consumer: Processing entry at pos " << read_pos
