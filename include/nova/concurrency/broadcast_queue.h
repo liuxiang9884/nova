@@ -7,8 +7,8 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
-#include <optional>
 #include <cstring>
+#include <optional>
 
 #include "nova/common/hardware.h"
 
@@ -78,15 +78,15 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
     const auto* header =
         reinterpret_cast<const Header*>(buffer_.data() + read_pos);
 
-    // Check for wrap-around marker (size = 0)
+    // Check for wrap-around marker (length = 0)
     if (header->length == 0) [[unlikely]] {
       read_pos = 0;
       header = reinterpret_cast<const Header*>(buffer_.data() + read_pos);
     }
 
-    // Calculate object position with proper alignment
-    constexpr size_type object_offset = AlignUp<alignof(T)>(sizeof(Header));
-    auto object_ptr = buffer_.data() + read_pos + object_offset;
+    // Calculate object position with same logic as Emplace
+    size_type object_start_pos = AlignUp<alignof(T)>(read_pos + sizeof(Header));
+    auto object_ptr = buffer_.data() + object_start_pos;
 
     // Advance read position
     read_pos += header->length;
