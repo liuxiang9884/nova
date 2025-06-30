@@ -415,39 +415,58 @@ void AlignmentDemo() {
 }
 
 void AlternativeReadingDemo() {
-  std::cout << "\n=== Alternative Reading Method Demo ===\n";
+  std::cout << "\n=== Alternative Reading Method Demo (with Wrap-Around) ===\n";
 
-  BroadcastQueue queue;
+  // Use smaller queue to trigger wrap-around more easily
+  using SmallQueue =
+      nova::static_impl::FlexibleSPBroadcastQueue<MessageType, 300>;
+  SmallQueue queue;
   std::atomic<bool> producer_done{false};
 
-  // Producer thread
-  std::thread producer([&queue, &producer_done]() {
-    std::cout << "Producer: Starting alternative reading test...\n";
+  std::cout << "Using small buffer (300 bytes) to trigger wrap-around...\n";
 
-    for (int i = 0; i < 6; ++i) {
-      if (i % 2 == 0) {
+  // Producer thread - produces enough data to cause wrap-around
+  std::thread producer([&queue, &producer_done]() {
+    std::cout
+        << "Producer: Starting alternative reading test with wrap-around...\n";
+
+    for (int i = 0; i < 12; ++i) {
+      auto current_write_pos = queue.GetCurrentWritePos();
+
+      if (i % 3 == 0) {
         auto& msg = queue.Emplace<Message>(MessageType::STRING_MSG, i,
-                                           "Alt " + std::to_string(i));
-        std::cout << "Producer: Emplaced Message " << msg.id << "\n";
+                                           "AltWrap " + std::to_string(i));
+        std::cout << "Producer: Emplaced Message " << msg.id
+                  << " (write_pos: " << current_write_pos << " -> "
+                  << queue.GetCurrentWritePos() << ")\n";
+      } else if (i % 3 == 1) {
+        auto& large = queue.Emplace<LargeData>(MessageType::LARGE_DATA_MSG, i);
+        std::cout << "Producer: Emplaced LargeData " << large.sequence
+                  << " (write_pos: " << current_write_pos << " -> "
+                  << queue.GetCurrentWritePos() << ")\n";
       } else {
         auto& num = queue.Emplace<int>(MessageType::INT_MSG, i * 50);
-        std::cout << "Producer: Emplaced int " << num << "\n";
+        std::cout << "Producer: Emplaced int " << num
+                  << " (write_pos: " << current_write_pos << " -> "
+                  << queue.GetCurrentWritePos() << ")\n";
       }
-      std::this_thread::sleep_for(std::chrono::milliseconds(120));
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     producer_done = true;
-    std::cout << "Producer: Finished alternative test\n";
+    std::cout << "Producer: Finished alternative test (final write_pos: "
+              << queue.GetCurrentWritePos() << ")\n";
   });
 
   // Consumer using alternative reading method
   std::thread consumer([&queue, &producer_done]() {
-    std::cout << "Consumer: Using alternative reading method...\n";
+    std::cout << "Consumer: Using alternative reading method with wrap-around "
+                 "detection...\n";
 
     size_t last_pos = 0;
     int messages_read = 0;
 
-    while (!producer_done || messages_read < 6) {
+    while (!producer_done || messages_read < 12) {
       auto current_pos = queue.GetCurrentWritePos();
 
       // Process all new messages between last_pos and current_pos
@@ -457,9 +476,15 @@ void AlternativeReadingDemo() {
         const auto* header = queue.GetHeader(
             read_pos);  // GetHeader updates read_pos to next entry
 
-        std::cout << "Consumer: Processing entry at pos " << entry_pos
-                  << ", type=" << static_cast<int>(header->type)
-                  << ", length=" << header->length << "\n";
+        // Detect wrap-around
+        std::string wrap_info = "";
+        if (read_pos < entry_pos) {
+          wrap_info = " - WRAP-AROUND DETECTED!";
+        }
+
+        std::cout << "Consumer: Processing entry at pos " << entry_pos << " -> "
+                  << read_pos << ", type=" << static_cast<int>(header->type)
+                  << ", length=" << header->length << wrap_info << "\n";
 
         switch (header->type) {
           case MessageType::STRING_MSG: {
@@ -473,6 +498,14 @@ void AlternativeReadingDemo() {
             // Use entry_pos for reading the object
             auto* num = queue.Get<int>(entry_pos);
             std::cout << "Consumer: [ALT] int=" << *num << "\n";
+            break;
+          }
+          case MessageType::LARGE_DATA_MSG: {
+            // Use entry_pos for reading the object
+            auto* large = queue.Get<LargeData>(entry_pos);
+            std::cout << "Consumer: [ALT] LargeData sequence="
+                      << large->sequence << ", values[0]=" << large->values[0]
+                      << "\n";
             break;
           }
           default:
