@@ -81,7 +81,7 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
     // Check for wrap-around marker (size = 0)
     if (header->length == 0) [[unlikely]] {
       read_pos = 0;
-      header = reinterpret_cast<Header*>(buffer_.data() + read_pos);
+      header = reinterpret_cast<const Header*>(buffer_.data() + read_pos);
     }
 
     // Calculate object position with proper alignment
@@ -92,7 +92,7 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
     read_pos += header->length;
 
     // Return pointer to the constructed object
-    return std::make_pair<Type, T*>{header->type, reinterpret_cast<T*>(object_ptr)};
+    return std::make_pair(header->type, reinterpret_cast<T*>(object_ptr));
   }
 
   // Get current write position for new readers
