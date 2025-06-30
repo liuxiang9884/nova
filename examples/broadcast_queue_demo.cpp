@@ -51,26 +51,6 @@ void BasicDemo() {
   BroadcastQueue queue;
   std::atomic<bool> producer_done{false};
 
-  // Producer thread
-  std::thread producer([&queue, &producer_done]() {
-    std::cout << "Producer: Starting to produce messages...\n";
-
-    for (int i = 0; i < 5; ++i) {
-      // Emplace different types
-      auto& msg = queue.Emplace<Message>(MessageType::STRING_MSG, i,
-                                         "Hello " + std::to_string(i));
-      std::cout << "Producer: Emplaced Message " << msg.id << "\n";
-
-      auto& num = queue.Emplace<int>(MessageType::INT_MSG, i * 100);
-      std::cout << "Producer: Emplaced int " << num << "\n";
-
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-
-    producer_done = true;
-    std::cout << "Producer: Finished\n";
-  });
-
   // Consumer thread
   std::thread consumer([&queue, &producer_done]() {
     std::cout << "Consumer: Starting to consume...\n";
@@ -110,6 +90,26 @@ void BasicDemo() {
               << " messages\n";
   });
 
+  // Producer thread
+  std::thread producer([&queue, &producer_done]() {
+    std::cout << "Producer: Starting to produce messages...\n";
+
+    for (int i = 0; i < 5; ++i) {
+      // Emplace different types
+      auto& msg = queue.Emplace<Message>(MessageType::STRING_MSG, i,
+                                         "Hello " + std::to_string(i));
+      std::cout << "Producer: Emplaced Message " << msg.id << "\n";
+
+      auto& num = queue.Emplace<int>(MessageType::INT_MSG, i * 100);
+      std::cout << "Producer: Emplaced int " << num << "\n";
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    producer_done = true;
+    std::cout << "Producer: Finished\n";
+  });
+
   producer.join();
   consumer.join();
 }
@@ -121,24 +121,6 @@ void WrapAroundDemo() {
   nova::static_impl::FlexibleSPBroadcastQueue<MessageType, 256> small_queue;
 
   std::atomic<bool> producer_done{false};
-
-  // Producer: fill buffer and cause wrap-around
-  std::thread producer([&small_queue, &producer_done]() {
-    std::cout << "Producer: Filling small buffer to trigger wrap-around...\n";
-
-    for (int i = 0; i < 20; ++i) {
-      auto& data =
-          small_queue.Emplace<LargeData>(MessageType::LARGE_DATA_MSG, i);
-      std::cout << "Producer: Emplaced LargeData " << data.sequence
-                << " (write_pos: " << small_queue.GetCurrentWritePos() << ")\n";
-
-      std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    }
-
-    producer_done = true;
-    std::cout << "Producer: Finished (final write_pos: "
-              << small_queue.GetCurrentWritePos() << ")\n";
-  });
 
   // Consumer: read with wrap-around handling
   std::thread consumer([&small_queue, &producer_done]() {
@@ -169,6 +151,24 @@ void WrapAroundDemo() {
     std::cout << "Consumer: Finished reading " << items_read << " items\n";
   });
 
+  // Producer: fill buffer and cause wrap-around
+  std::thread producer([&small_queue, &producer_done]() {
+    std::cout << "Producer: Filling small buffer to trigger wrap-around...\n";
+
+    for (int i = 0; i < 20; ++i) {
+      auto& data =
+          small_queue.Emplace<LargeData>(MessageType::LARGE_DATA_MSG, i);
+      std::cout << "Producer: Emplaced LargeData " << data.sequence
+                << " (write_pos: " << small_queue.GetCurrentWritePos() << ")\n";
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+
+    producer_done = true;
+    std::cout << "Producer: Finished (final write_pos: "
+              << small_queue.GetCurrentWritePos() << ")\n";
+  });
+
   producer.join();
   consumer.join();
 }
@@ -178,43 +178,6 @@ void MultipleTypesDemo() {
 
   BroadcastQueue queue;
   std::atomic<bool> producer_done{false};
-
-  // Producer with mixed types
-  std::thread producer([&queue, &producer_done]() {
-    std::cout << "Producer: Starting mixed type production...\n";
-
-    for (int i = 0; i < 12; ++i) {
-      switch (i % 4) {
-        case 0: {
-          auto& msg = queue.Emplace<Message>(MessageType::STRING_MSG, i,
-                                             "Mixed " + std::to_string(i));
-          std::cout << "Producer: Emplaced Message " << msg.id << "\n";
-          break;
-        }
-        case 1: {
-          auto& num = queue.Emplace<int>(MessageType::INT_MSG, i * 10);
-          std::cout << "Producer: Emplaced int " << num << "\n";
-          break;
-        }
-        case 2: {
-          auto& data = queue.Emplace<LargeData>(MessageType::LARGE_DATA_MSG, i);
-          std::cout << "Producer: Emplaced LargeData " << data.sequence << "\n";
-          break;
-        }
-        case 3: {
-          auto& aligned = queue.Emplace<AlignedStruct>(
-              MessageType::ALIGNED_MSG, i * 1.0, i * 2.0, i * 3.0, i * 4.0);
-          std::cout << "Producer: Emplaced AlignedStruct with data[0]="
-                    << aligned.data[0] << "\n";
-          break;
-        }
-      }
-      std::this_thread::sleep_for(std::chrono::milliseconds(80));
-    }
-
-    producer_done = true;
-    std::cout << "Producer: Finished mixed production\n";
-  });
 
   // Consumer with type dispatching
   std::thread consumer([&queue, &producer_done]() {
@@ -276,6 +239,43 @@ void MultipleTypesDemo() {
     std::cout << "  - ALIGNED_MSG: " << type_counts[4] << "\n";
   });
 
+  // Producer with mixed types
+  std::thread producer([&queue, &producer_done]() {
+    std::cout << "Producer: Starting mixed type production...\n";
+
+    for (int i = 0; i < 12; ++i) {
+      switch (i % 4) {
+        case 0: {
+          auto& msg = queue.Emplace<Message>(MessageType::STRING_MSG, i,
+                                             "Mixed " + std::to_string(i));
+          std::cout << "Producer: Emplaced Message " << msg.id << "\n";
+          break;
+        }
+        case 1: {
+          auto& num = queue.Emplace<int>(MessageType::INT_MSG, i * 10);
+          std::cout << "Producer: Emplaced int " << num << "\n";
+          break;
+        }
+        case 2: {
+          auto& data = queue.Emplace<LargeData>(MessageType::LARGE_DATA_MSG, i);
+          std::cout << "Producer: Emplaced LargeData " << data.sequence << "\n";
+          break;
+        }
+        case 3: {
+          auto& aligned = queue.Emplace<AlignedStruct>(
+              MessageType::ALIGNED_MSG, i * 1.0, i * 2.0, i * 3.0, i * 4.0);
+          std::cout << "Producer: Emplaced AlignedStruct with data[0]="
+                    << aligned.data[0] << "\n";
+          break;
+        }
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(80));
+    }
+
+    producer_done = true;
+    std::cout << "Producer: Finished mixed production\n";
+  });
+
   producer.join();
   consumer.join();
 }
@@ -285,21 +285,6 @@ void MultipleReadersDemo() {
 
   BroadcastQueue queue;
   std::atomic<bool> producer_done{false};
-
-  // Single producer
-  std::thread producer([&queue, &producer_done]() {
-    std::cout << "Producer: Starting broadcast production...\n";
-
-    for (int i = 0; i < 8; ++i) {
-      auto& msg = queue.Emplace<Message>(MessageType::STRING_MSG, i,
-                                         "Broadcast " + std::to_string(i));
-      std::cout << "Producer: Broadcast Message " << msg.id << "\n";
-      std::this_thread::sleep_for(std::chrono::milliseconds(150));
-    }
-
-    producer_done = true;
-    std::cout << "Producer: Finished broadcasting\n";
-  });
 
   // Multiple readers starting at different times
   std::vector<std::thread> readers;
@@ -346,6 +331,21 @@ void MultipleReadersDemo() {
     }
 
     std::cout << "Reader2: Finished with " << count << " messages\n";
+  });
+
+  // Single producer
+  std::thread producer([&queue, &producer_done]() {
+    std::cout << "Producer: Starting broadcast production...\n";
+
+    for (int i = 0; i < 8; ++i) {
+      auto& msg = queue.Emplace<Message>(MessageType::STRING_MSG, i,
+                                         "Broadcast " + std::to_string(i));
+      std::cout << "Producer: Broadcast Message " << msg.id << "\n";
+      std::this_thread::sleep_for(std::chrono::milliseconds(150));
+    }
+
+    producer_done = true;
+    std::cout << "Producer: Finished broadcasting\n";
   });
 
   producer.join();
