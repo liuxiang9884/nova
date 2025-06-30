@@ -452,31 +452,26 @@ void AlternativeReadingDemo() {
 
       // Process all new messages between last_pos and current_pos
       for (auto read_pos = last_pos; read_pos != current_pos;) {
-        auto original_pos = read_pos;
-        const auto* header =
-            queue.GetHeader(read_pos);  // GetHeader now handles wrap-around
+        // Save current entry position before GetHeader modifies read_pos
+        auto entry_pos = read_pos;
+        const auto* header = queue.GetHeader(
+            read_pos);  // GetHeader updates read_pos to next entry
 
-        // Check if wrap-around occurred
-        if (read_pos != original_pos) {
-          std::cout << "Consumer: Detected wrap-around, jumped from "
-                    << original_pos << " to " << read_pos << "\n";
-        }
-
-        std::cout << "Consumer: Processing entry at pos " << read_pos
+        std::cout << "Consumer: Processing entry at pos " << entry_pos
                   << ", type=" << static_cast<int>(header->type)
                   << ", length=" << header->length << "\n";
 
         switch (header->type) {
           case MessageType::STRING_MSG: {
-            // Use the new GetObjectAt method
-            auto* msg = queue.GetObjectAt<Message>(read_pos);
+            // Use entry_pos for reading the object
+            auto* msg = queue.Get<Message>(entry_pos);
             std::cout << "Consumer: [ALT] Message id=" << msg->id
                       << ", content=" << msg->content << "\n";
             break;
           }
           case MessageType::INT_MSG: {
-            // Use the new GetObjectAt method
-            auto* num = queue.GetObjectAt<int>(read_pos);
+            // Use entry_pos for reading the object
+            auto* num = queue.Get<int>(entry_pos);
             std::cout << "Consumer: [ALT] int=" << *num << "\n";
             break;
           }
@@ -484,8 +479,6 @@ void AlternativeReadingDemo() {
             std::cout << "Consumer: [ALT] Unknown type\n";
             break;
         }
-
-        read_pos += header->length;
         ++messages_read;
       }
 

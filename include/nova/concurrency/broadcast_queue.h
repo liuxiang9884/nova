@@ -122,20 +122,16 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
       pos = 0;
       header = reinterpret_cast<const Header*>(buffer_.data() + pos);
     }
-
+    pos += header->length;
     return header;
   }
 
   // Get object pointer at specific position with manual alignment calculation
   template <typename T>
-  const T* GetObjectAt(size_type entry_pos) const noexcept {
+  const T* Get(size_type entry_pos) const noexcept {
     size_type object_start_pos =
         AlignUp<alignof(T)>(entry_pos + sizeof(Header));
     return reinterpret_cast<const T*>(buffer_.data() + object_start_pos);
-  }
-
-  Header* GetHeader(size_type pos) noexcept {
-    return reinterpret_cast<Header*>(buffer_.data() + pos);
   }
 
  private:
