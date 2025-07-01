@@ -471,38 +471,46 @@ void AlternativeReadingDemo() {
 
       // Process all new messages between last_pos and current_pos
       for (auto read_pos = last_pos; read_pos != current_pos;) {
-        // Save current entry position before GetHeader modifies read_pos
-        auto entry_pos = read_pos;
-        const auto* header = queue.GetHeader(
+        // Save original position for wrap-around detection
+        auto original_read_pos = read_pos;
+
+        // GetHeader now returns EntryInfo with correct entry_pos handling
+        // wrap-around
+        auto entry_info = queue.GetHeader(
             read_pos);  // GetHeader updates read_pos to next entry
 
         // Detect wrap-around
         std::string wrap_info = "";
-        if (read_pos < entry_pos) {
+        if (read_pos < original_read_pos) {
           wrap_info = " - WRAP-AROUND DETECTED!";
         }
 
-        std::cout << "Consumer: Processing entry at pos " << entry_pos << " -> "
-                  << read_pos << ", type=" << static_cast<int>(header->type)
-                  << ", length=" << header->length << wrap_info << "\n";
+        std::cout << "Consumer: Processing entry at pos " << original_read_pos
+                  << " -> " << read_pos
+                  << ", type=" << static_cast<int>(entry_info.header->type)
+                  << ", length=" << entry_info.header->length << wrap_info
+                  << "\n";
 
-        switch (header->type) {
+        switch (entry_info.header->type) {
           case MessageType::STRING_MSG: {
-            // Use entry_pos for reading the object
-            auto* msg = queue.Get<Message>(entry_pos);
+            // Use EntryInfo for reading the object (handles wrap-around
+            // correctly)
+            auto* msg = queue.Get<Message>(entry_info);
             std::cout << "Consumer: [ALT] Message id=" << msg->id
                       << ", content=" << msg->content << "\n";
             break;
           }
           case MessageType::INT_MSG: {
-            // Use entry_pos for reading the object
-            auto* num = queue.Get<int>(entry_pos);
+            // Use EntryInfo for reading the object (handles wrap-around
+            // correctly)
+            auto* num = queue.Get<int>(entry_info);
             std::cout << "Consumer: [ALT] int=" << *num << "\n";
             break;
           }
           case MessageType::LARGE_DATA_MSG: {
-            // Use entry_pos for reading the object
-            auto* large = queue.Get<LargeData>(entry_pos);
+            // Use EntryInfo for reading the object (handles wrap-around
+            // correctly)
+            auto* large = queue.Get<LargeData>(entry_info);
             std::cout << "Consumer: [ALT] LargeData sequence="
                       << large->sequence << ", values[0]=" << large->values[0]
                       << "\n";
