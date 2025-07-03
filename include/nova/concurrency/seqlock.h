@@ -93,6 +93,10 @@ class alignas(kCacheLineSize) MRSWSeqLock {
     return value_;
   }
 
+  [[nodiscard]] T& value() noexcept {
+    return value_;
+  }
+
   [[nodiscard]] const std::atomic<uint64_t>& seq() const noexcept {
     return seq_;
   }
@@ -206,6 +210,10 @@ class alignas(kCacheLineSize) DoubleBufferMRSWSeqLock {
     return buffers_;
   }
 
+  [[nodiscard]] T* buffers() noexcept {
+    return buffers_;
+  }
+
   [[nodiscard]] const std::atomic<uint64_t>& seq() const noexcept {
     return seq_;
   }
@@ -311,6 +319,10 @@ class alignas(kCacheLineSize) MRMWSeqLock {
   }
 
   const T& value() const noexcept {
+    return value_;
+  }
+
+  T& value() noexcept {
     return value_;
   }
 
@@ -438,6 +450,10 @@ class alignas(kCacheLineSize) DoubleBufferMRMWSeqLock {
   }
 
   [[nodiscard]] const T* buffers() const noexcept {
+    return buffers_;
+  }
+
+  [[nodiscard]] T* buffers() noexcept {
     return buffers_;
   }
 
