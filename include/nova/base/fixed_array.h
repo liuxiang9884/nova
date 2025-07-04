@@ -158,7 +158,7 @@ class FixedArray {
         throw std::length_error("FixedArray::emplace_back");
       }
     }
-    data_[size_] = T(std::forward<Args>(args)...);
+    new (&data_[size_]) T(std::forward<Args>(args)...);
     return data_[size_++];
   }
 
