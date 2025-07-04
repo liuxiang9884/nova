@@ -48,7 +48,7 @@
 // Define property macros
 // Pass by value
 #define DEFINE_BASIC_PROPERTY(type, name, ...) \
- private:                                      \
+ protected:                                      \
   type name##_{__VA_ARGS__};                   \
                                                \
  public:                                       \
@@ -61,7 +61,7 @@
 
 // Pass by reference
 #define DEFINE_PROPERTY(type, name, ...)   \
- private:                                  \
+ protected:                                  \
   type name##_{__VA_ARGS__};               \
                                            \
  public:                                   \
