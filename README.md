@@ -44,6 +44,7 @@ fmt
 magic-enum
 quill
 tomlplusplus
+vincentlaucsb-csv-parser
 ```
 
 ## 使用经典模式
