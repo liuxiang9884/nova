@@ -376,9 +376,13 @@ T* ShmAllocator<N>::Construct(std::string_view name, Args&&... args) {
     name, sizeof(T), alignof(T));
   // Allocate new memory and construct
   auto [ptr, meta_it] = AllocateImpl(name, sizeof(T), alignof(T));
+  fmt::println("ShmInstanceMeta. aligned_offset = {}, aligned_size = {}, alignment = {}",
+    meta_it->second.offset, meta_it->second.size, meta_it->second.alignment);
 
   T* obj_ptr = static_cast<T*>(ptr);
   new (obj_ptr) T(std::forward<Args>(args)...);
+
+  fmt::println("placement new");
 
   // Update construction status using the returned iterator
   meta_it->second.constructed = true;

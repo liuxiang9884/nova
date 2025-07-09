@@ -165,8 +165,6 @@ ShmAllocator<N>::AllocateImpl(std::string_view name, size_type size,
       AlignUp<N>(header_->current_storage_used, alignment);
   const size_type aligned_size = AlignUp<N>(size, alignment);
 
-  fmt::println("Allocate. name = {}, aligned_offset = {}, aligned_size = {}",
-    name, aligned_offset, aligned_size);
   // Check if enough space available
   if (aligned_offset + aligned_size > header_->storage_size) {
     throw ShmAllocatorError("Not enough storage space");
@@ -179,8 +177,6 @@ ShmAllocator<N>::AllocateImpl(std::string_view name, size_type size,
     throw ShmAllocatorError("Failed to insert instance metadata");
   }
 
-  fmt::println("ShmInstanceMeta. aligned_offset = {}, aligned_size = {}, alignment = {}",
-      result.first->second.offset, result.first->second.size, result.first->second.alignment);
   // Update used size
   header_->current_storage_used = aligned_offset + aligned_size;
 
