@@ -372,6 +372,8 @@ T* ShmAllocator<N>::Construct(std::string_view name, Args&&... args) {
     }
   }
 
+  fmt::println("Construct. name = {}, size = {}, alignment = {}",
+    name, sizeof(T), alignof(T));
   // Allocate new memory and construct
   auto [ptr, meta_it] = AllocateImpl(name, sizeof(T), alignof(T));
 
