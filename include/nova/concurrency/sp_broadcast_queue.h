@@ -27,7 +27,7 @@ namespace static_impl {
  */
 template <typename T, std::size_t Capacity>
   requires std::is_standard_layout_v<T> && std::is_trivial_v<T>
-class alignas(nova::kCacheLineSize) SPBroadcastQueue {
+class SPBroadcastQueue {
  public:
   static_assert(Capacity >= 2, "Capacity must be at least 2");
   static_assert((Capacity & (Capacity - 1)) == 0,
@@ -204,7 +204,7 @@ class alignas(nova::kCacheLineSize) SPBroadcastQueue {
  * @tparam Allocator The allocator type used for memory management
  */
 template <typename T, typename Allocator = std::allocator<T>>
-class alignas(nova::kCacheLineSize) SPBroadcastQueue {
+class SPBroadcastQueue {
  public:
   /**
    * Constructor with capacity and optional allocator

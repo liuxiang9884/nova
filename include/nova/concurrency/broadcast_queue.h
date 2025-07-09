@@ -17,7 +17,7 @@ namespace nova {
 namespace static_impl {
 
 template <typename Type, std::size_t N>
-class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
+class FlexibleSPBroadcastQueue {
  public:
   using size_type = std::size_t;
   static constexpr size_type kAlignment = alignof(std::max_align_t);
@@ -155,7 +155,7 @@ class alignas(nova::kCacheLineSize) FlexibleSPBroadcastQueue {
  private:
   alignas(nova::kCacheLineSize) std::array<std::byte, N> buffer_;
   alignas(nova::kCacheLineSize) std::atomic<uint64_t> write_pos_{0};
-  uint64_t cached_write_pos_{0};
+  alignas(nova::kCacheLineSize) uint64_t cached_write_pos_{0};
 };
 };  // namespace static_impl
 

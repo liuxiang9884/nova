@@ -13,7 +13,7 @@
 namespace nova {
 
 template <typename T>
-class alignas(kCacheLineSize) MRSWSeqLock {
+class MRSWSeqLock {
  public:
   static_assert(std::is_nothrow_copy_assignable_v<T>,
                 "T must satisfy is_nothrow_copy_assignable");
@@ -107,7 +107,7 @@ class alignas(kCacheLineSize) MRSWSeqLock {
 };
 
 template <typename T>
-class alignas(kCacheLineSize) DoubleBufferMRSWSeqLock {
+class DoubleBufferMRSWSeqLock {
  public:
   static_assert(std::is_nothrow_copy_assignable_v<T>,
                 "T must satisfy is_nothrow_copy_assignable");
@@ -224,7 +224,7 @@ class alignas(kCacheLineSize) DoubleBufferMRSWSeqLock {
 };
 
 template <typename T>
-class alignas(kCacheLineSize) MRMWSeqLock {
+class MRMWSeqLock {
  public:
   static_assert(std::is_nothrow_copy_assignable_v<T>,
                 "T must satisfy is_nothrow_copy_assignable");
@@ -336,7 +336,7 @@ class alignas(kCacheLineSize) MRMWSeqLock {
 };
 
 template <typename T>
-class alignas(kCacheLineSize) DoubleBufferMRMWSeqLock {
+class DoubleBufferMRMWSeqLock {
  public:
   static_assert(std::is_nothrow_copy_assignable_v<T>,
                 "T must satisfy is_nothrow_copy_assignable");
