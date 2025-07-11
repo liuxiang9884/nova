@@ -359,7 +359,6 @@ class RingPool {
     write_pos_ += size;
     std::cout << "write_pos_ = " << write_pos_ << std::endl;
     ++write_count_;
-    std::cout << "write_pos_ = " << write_pos_ << std::endl;
     return ptr;
   }
 
