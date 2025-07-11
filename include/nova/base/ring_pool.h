@@ -353,9 +353,9 @@ class RingPool {
     std::byte* ptr = &buffer_[write_pos_];
 
     printf("get pointer = %p\n", ptr);
+    std::cout << "latest_pos_ = " << latest_pos_ << ", size = " << size << std::endl;
 
     latest_pos_ = write_pos_;
-    std::cout << "latest_pos_ = " << latest_pos_ << ", size = " << size << std::endl;
     write_pos_ += size;
     ++write_count_;
     return ptr;
