@@ -350,7 +350,7 @@ class RingPool {
     CalculateWritePos(size, kAlignment);
     std::cout << "write_pos_ = " << write_pos_ << ", alignment = " << kAlignment << std::endl;
 
-    std::byte* ptr = &buffer_[write_pos_];
+    std::byte* ptr = buffer_.data() + write_pos_;
 
     printf("get pointer = %p\n", ptr);
     std::cout << "latest_pos_ = " << latest_pos_ << ", size = " << size << std::endl;
