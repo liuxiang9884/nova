@@ -6,6 +6,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <vector>
+#include <iostream>
 
 #include "nova/common/macros.h"
 
