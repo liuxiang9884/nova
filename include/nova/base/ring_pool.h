@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <vector>
 #include <iostream>
+#include <cstdio>
 
 #include "nova/common/macros.h"
 
@@ -350,6 +351,9 @@ class RingPool {
     std::cout << "write_pos_ = " << write_pos_ << ", alignment = " << kAlignment << std::endl;
 
     std::byte* ptr = &buffer_[write_pos_];
+
+    printf("get pointer = %p\n", ptr);
+
     latest_pos_ = write_pos_;
     write_pos_ += size;
     ++write_count_;
