@@ -346,6 +346,7 @@ class RingPool {
   // Allocate raw memory of specified size
   std::byte* Allocate(size_type size) noexcept {
     CalculateWritePos(size, kAlignment);
+    std::cout << "write_pos_ = " << write_pos_ << ", alignment = " << kAlignment << std::endl;
 
     std::byte* ptr = &buffer_[write_pos_];
     latest_pos_ = write_pos_;
