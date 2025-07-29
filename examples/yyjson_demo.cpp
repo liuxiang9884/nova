@@ -11,7 +11,7 @@
 
 namespace yy = yyjson;
 
-void NormalMode() {
+void Read() {
   auto json_str = R"(
 {
     "id": 1,
@@ -60,7 +60,7 @@ void NormalMode() {
   fmt::println("currency: {}", obj.write());
 }
 
-void InsituMode() {
+void ReadInsitu() {
   std::string json_str = R"(
     {
         "id": 1,
@@ -111,14 +111,63 @@ void InsituMode() {
   fmt::println("currency: {}", obj.write());
 }
 
+void Write() {
+  auto v_null = yy::value();  // Initial value as null
+  auto v_bool = yy::value(true);
+  auto v_num = yy::value(3.141592);
+  auto v_str = yy::value("example");
+
+  // Create a new empty JSON array
+  auto arr = yy::array();
+  arr.emplace_back(1);
+  arr.emplace_back("string");
+
+  // Create a new empty JSON object
+  auto obj = yy::object();
+  obj.emplace("USD", 129.66);
+  obj.emplace("date", "Wed Feb 1 2023");
+
+  // Conversion from range to JSON array class
+  auto vec = std::vector{1, 2, 3};
+  auto vec_nst = std::vector<std::vector<int>>{{1, 2}, {3, 4}};
+  auto arr_vec = yy::array(vec);      // -> [1,2,3]
+  auto arr_nst = yy::array(vec_nst);  // -> [[1,2],[3,4]]
+  yy::array arr_rng =                 // transformation via range adaptors
+      std::vector{1, 2, 3} |
+      std::ranges::views::transform([](auto x) { return x * x; });
+  // -> [1,4,9]
+
+  // Conversion from key-value-like range to JSON object class
+  auto kv_map = std::map<std::string_view, double>{
+      {"first", 1.0}, {"second", 2.0}, {"third", 3.0}};
+  auto val_map = std::map<std::string_view, yy::value>{
+      {"number", 1.5}, {"error", nullptr}, {"text", "abc"}};
+  auto obj_map = yy::object(kv_map);
+  auto obj_kv = yy::object(val_map);
+
+  // Construction by std::initializer_list
+  auto init_arr = yy::array{
+      nullptr, true, "2", 3.0, {4.0, "5", false}, {{"7", 8}, {"9", {0}}}};
+  auto init_obj = yy::object{
+      {"id", 1},
+      {"pi", 3.141592},
+      {"name", "example"},
+      {"array", {0, 1, 2, 3, 4}},
+      {"currency", {{"USD", 129.66}, {"EUR", 140.35}, {"GBP", 158.72}}},
+      {"success", true}};
+}
+
 int main() {
   fmt::println("=== YYJSON Demo ===");
 
-  fmt::println("\n--- Normal Mode ---");
-  NormalMode();
+  fmt::println("\n--- Read ---");
+  Read();
 
-  fmt::println("\n--- Insitu Mode ---");
-  InsituMode();
+  fmt::println("\n--- ReadInsitu ---");
+  ReadInsitu();
+
+  fmt::println("\n--- Write ---");
+  Write();
 
   return 0;
 }
