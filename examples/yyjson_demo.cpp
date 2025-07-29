@@ -1,6 +1,7 @@
 //
 // Created by liuxiang on 2025/7/29.
 //
+#include <chrono>
 #include <map>
 #include <vector>
 
@@ -25,7 +26,13 @@ void NormalMode() {
     "success": true
 })";
 
+  auto start = std::chrono::steady_clock::now();
   auto value = yy::read(json_str);
+  auto end = std::chrono::steady_clock::now();
+  fmt::println("read time: {} ns",
+               std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
+                   .count());
+
   auto obj = *value.as_object();
 
   // Key access to the JSON object class
@@ -54,7 +61,6 @@ void NormalMode() {
 }
 
 void InsituMode() {
-
   std::string json_str = R"(
     {
         "id": 1,
@@ -71,7 +77,14 @@ void InsituMode() {
 
   const std::string padding_str = std::string(YYJSON_PADDING_SIZE, '\0');
   json_str += padding_str;
-  auto value = yy::read(json_str, json_str.size() - padding_str.size(), yy::ReadFlag::ReadInsitu);
+  auto start = std::chrono::steady_clock::now();
+  auto value = yy::read(json_str, json_str.size() - padding_str.size(),
+                        yy::ReadFlag::ReadInsitu);
+  auto end = std::chrono::steady_clock::now();
+  fmt::println("read time: {} ns",
+               std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
+                   .count());
+
   auto obj = *value.as_object();
 
   auto id = *obj["id"].as_int();
