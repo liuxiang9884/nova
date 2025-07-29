@@ -6,7 +6,7 @@
 
 #include <fmt/format.h>
 
-#include "cpp_yyjson.hpp"
+#include <cpp_yyjson.hpp>
 
 namespace yy = yyjson;
 
@@ -54,6 +54,7 @@ void NormalMode() {
 }
 
 void InsituMode() {
+
   std::string json_str = R"(
     {
         "id": 1,
@@ -68,12 +69,9 @@ void InsituMode() {
         "success": true
     })";
 
-  std::vector<char> json_data(json_str.begin(), json_str.end());
-  json_data.push_back('\0');
-  json_data.resize(json_data.size() + yy::padding_size());
-
-  auto value =
-      yy::read_insitu(json_data.data(), json_data.size() - yy::padding_size());
+  const std::string padding_str = std::string(YYJSON_PADDING_SIZE, '\0');
+  json_str += padding_str;
+  auto value = yy::read(json_str, json_str.size() - padding_str.size(), yy::ReadFlag::ReadInsitu);
   auto obj = *value.as_object();
 
   auto id = *obj["id"].as_int();
@@ -101,5 +99,13 @@ void InsituMode() {
 }
 
 int main() {
+  fmt::println("=== YYJSON Demo ===");
+
+  fmt::println("\n--- Normal Mode ---");
+  NormalMode();
+
+  fmt::println("\n--- Insitu Mode ---");
+  InsituMode();
+
   return 0;
 }
