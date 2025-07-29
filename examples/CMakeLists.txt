@@ -84,3 +84,8 @@ target_link_libraries(fixed_array_demo PRIVATE fmt::fmt-header-only nova)
 add_executable(broadcast_queue_demo broadcast_queue_demo.cpp)
 target_include_directories(broadcast_queue_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE})
 target_link_libraries(broadcast_queue_demo PRIVATE fmt::fmt-header-only nova)
+
+# yyjson_demo
+add_executable(yyjson_demo yyjson_demo.cpp)
+target_include_directories(yyjson_demo PRIVATE ${VCPKG_INCLUDE} ${NOVA_INCLUDE} ${CPP_YYJSON_INCLUDE})
+target_link_libraries(yyjson_demo PRIVATE fmt::fmt-header-only nova yyjson::yyjson)
