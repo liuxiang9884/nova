@@ -2,12 +2,16 @@
 // Created by liuxiang on 2025/7/29.
 //
 #include <map>
+#include <vector>
+
+#include <fmt/format.h>
 
 #include "cpp_yyjson.hpp"
 
 namespace yy = yyjson;
 
-auto json_str = R"(
+void NormalMode() {
+  auto json_str = R"(
 {
     "id": 1,
     "pi": 3.141592,
@@ -21,7 +25,6 @@ auto json_str = R"(
     "success": true
 })";
 
-int main() {
   auto value = yy::read(json_str);
   auto obj = *value.as_object();
 
@@ -48,6 +51,55 @@ int main() {
   auto currency = yy::cast<std::map<std::string_view, double>>(dict);
 
   fmt::println("currency: {}", obj.write());
+}
 
+void InsituMode() {
+  std::string json_str = R"(
+    {
+        "id": 1,
+        "pi": 3.141592,
+        "name": "example",
+        "array": [0, 1, 2, 3, 4],
+        "currency": {
+            "USD": 129.66,
+            "EUR": 140.35,
+            "GBP": 158.72
+        },
+        "success": true
+    })";
+
+  std::vector<char> json_data(json_str.begin(), json_str.end());
+  json_data.push_back('\0');
+  json_data.resize(json_data.size() + yy::padding_size());
+
+  auto value =
+      yy::read_insitu(json_data.data(), json_data.size() - yy::padding_size());
+  auto obj = *value.as_object();
+
+  auto id = *obj["id"].as_int();
+  auto pi = *obj["pi"].as_real();
+  auto name = *obj["name"].as_string();
+  auto success = *obj["success"].as_bool();
+  fmt::println("id: {}, pi: {}", id, pi);
+  fmt::println("name: {}", name);
+  fmt::println("success: {}", success);
+
+  const auto list = *obj["array"].as_array();
+  for (const auto& v : list) {
+    fmt::println("value: {}", v.write());
+  }
+
+  auto dict = *obj["currency"].as_object();
+  for (const auto& [k, v] : dict) {
+    fmt::println("{}: {}", k, v.write());
+  }
+
+  auto numbers = yy::cast<std::vector<int>>(list);
+  auto currency = yy::cast<std::map<std::string_view, double>>(dict);
+
+  fmt::println("currency: {}", obj.write());
+}
+
+int main() {
   return 0;
 }
