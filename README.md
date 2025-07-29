@@ -45,6 +45,8 @@ magic-enum
 quill
 tomlplusplus
 vincentlaucsb-csv-parser
+yyjson
+nameof
 ```
 
 ## 使用经典模式
