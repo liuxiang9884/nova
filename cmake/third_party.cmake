@@ -14,8 +14,8 @@ find_package(magic_enum CONFIG REQUIRED)
 find_package(yyjson CONFIG REQUIRED)
 # nameof
 find_package(nameof CONFIG REQUIRED)
-# drogon
-find_package(Drogon CONFIG REQUIRED)
+## drogon
+#find_package(Drogon CONFIG REQUIRED)
 
 set(THIRD_PARTY_LIBS
         CLI11::CLI11
@@ -25,5 +25,5 @@ set(THIRD_PARTY_LIBS
         fmt::fmt-header-only
         yyjson::yyjson
         nameof::nameof
-        Drogon::Drogon
+#        Drogon::Drogon
 )
