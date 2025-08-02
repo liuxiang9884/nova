@@ -109,6 +109,10 @@ void ReadInsitu() {
   auto currency = yy::cast<std::map<std::string_view, double>>(dict);
 
   fmt::println("currency: {}", obj.write());
+  std::string jstr = std::string(obj.write());
+  std::string_view jstr_view = obj.write();
+  fmt::println("jstr: {}", jstr);
+  fmt::println("jstr_view: {}", jstr_view);
 }
 
 void Write() {
@@ -157,6 +161,59 @@ void Write() {
       {"success", true}};
 }
 
+void MemoryUsageComparison() {
+  fmt::println("\n=== Memory Usage Comparison ===");
+
+  std::string json_str = R"(
+    {
+        "id": 1,
+        "pi": 3.141592,
+        "name": "example",
+        "array": [0, 1, 2, 3, 4],
+        "currency": {
+            "USD": 129.66,
+            "EUR": 140.35,
+            "GBP": 158.72
+        },
+        "success": true
+    })";
+
+  fmt::println("Original JSON size: {} bytes", json_str.size());
+
+  // Normal mode
+  {
+    auto start = std::chrono::steady_clock::now();
+    auto value = yy::read(json_str);
+    auto end = std::chrono::steady_clock::now();
+
+    fmt::println("Normal mode:");
+    fmt::println(
+        "  Parse time: {} ns",
+        std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
+            .count());
+    fmt::println("  Memory overhead: 需要额外的字符串副本");
+  }
+
+  // Insitu mode
+  {
+    std::string json_copy = json_str;  // 为了公平比较
+    json_copy.resize(json_copy.size() + YYJSON_PADDING_SIZE, '\0');
+
+    auto start = std::chrono::steady_clock::now();
+    auto value = yy::read(json_copy, json_copy.size() - YYJSON_PADDING_SIZE,
+                          yy::ReadFlag::ReadInsitu);
+    auto end = std::chrono::steady_clock::now();
+
+    fmt::println("Insitu mode:");
+    fmt::println(
+        "  Parse time: {} ns",
+        std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
+            .count());
+    fmt::println("  Memory overhead: 仅 padding ({} bytes)",
+                 YYJSON_PADDING_SIZE);
+  }
+}
+
 int main() {
   fmt::println("=== YYJSON Demo ===");
 
@@ -168,6 +225,9 @@ int main() {
 
   fmt::println("\n--- Write ---");
   Write();
+
+  fmt::println("\n--- Memory Usage Comparison ---");
+  MemoryUsageComparison();
 
   return 0;
 }
