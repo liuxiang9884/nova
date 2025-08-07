@@ -171,7 +171,6 @@ inline int64_t GetMilliseconds() {
 inline int64_t GetSeconds() {
   struct timespec now{};
   clock_gettime(CLOCK_REALTIME, &now);
-  return now.tv_sec * kNanoPerSecond + now.tv_nsec;
   return now.tv_sec;
 }
 
