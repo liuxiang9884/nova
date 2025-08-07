@@ -147,7 +147,7 @@ inline int64_t ns2cycles(int64_t ns, double ghz) {
  */
 inline int64_t GetNanoseconds() {
   if constexpr (NOVA_OS == NOVA_OS_MACOS) {
-    auto now = std::chrono::high_resolution_clock::now();
+    auto now = std::chrono::system_clock::now();
     auto duration = now.time_since_epoch();
     return std::chrono::duration_cast<std::chrono::nanoseconds>(duration)
         .count();
@@ -180,7 +180,7 @@ inline int64_t GetMilliseconds() {
  */
 inline int64_t GetSeconds() {
   if constexpr (NOVA_OS == NOVA_OS_MACOS) {
-    auto now = std::chrono::high_resolution_clock::now();
+    auto now = std::chrono::system_clock::now();
     auto duration = now.time_since_epoch();
     return std::chrono::duration_cast<std::chrono::seconds>(duration).count();
   } else {
