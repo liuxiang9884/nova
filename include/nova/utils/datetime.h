@@ -168,8 +168,11 @@ inline int64_t GetMilliseconds() {
  * @brief Get current time in seconds
  * @return Current time in seconds
  */
-inline int64_t GetSecond() {
-  return time(nullptr);
+inline int64_t GetSeconds() {
+  struct timespec now{};
+  clock_gettime(CLOCK_REALTIME, &now);
+  return now.tv_sec * kNanoPerSecond + now.tv_nsec;
+  return now.tv_sec;
 }
 
 /**
@@ -432,7 +435,7 @@ inline std::tuple<int64_t, int64_t, int64_t> ParseTime(
  * @return Today's date in YYYYMMDD format
  */
 inline int32_t GetToday() {
-  auto sec = static_cast<time_t>(nova::GetSecond());
+  const auto sec = static_cast<time_t>(nova::GetSeconds());
   struct tm tp{};
   localtime_r(&sec, &tp);
   tp.tm_isdst = 0;

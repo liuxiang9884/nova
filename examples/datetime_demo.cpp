@@ -57,7 +57,7 @@ int main() {
   int64_t current_ns = nova::GetNanoseconds();
   int64_t current_us = nova::GetMicroseconds();
   int64_t current_ms = nova::GetMilliseconds();
-  int64_t current_s = nova::GetSecond();
+  int64_t current_s = nova::GetSeconds();
 
   fmt::println("Current time: ");
   fmt::println("  Nanoseconds: {} ", current_ns);
