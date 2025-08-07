@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <ctime>
@@ -12,6 +13,8 @@
 #include <tuple>
 
 #include <fmt/format.h>
+
+#include "nova/common/macros.h"
 
 // Check architecture to ensure emmintrin.h is only used on x86/x64
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || \
@@ -143,9 +146,16 @@ inline int64_t ns2cycles(int64_t ns, double ghz) {
  * @note Function delay is approximately 22-25ns
  */
 inline int64_t GetNanoseconds() {
-  struct timespec now{};
-  clock_gettime(CLOCK_REALTIME, &now);
-  return now.tv_sec * kNanoPerSecond + now.tv_nsec;
+  if constexpr (NOVA_OS == NOVA_OS_MACOS) {
+    auto now = std::chrono::high_resolution_clock::now();
+    auto duration = now.time_since_epoch();
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(duration)
+        .count();
+  } else {
+    struct timespec now{};
+    clock_gettime(CLOCK_REALTIME, &now);
+    return now.tv_sec * kNanoPerSecond + now.tv_nsec;
+  }
 }
 
 /**
@@ -169,9 +179,15 @@ inline int64_t GetMilliseconds() {
  * @return Current time in seconds
  */
 inline int64_t GetSeconds() {
-  struct timespec now{};
-  clock_gettime(CLOCK_REALTIME, &now);
-  return now.tv_sec;
+  if constexpr (NOVA_OS == NOVA_OS_MACOS) {
+    auto now = std::chrono::high_resolution_clock::now();
+    auto duration = now.time_since_epoch();
+    return std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+  } else {
+    struct timespec now{};
+    clock_gettime(CLOCK_REALTIME, &now);
+    return now.tv_sec;
+  }
 }
 
 /**
