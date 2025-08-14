@@ -17,9 +17,11 @@ class ArrayList {
   using pointer = T*;
   using const_pointer = const T*;
 
-  constexpr size_type capacity() const {
+  static constexpr size_type capacity() noexcept {
     return N;
   }
+
+  static constexpr size_type npos = capacity();
 
   struct Node {
     T data;
@@ -93,12 +95,12 @@ class ArrayList {
     if (size_ == 0) {
       head_ = new_node;
       tail_ = new_node;
-      nodes_[new_node].next = 0;
-      nodes_[new_node].prev = 0;
+      nodes_[new_node].next = npos;
+      nodes_[new_node].prev = npos;
     } else {
       nodes_[tail_].next = new_node;
       nodes_[new_node].prev = tail_;
-      nodes_[new_node].next = 0;
+      nodes_[new_node].next = npos;
       tail_ = new_node;
     }
     size_++;
@@ -115,12 +117,12 @@ class ArrayList {
     if (size_ == 0) {
       head_ = new_node;
       tail_ = new_node;
-      nodes_[new_node].next = 0;
-      nodes_[new_node].prev = 0;
+      nodes_[new_node].next = npos;
+      nodes_[new_node].prev = npos;
     } else {
       nodes_[tail_].next = new_node;
       nodes_[new_node].prev = tail_;
-      nodes_[new_node].next = 0;
+      nodes_[new_node].next = npos;
       tail_ = new_node;
     }
     size_++;
@@ -133,11 +135,11 @@ class ArrayList {
 
     size_type old_tail = tail_;
     if (size_ == 1) {
-      head_ = 0;
-      tail_ = 0;
+      head_ = npos;
+      tail_ = npos;
     } else {
       tail_ = nodes_[old_tail].prev;
-      nodes_[tail_].next = 0;
+      nodes_[tail_].next = npos;
     }
 
     deallocate_node(old_tail);
@@ -203,21 +205,25 @@ class ArrayList {
  private:
   void initialize_free_list() {
     size_ = 0;
-    head_ = 0;
-    tail_ = 0;
+    head_ = npos;
+    tail_ = npos;
 
-    // 初始化空闲链表，使用0表示无效索引
-    for (size_type i = 0; i < N; ++i) {
-      nodes_[i].next = (i + 1) % N;               // 循环链接
-      nodes_[i].prev = (i == 0) ? N - 1 : i - 1;  // 处理边界情况
+    nodes_[0].next = 1;
+    nodes_[0].prev = npos;
+
+    for (size_type i = 1; i < N - 1; ++i) {
+      nodes_[i].next = i + 1;
+      nodes_[i].prev = i - 1;
     }
 
-    // 设置空闲链表的头
+    nodes_[N - 1].next = npos;
+    nodes_[N - 1].prev = N - 2;
+
     free_head_ = 0;
   }
 
   size_type allocate_node() {
-    if (free_head_ == 0) {
+    if (free_head_ == npos) {
       throw std::runtime_error("No free nodes available");
     }
 
@@ -228,7 +234,7 @@ class ArrayList {
 
   void deallocate_node(size_type node) {
     nodes_[node].next = free_head_;
-    nodes_[node].prev = 0;
+    nodes_[node].prev = npos;
     free_head_ = node;
   }
 
@@ -236,28 +242,28 @@ class ArrayList {
     if (index >= size_) return nullptr;
 
     size_type current = head_;
-    for (size_type i = 0; i < index; ++i) {
+    for (size_type i = 0; i < index && current != npos; ++i) {
       current = nodes_[current].next;
     }
-    return &nodes_[current];
+    return current != npos ? &nodes_[current] : nullptr;
   }
 
   const Node* get_node_at_index(size_type index) const {
     if (index >= size_) return nullptr;
 
     size_type current = head_;
-    for (size_type i = 0; i < index; ++i) {
+    for (size_type i = 0; i < index && current != npos; ++i) {
       current = nodes_[current].next;
     }
-    return &nodes_[current];
+    return current != npos ? &nodes_[current] : nullptr;
   }
 
  private:
   std::array<Node, N> nodes_;
   size_type size_{0};
-  size_type head_{0};
-  size_type tail_{0};
-  size_type free_head_{0};
+  size_type head_{npos};
+  size_type tail_{npos};
+  size_type free_head_{npos};
 };
 
 }  // namespace static_impl
