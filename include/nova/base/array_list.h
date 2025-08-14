@@ -89,19 +89,19 @@ class ArrayList {
       throw std::runtime_error("ArrayList is full");
     }
 
-    size_type new_node = allocate_node();
-    nodes_[new_node].data = value;
+    size_type new_index = allocate_index();
+    nodes_[new_index].data = value;
 
     if (size_ == 0) {
-      head_ = new_node;
-      tail_ = new_node;
-      nodes_[new_node].next = npos;
-      nodes_[new_node].prev = npos;
+      head_ = new_index;
+      tail_ = new_index;
+      nodes_[new_index].next = npos;
+      nodes_[new_index].prev = npos;
     } else {
-      nodes_[tail_].next = new_node;
-      nodes_[new_node].prev = tail_;
-      nodes_[new_node].next = npos;
-      tail_ = new_node;
+      nodes_[tail_].next = new_index;
+      nodes_[new_index].prev = tail_;
+      nodes_[new_index].next = npos;
+      tail_ = new_index;
     }
     size_++;
   }
@@ -111,19 +111,19 @@ class ArrayList {
       throw std::runtime_error("ArrayList is full");
     }
 
-    size_type new_node = allocate_node();
-    nodes_[new_node].data = std::move(value);
+    size_type new_index = allocate_index();
+    nodes_[new_index].data = std::move(value);
 
     if (size_ == 0) {
-      head_ = new_node;
-      tail_ = new_node;
-      nodes_[new_node].next = npos;
-      nodes_[new_node].prev = npos;
+      head_ = new_index;
+      tail_ = new_index;
+      nodes_[new_index].next = npos;
+      nodes_[new_index].prev = npos;
     } else {
-      nodes_[tail_].next = new_node;
-      nodes_[new_node].prev = tail_;
-      nodes_[new_node].next = npos;
-      tail_ = new_node;
+      nodes_[tail_].next = new_index;
+      nodes_[new_index].prev = tail_;
+      nodes_[new_index].next = npos;
+      tail_ = new_index;
     }
     size_++;
   }
@@ -142,7 +142,7 @@ class ArrayList {
       nodes_[tail_].next = npos;
     }
 
-    deallocate_node(old_tail);
+    deallocate_index(old_tail);
     size_--;
   }
 
@@ -222,20 +222,20 @@ class ArrayList {
     free_head_ = 0;
   }
 
-  size_type allocate_node() {
+  size_type allocate_index() {
     if (free_head_ == npos) {
       throw std::runtime_error("No free nodes available");
     }
 
-    size_type node = free_head_;
+    size_type index = free_head_;
     free_head_ = nodes_[free_head_].next;
-    return node;
+    return index;
   }
 
-  void deallocate_node(size_type node) {
-    nodes_[node].next = free_head_;
-    nodes_[node].prev = npos;
-    free_head_ = node;
+  void deallocate_index(size_type index) {
+    nodes_[index].next = free_head_;
+    nodes_[index].prev = npos;
+    free_head_ = index;
   }
 
   Node* get_node_at_index(size_type index) {
