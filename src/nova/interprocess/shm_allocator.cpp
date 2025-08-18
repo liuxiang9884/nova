@@ -10,8 +10,6 @@
 #include <unistd.h>
 
 #include <cstring>
-#include <iostream>
-#include <ostream>
 
 #include <fmt/format.h>
 
