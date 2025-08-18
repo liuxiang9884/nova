@@ -356,8 +356,11 @@ class RingPool {
     std::cout << "latest_pos_ = " << latest_pos_ << ", size = " << size << std::endl;
 
     latest_pos_ = write_pos_;
+    std::cout << "t1" << std::endl;
     write_pos_ += size;
+    std::cout << "t2" << std::endl;
     ++write_count_;
+    std::cout << "t3" << std::endl;
     return ptr;
   }
 
