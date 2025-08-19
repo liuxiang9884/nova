@@ -3,11 +3,11 @@
 #include <array>
 #include <bit>
 #include <cstddef>
+#include <cstdio>
 #include <cstring>
+#include <iostream>
 #include <stdexcept>
 #include <vector>
-#include <iostream>
-#include <cstdio>
 
 #include "nova/common/macros.h"
 
@@ -348,13 +348,7 @@ class RingPool {
   // Allocate raw memory of specified size
   std::byte* Allocate(size_type size) noexcept {
     CalculateWritePos(size, kAlignment);
-    std::cout << "write_pos_ = " << write_pos_ << ", alignment = " << kAlignment << std::endl;
-
     std::byte* ptr = buffer_.data() + write_pos_;
-
-    printf("get pointer = %p\n", ptr);
-    std::cout << "latest_pos_ = " << latest_pos_ << ", size = " << size << std::endl;
-
     latest_pos_ = write_pos_;
     write_pos_ += size;
     ++write_count_;
