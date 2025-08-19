@@ -17,6 +17,10 @@
 
 namespace nova {
 
+namespace {
+constexpr std::size_t kMaxAlignment = 4096;
+}
+
 template <std::size_t N>
 void* ShmAllocator<N>::MapMemory(size_type size) const {
   // Set up mapping flags
@@ -142,8 +146,9 @@ typename ShmAllocator<N>::LayoutSizes ShmAllocator<N>::CalculateLayoutSizes(
   // Index size (aligned to 8 bytes)
   layout.index_size = AlignUp<N>(sizeof(IndexType), 8);
 
-  // Storage area offset
-  layout.storage_offset = layout.header_size + layout.index_size;
+  // Storage area offset - aligned to maximum supported alignment
+  layout.storage_offset =
+      AlignUp<N>(layout.header_size + layout.index_size, kMaxAlignment);
 
   // Storage area size is the requested size
   layout.storage_size = storage_size;
