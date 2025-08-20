@@ -48,12 +48,13 @@ vincentlaucsb-csv-parser
 yyjson
 nameof
 drogon
+fast-float
 ```
 
 ## 使用经典模式
 
 ```bash
-    vcpkg install cli11 fmt magic-enum quill tomlplusplus
+    vcpkg install cli11 fmt magic-enum quill tomlplusplus vincentlaucsb-csv-parser yyjson nameof drogon fast-float
 ```
 
 ## 构建
