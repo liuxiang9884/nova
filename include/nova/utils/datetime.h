@@ -464,8 +464,8 @@ inline int64_t TimeToSeconds(std::string_view time) {
   assert(time.size() == 6 && "Time string must be in format HHMMSS with length 6");
 
   auto hour = (time[0] - '0') * 10 + (time[1] - '0');
-  auto minute = (time[2] - '0') * 10 + (time[3] - '0');
-  auto second = (time[4] - '0') * 10 + (time[5] - '0');
+  auto minute = (time[3] - '0') * 10 + (time[4] - '0');
+  auto second = (time[6] - '0') * 10 + (time[7] - '0');
 
   return hour * 3600 + minute * 60 + second;
 }
