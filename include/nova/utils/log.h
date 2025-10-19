@@ -193,46 +193,47 @@ void StopLogging();
 }  // namespace nova
 
 #define NOVA_TRACE(format, ...) \
-  LOG_TRACE_L1(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+  QUILL_LOG_TRACE_L1(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
 
 #define NOVA_DEBUG(format, ...) \
-  LOG_DEBUG(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+  QUILL_LOG_DEBUG(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
 
 #define NOVA_INFO(format, ...) \
-  LOG_INFO(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+  QUILL_LOG_INFO(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
 
 #define NOVA_WARNING(format, ...) \
-  LOG_WARNING(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+  QUILL_LOG_WARNING(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
 
 #define NOVA_ERROR(format, ...) \
-  LOG_ERROR(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+  QUILL_LOG_ERROR(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
 
 #define NOVA_CRITICAL(format, ...) \
-  LOG_CRITICAL(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
+  QUILL_LOG_CRITICAL(::nova::kLogManager.logger(), format, ##__VA_ARGS__)
 
 // log with tags
-#define NOVA_TRACE_TAGS(format, ...)                                  \
-  LOG_TRACE_L1_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
-                    ##__VA_ARGS__)
+#define NOVA_TRACE_TAGS(format, ...)                                        \
+  QUILL_LOG_TRACE_L1_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
+                          ##__VA_ARGS__)
 
-#define NOVA_DEBUG_TAGS(tags, format, ...)                         \
-  LOG_DEBUG_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
-                 ##__VA_ARGS__)
+#define NOVA_DEBUG_TAGS(tags, format, ...)                               \
+  QUILL_LOG_DEBUG_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
+                       ##__VA_ARGS__)
 
-#define NOVA_INFO_TAGS(tags, format, ...) \
-  LOG_INFO_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, ##__VA_ARGS__)
+#define NOVA_INFO_TAGS(tags, format, ...)                               \
+  QUILL_LOG_INFO_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
+                      ##__VA_ARGS__)
 
-#define NOVA_WARN_TAGS(tags, format, ...)                            \
-  LOG_WARNING_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
-                   ##__VA_ARGS__)
+#define NOVA_WARN_TAGS(tags, format, ...)                                  \
+  QUILL_LOG_WARNING_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
+                         ##__VA_ARGS__)
 
-#define NOVA_ERROR_TAGS(tags, format, ...)                         \
-  LOG_ERROR_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
-                 ##__VA_ARGS__)
+#define NOVA_ERROR_TAGS(tags, format, ...)                               \
+  QUILL_LOG_ERROR_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
+                       ##__VA_ARGS__)
 
-#define NOVA_CRITICAL_TAGS(tags, format, ...)                         \
-  LOG_CRITICAL_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
-                    ##__VA_ARGS__)
+#define NOVA_CRITICAL_TAGS(tags, format, ...)                               \
+  QUILL_LOG_CRITICAL_TAGS(::nova::kLogManager.logger(), TAGS(tags), format, \
+                          ##__VA_ARGS__)
 
 #define TAG_MODULE "module"
 #define TAG_FUNCTION "function"
