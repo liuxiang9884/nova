@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <iterator>
 #include <stdexcept>
+#include <utility>
 
 #include "nova/common/macros.h"
 
@@ -119,16 +120,16 @@ class FixedArray {
   }
 
   // Capacity
-  constexpr bool empty() const noexcept {
+  [[nodiscard]] constexpr bool empty() const noexcept {
     return size_ == 0;
   }
-  constexpr size_type size() const noexcept {
+  [[nodiscard]] constexpr size_type size() const noexcept {
     return size_;
   }
-  constexpr size_type max_size() const noexcept {
+  [[nodiscard]] constexpr size_type max_size() const noexcept {
     return N;
   }
-  constexpr size_type capacity() const noexcept {
+  [[nodiscard]] constexpr size_type capacity() const noexcept {
     return N;
   }
 
@@ -158,7 +159,9 @@ class FixedArray {
         throw std::length_error("FixedArray::emplace_back");
       }
     }
-    new (&data_[size_]) T(std::forward<Args>(args)...);
+
+    data_[size_] = T(std::forward<Args>(args)...);
+    // new (&data_[size_]) T(std::forward<Args>(args)...);
     return data_[size_++];
   }
 
@@ -169,6 +172,34 @@ class FixedArray {
       }
     }
     --size_;
+  }
+
+  constexpr void resize(size_type new_size) {
+    if constexpr (NOVA_DEBUG_MODE) {
+      if (new_size > N) {
+        throw std::length_error("FixedArray::resize");
+      }
+    }
+    if (new_size > size_) {
+      for (size_type i = size_; i < new_size; ++i) {
+        data_[i] = T();
+      }
+    }
+    size_ = new_size;
+  }
+
+  constexpr void resize(size_type new_size, const T& value) {
+    if constexpr (NOVA_DEBUG_MODE) {
+      if (new_size > N) {
+        throw std::length_error("FixedArray::resize");
+      }
+    }
+    if (new_size > size_) {
+      for (size_type i = size_; i < new_size; ++i) {
+        data_[i] = value;
+      }
+    }
+    size_ = new_size;
   }
 
   constexpr void clear() noexcept {
