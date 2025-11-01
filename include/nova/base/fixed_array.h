@@ -160,8 +160,8 @@ class FixedArray {
       }
     }
 
-    data_[size_] = T(std::forward<Args>(args)...);
-    // new (&data_[size_]) T(std::forward<Args>(args)...);
+    // data_[size_] = T(std::forward<Args>(args)...);
+    new (&data_[size_]) T(std::forward<Args>(args)...);
     return data_[size_++];
   }
 
