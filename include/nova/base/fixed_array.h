@@ -10,6 +10,8 @@
 #include <stdexcept>
 #include <utility>
 
+#include <fmt/format.h>
+
 #include "nova/common/macros.h"
 
 namespace nova {
@@ -175,6 +177,7 @@ class FixedArray {
   }
 
   constexpr void resize(size_type new_size) {
+    fmt::println("haha, {}, {}", new_size, N);
     if constexpr (NOVA_DEBUG_MODE) {
       if (new_size > N) {
         throw std::length_error("FixedArray::resize");
