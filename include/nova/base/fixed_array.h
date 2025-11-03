@@ -177,7 +177,6 @@ class FixedArray {
   }
 
   constexpr void resize(size_type new_size) {
-    fmt::println("haha, {}, {}", new_size, N);
     if constexpr (NOVA_DEBUG_MODE) {
       if (new_size > N) {
         throw std::length_error("FixedArray::resize");
@@ -185,7 +184,7 @@ class FixedArray {
     }
     if (new_size > size_) {
       for (size_type i = size_; i < new_size; ++i) {
-        data_[i] = T();
+        new (&data_[i]) T();
       }
     }
     size_ = new_size;
