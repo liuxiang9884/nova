@@ -4,15 +4,14 @@
 
 #pragma once
 
+#include <cassert>
 #include <chrono>
 #include <cmath>
-#include <cassert>
 #include <cstdint>
 #include <ctime>
 #include <string>
 #include <string_view>
 #include <tuple>
-#include <string_view>
 
 #include <fmt/format.h>
 
@@ -461,13 +460,23 @@ inline int32_t GetToday() {
 
 // time format: "HH:MM:SS"
 inline int64_t TimeToSeconds(std::string_view time) {
-  assert(time.size() == 6 && "Time string must be in format HHMMSS with length 6");
+  assert(time.size() == 6 &&
+         "Time string must be in format HHMMSS with length 6");
 
   auto hour = (time[0] - '0') * 10 + (time[1] - '0');
   auto minute = (time[3] - '0') * 10 + (time[4] - '0');
   auto second = (time[6] - '0') * 10 + (time[7] - '0');
 
   return hour * 3600 + minute * 60 + second;
+}
+
+inline std::string GetNowDatetime(const char *format = "%Y%m%d.%H%M%S") {
+  const auto sec = static_cast<time_t>(nova::GetSeconds());
+  struct tm tp{};
+  localtime_r(&sec, &tp);
+  char datetime[32];
+  std::strftime(datetime, sizeof(datetime), format, &tp);
+  return {datetime};
 }
 
 }  // namespace nova
