@@ -27,6 +27,11 @@ class EnumArray {
 
   constexpr EnumArray() = default;
 
+  template <typename... Args>
+  constexpr EnumArray(Args&&... args) : values_{std::forward<Args>(args)...} {
+    static_assert(sizeof...(Args) <= kSize, "Too many values for EnumArray");
+  }
+
   EnumArray(std::initializer_list<ValueType> values) {
     if (values.size() > kSize) {
       throw std::invalid_argument(
