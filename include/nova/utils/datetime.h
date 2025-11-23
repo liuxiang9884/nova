@@ -148,8 +148,8 @@ inline int64_t ns2cycles(int64_t ns, double ghz) {
  */
 inline int64_t GetNanoseconds() {
   if constexpr (NOVA_OS == NOVA_OS_MACOS) {
-    auto now = std::chrono::high_resolution_clock::now();
-    auto duration = now.time_since_epoch();
+    const auto now = std::chrono::high_resolution_clock::now();
+    const auto duration = now.time_since_epoch();
     return std::chrono::duration_cast<std::chrono::nanoseconds>(duration)
         .count();
   } else {
@@ -181,8 +181,8 @@ inline int64_t GetMilliseconds() {
  */
 inline int64_t GetSeconds() {
   if constexpr (NOVA_OS == NOVA_OS_MACOS) {
-    auto now = std::chrono::system_clock::now();
-    auto duration = now.time_since_epoch();
+    const auto now = std::chrono::system_clock::now();
+    const auto duration = now.time_since_epoch();
     return std::chrono::duration_cast<std::chrono::seconds>(duration).count();
   } else {
     struct timespec now{};
@@ -463,9 +463,9 @@ inline int64_t TimeToSeconds(std::string_view time) {
   assert(time.size() == 6 &&
          "Time string must be in format HHMMSS with length 6");
 
-  auto hour = (time[0] - '0') * 10 + (time[1] - '0');
-  auto minute = (time[3] - '0') * 10 + (time[4] - '0');
-  auto second = (time[6] - '0') * 10 + (time[7] - '0');
+  const auto hour = (time[0] - '0') * 10 + (time[1] - '0');
+  const auto minute = (time[3] - '0') * 10 + (time[4] - '0');
+  const auto second = (time[6] - '0') * 10 + (time[7] - '0');
 
   return hour * 3600 + minute * 60 + second;
 }
