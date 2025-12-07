@@ -171,6 +171,22 @@ class LogManager {
     NovaFrontend::preallocate();
   }
 
+  [[nodiscard]] std::shared_ptr<quill::Sink> GetConsoleSink() const {
+    return NovaFrontend::get_sink(config_.console_sink_name());
+  }
+
+  [[nodiscard]] std::shared_ptr<quill::Sink> GetFileSink() const {
+    return NovaFrontend::get_sink(config_.file_sink_name());
+  }
+
+  [[nodiscard]] std::shared_ptr<quill::Sink> GetJsonConsoleSink() const {
+    return NovaFrontend::get_sink(config_.json_console_sink_name());
+  }
+
+  [[nodiscard]] std::shared_ptr<quill::Sink> GetJsonFileSink() const {
+    return NovaFrontend::get_sink(config_.json_file_sink_name());
+  }
+
  private:
   [[nodiscard]] std::vector<std::shared_ptr<quill::Sink>> CreateSinks() const;
 
