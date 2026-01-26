@@ -2,7 +2,7 @@
 set(VCPKG_ROOT "$ENV{HOME}/vcpkg/scripts/buildsystems/vcpkg.cmake")
 if (APPLE)
     set(VCPKG_INCLUDE "$ENV{HOME}/vcpkg/installed/arm64-osx/include")
-    set(CMAKE_OSX_SYSROOT "/Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk"
+    set(CMAKE_OSX_SYSROOT "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
             CACHE STRING "SDK_PATH" FORCE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "15.5")
     set(CMAKE_OSX_ARCHITECTURES "arm64")
