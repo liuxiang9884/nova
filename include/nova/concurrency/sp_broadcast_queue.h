@@ -69,6 +69,28 @@ class SPBroadcastQueue {
   }
 
   /**
+   * Populate the current producer slot with a writer callback
+   * @tparam Writer Callable type invoked as writer(T&)
+   * @param writer Callback that fills the current slot
+   */
+  template <typename Writer>
+  void EmplaceWith(Writer&& writer) noexcept(
+      std::is_nothrow_invocable_v<Writer&&, T&>) {
+    static_assert(std::is_invocable_v<Writer&&, T&>,
+                  "Writer must be invocable with T&");
+
+    // Get current index and calculate next index
+    const auto current = current_.load(std::memory_order_relaxed);
+    const auto next = current + 1;
+
+    // Populate the object at the current slot
+    std::forward<Writer>(writer)(data_[Idx(current)]);
+
+    // Update current_ to make the populated element visible to consumers
+    current_.store(next, std::memory_order_release);
+  }
+
+  /**
    * Push a copy of an element to the queue
    * @param value The value to push
    */
