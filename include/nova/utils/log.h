@@ -206,6 +206,24 @@ void PreallocateLogging();
 
 void StopLogging();
 
+class LoggingGuard {
+ public:
+  explicit LoggingGuard(const toml::table& toml) {
+    LogConfig log_config;
+    log_config.FromToml(toml["log"]);
+    InitializeLogging(log_config);
+  }
+
+  ~LoggingGuard() noexcept {
+    StopLogging();
+  }
+
+  LoggingGuard(const LoggingGuard&) = delete;
+  LoggingGuard& operator=(const LoggingGuard&) = delete;
+  LoggingGuard(LoggingGuard&&) = delete;
+  LoggingGuard& operator=(LoggingGuard&&) = delete;
+};
+
 }  // namespace nova
 
 #define NOVA_TRACE(format, ...) \
