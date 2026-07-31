@@ -29,8 +29,7 @@ file(GLOB_RECURSE SOURCES
 )
 
 add_library(nova ${HEADERS} ${SOURCES})
-target_include_directories(nova PUBLIC ${NOVA_INCLUDE} ${VCPKG_INCLUDE}
-        ${CPP_YYJSON_INCLUDE})
+target_include_directories(nova PUBLIC ${NOVA_INCLUDE} ${VCPKG_INCLUDE})
 target_link_libraries(nova PRIVATE fmt::fmt-header-only)
 target_compile_options(nova PRIVATE -Wno-gnu-zero-variadic-macro-arguments)
 
@@ -40,7 +39,6 @@ target_link_libraries(nova_demo PRIVATE nova)
 if (PROJECT_IS_TOP_LEVEL)
     add_subdirectory(examples)
 endif ()
-
 
 
 

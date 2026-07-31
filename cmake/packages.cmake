@@ -1,12 +1,18 @@
 include(FetchContent)
 
-FetchContent_Declare(
-        cpp-yyjson
-        GIT_REPOSITORY git@github.com:yosh-matsuda/cpp-yyjson.git
-        GIT_TAG main
-)
+function(nova_find_cpp_yyjson)
+    find_package(cpp_yyjson CONFIG QUIET)
+    if (cpp_yyjson_FOUND)
+        message(STATUS "Found cpp_yyjson: ${cpp_yyjson_DIR}")
+        return()
+    endif ()
 
-FetchContent_MakeAvailable(cpp-yyjson)
-set(CPP_YYJSON_INCLUDE ${cpp-yyjson_SOURCE_DIR}/include)
-set(CPP_YYJSON_INCLUDE ${CPP_YYJSON_INCLUDE} CACHE STRING "cpp-yyjson include directory" FORCE)
-message(STATUS "CPP_YYJSON_INCLUDE: " ${CPP_YYJSON_INCLUDE})
+    message(STATUS "cpp_yyjson package not found; using FetchContent fallback")
+    FetchContent_Declare(
+            cpp-yyjson
+            GIT_REPOSITORY https://github.com/yosh-matsuda/cpp-yyjson.git
+            GIT_TAG de04a517b76c302bdfcc0ff9f96d98908239af21
+            GIT_SUBMODULES ""
+    )
+    FetchContent_MakeAvailable(cpp-yyjson)
+endfunction()

@@ -46,6 +46,7 @@ quill
 tomlplusplus
 vincentlaucsb-csv-parser
 yyjson
+cpp-yyjson
 nameof
 drogon
 fast-float
@@ -58,6 +59,27 @@ gtest
 ```bash
     vcpkg install cli11 fmt magic-enum quill tomlplusplus vincentlaucsb-csv-parser yyjson nameof drogon fast-float benchmark gtest
 ```
+
+`cpp-yyjson` 使用本仓库提供的 vcpkg overlay port。classic mode 下先显式安装：
+
+```bash
+    cd your_path/nova
+    $VCPKG_ROOT/vcpkg install cpp-yyjson --overlay-ports="$PWD/vcpkg-overlay-ports" --triplet x64-linux
+```
+
+安装完成后，CMake 配置只需要使用 vcpkg toolchain 和目标 triplet，不需要再传 overlay path：
+
+```bash
+    cmake -S . -B build/debug \
+      -DCMAKE_BUILD_TYPE=Debug \
+      -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+      -DVCPKG_TARGET_TRIPLET=x64-linux
+```
+
+当前 Linux classic-mode 参考环境：
+
+- vcpkg commit: `96d5fb3de135b86d7222c53f2352ca92827a156b`
+- triplet: `x64-linux`
 
 ## 构建
 ```bash

@@ -1,0 +1,4 @@
+cpp-yyjson provides the CMake target:
+
+  find_package(cpp_yyjson CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE cpp_yyjson::cpp_yyjson)
