@@ -29,7 +29,7 @@ file(GLOB_RECURSE SOURCES
 )
 
 add_library(nova ${HEADERS} ${SOURCES})
-target_include_directories(nova PUBLIC ${NOVA_INCLUDE} ${VCPKG_INCLUDE})
+target_include_directories(nova PUBLIC ${NOVA_INCLUDE})
 target_link_libraries(nova
         PUBLIC quill::quill
         PRIVATE fmt::fmt-header-only)
