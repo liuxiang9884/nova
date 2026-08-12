@@ -78,8 +78,9 @@ gtest
 
 当前 Linux classic-mode 参考环境：
 
-- vcpkg commit: `96d5fb3de135b86d7222c53f2352ca92827a156b`
+- vcpkg commit: `aae277acf4e7de287ddb5e208b5316614de6aad7`
 - triplet: `x64-linux`
+- quill: `12.1.0`
 
 ## 构建
 ```bash
