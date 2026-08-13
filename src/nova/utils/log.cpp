@@ -4,6 +4,8 @@
 
 #include "nova/utils/log.h"
 
+#include "log_backend_options.h"
+
 #include <filesystem>
 #include <iostream>
 #include <limits>
@@ -217,7 +219,8 @@ std::vector<std::shared_ptr<quill::Sink>> LogManager::CreateSinks() const {
 void LogManager::InitializeBackend() const {
   quill::BackendOptions backend_options;
   backend_options.thread_name = config_.backend_thread_name();
-  backend_options.cpu_affinity = config_.backend_cpu_affinity();
+  detail::SetBackendCpuAffinity(backend_options,
+                                config_.backend_cpu_affinity());
   quill::Backend::start<NovaFrontendOptions>(backend_options,
                                              quill::SignalHandlerOptions{});
 }
