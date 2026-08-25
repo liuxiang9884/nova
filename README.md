@@ -1,92 +1,89 @@
 # nova
 
-## 安裝與使用 vcpkg
-### 安裝
-1.第一個步驟是從 GitHub 複製 vcpkg 存放庫。 存放庫包含可取得 vcpkg 可執行文件的腳本，以及 vcpkg 社群所維護之策劃開放原始碼連結庫的登錄
-```bash
-    git clone https://github.com/microsoft/vcpkg.git
-```
-2.接下來，您需要使用以下命令編譯 vcpkg 可執行文件：
-```bash
-    cd vcpkg && ./bootstrap-vcpkg.sh
-```
-3.設定專案
-```bash
-    export VCPKG_ROOT=/path/to/vcpkg
-    export PATH=$VCPKG_ROOT:$PATH
-```
-若要讓此變更在會話之間永久完成，請將 命令新增 export 至殼層的配置檔腳本（例如 ~/.bashrc 或 ~/.zshrc）
+Nova 是供低延迟 C++ 系统复用的基础库。library 的直接依赖为 fmt、magic_enum、Quill 和 tomlplusplus；demo 和 test 另外使用 CLI11、cpp-yyjson 和 GTest。
 
-## 使用manifest模式
-1. 建立清單
-```bash
-    vcpkg new --application
-```
-這會在當前目錄中建立一個新的 vcpkg 專案，並包含以下檔案：
-- vcpkg.json : 相依性目錄
-- vcpkg-configuration.json : vcpkg 設定檔
+## 作为 CMake subproject 使用
 
-2. 添加套件相依性
-```bash
-    vcpkg add port <pkg_name>
+Nova 不维护自己的顶层 `vcpkg.json`。使用 Nova 的 application 应通过自己的 manifest 统一固定依赖版本，并在首次 `project()` 前提供 vcpkg toolchain。
+
+consumer 的基础依赖示例：
+
+```json
+{
+  "dependencies": [
+    "fmt",
+    "magic-enum",
+    "quill",
+    "tomlplusplus"
+  ]
+}
 ```
 
-3. 安裝套件
+通过 `FetchContent` 固定完整 commit：
 
-```bash
-    vcpkg install
+```cmake
+include(FetchContent)
+
+FetchContent_Declare(
+    nova
+    GIT_REPOSITORY git@github.com:dcfintech/nova.git
+    GIT_TAG <full-commit-sha>
+)
+FetchContent_MakeAvailable(nova)
+
+target_link_libraries(your_target PRIVATE nova::nova)
 ```
 
-4. 已经安装的packages
-```
-cli11
-fmt
-magic-enum
-quill
-tomlplusplus
-vincentlaucsb-csv-parser
-yyjson
-cpp-yyjson
-nameof
-drogon
-fast-float
-benchmark
-gtest
-```
-
-## 使用经典模式
+本地联调时使用 CMake 内建 override，不需要修改 `GIT_TAG`：
 
 ```bash
-    vcpkg install cli11 fmt magic-enum quill tomlplusplus vincentlaucsb-csv-parser yyjson nameof drogon fast-float benchmark gtest
+cmake -S . -B build \
+  -DFETCHCONTENT_SOURCE_DIR_NOVA=/absolute/path/to/nova
 ```
 
-`cpp-yyjson` 使用本仓库提供的 vcpkg overlay port。classic mode 下先显式安装：
+Nova 作为 subproject 时不会创建自己的 demo、examples 或 tests，也不会修改 consumer 的 toolchain、triplet、编译标准或 platform 设置。
+
+## 独立构建
+
+准备 vcpkg：
 
 ```bash
-    cd your_path/nova
-    $VCPKG_ROOT/vcpkg install cpp-yyjson --overlay-ports="$PWD/vcpkg-overlay-ports" --triplet x64-linux
-```
-
-安装完成后，CMake 配置只需要使用 vcpkg toolchain 和目标 triplet，不需要再传 overlay path：
-
-```bash
-    cmake -S . -B build/debug \
-      -DCMAKE_BUILD_TYPE=Debug \
-      -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
-      -DVCPKG_TARGET_TRIPLET=x64-linux
+git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+"$HOME/vcpkg/bootstrap-vcpkg.sh"
+export VCPKG_ROOT="$HOME/vcpkg"
 ```
 
 当前 Linux classic-mode 参考环境：
 
-- vcpkg commit: `aae277acf4e7de287ddb5e208b5316614de6aad7`
-- triplet: `x64-linux`
-- quill: `12.1.0`
+- vcpkg commit：`aae277acf4e7de287ddb5e208b5316614de6aad7`
+- triplet：`x64-linux-dynamic`
+- Quill：`12.1.0`
 
-## 构建
+先安装 library、demo 和 test 所需依赖：
+
 ```bash
-    cd your_path/nova
-    chmod a+x build.sh
-    ./build.sh
+"$VCPKG_ROOT/vcpkg" install \
+  cli11 fmt gtest magic-enum quill tomlplusplus \
+  --triplet x64-linux-dynamic
 ```
-默认分别建立build/debug和build/release两个folder，分别执行debug和release编译。
-也可以指定debug或者release参数进行编译。
+
+`yyjson_demo` 会在没有 `cpp-yyjson` package 时使用固定 commit 的 `FetchContent` fallback。也可以先安装本仓库的 overlay port：
+
+```bash
+"$VCPKG_ROOT/vcpkg" install cpp-yyjson \
+  --overlay-ports="$PWD/vcpkg-overlay-ports" \
+  --triplet x64-linux-dynamic
+```
+
+执行 Debug 和 Release 构建：
+
+```bash
+./build.sh
+```
+
+也可以只构建一个配置：
+
+```bash
+./build.sh debug
+./build.sh release
+```
