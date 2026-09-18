@@ -184,10 +184,24 @@ TEST(RadixBitmap, DensePromotionPreservesKeysAndOrder) {
     ASSERT_EQ(set.Contains(key), reference.contains(key));
     CheckLowerBound(set, reference, key);
   }
+  const int32_t anchor = *reference.rbegin();
   for (auto key : reference) {
+    if (key == anchor) continue;
     ASSERT_TRUE(set.Erase(key));
     ASSERT_FALSE(set.Erase(key));
   }
+  ASSERT_EQ(set.Size(), 1u);
+  // A promoted page stays dense after shrinking. Reinsert into every emptied
+  // leaf: stale compact rank prefixes must never be consulted in dense mode.
+  for (int32_t word = 0; word < 1023; ++word) {
+    const int32_t key = -65536 + word * 64;
+    ASSERT_TRUE(set.Insert(key));
+    ASSERT_TRUE(set.Contains(key));
+    ASSERT_EQ(set.LowerBound(key), key);
+    ASSERT_TRUE(set.Erase(key));
+    ASSERT_EQ(set.LowerBound(key), anchor);
+  }
+  ASSERT_TRUE(set.Erase(anchor));
   EXPECT_EQ(set.Size(), 0u);
   EXPECT_EQ(set.StorageBytes(), empty_bytes);
 }
