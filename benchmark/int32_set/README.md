@@ -19,19 +19,22 @@ ctest --test-dir build/set-release -R nova_int32_set_correctness --output-on-fai
 
 ## 运行与读数
 
+当前指定测试机器为 **`sz_45`（AMD Ryzen 9 9950X）**。正式对比在该机器执行，固定 CPU 8（第二 CCD，SMT 同胞为 CPU 24）；选择其他测试机器前应先由用户确认。
+
 ```bash
-# Linux：选择本机可用于测试的 CPU；这里使用 16。
-taskset -c 16 build/set-release/benchmark/int32_set/nova_int32_set_benchmark \
+# 在 sz_45 上执行。
+taskset -c 8 build/set-release/benchmark/int32_set/nova_int32_set_benchmark \
   --benchmark_filter='/(1024|100000|1000000)$' \
   --benchmark_min_time=0.1s --benchmark_repetitions=5 \
   --benchmark_enable_random_interleaving=true \
   --benchmark_display_aggregates_only=true \
+  --benchmark_context=machine=sz_45,cpu=Ryzen_9_9950X,pinned_cpu=8 \
   --benchmark_out="$HOME/tmp/int32-set-results.json"
 
 python3 benchmark/int32_set/summarize.py "$HOME/tmp/int32-set-results.json"
 ```
 
-输出目录需预先存在。macOS 去掉 `taskset -c 16`。不指定 filter 会包含 10,000,000 元素用例，运行时间和内存占用明显增加。快速检查可使用 `--benchmark_filter='/1024$' --benchmark_min_time=0.001s`；这种短跑不用于性能结论。
+输出目录需预先存在。本地 macOS 可去掉 `taskset -c 8` 做可移植部分的 smoke，但不将其作为指定机器的性能结果。不指定 filter 会包含 10,000,000 元素用例，运行时间和内存占用明显增加。快速检查可使用 `--benchmark_filter='/1024$' --benchmark_min_time=0.001s`；这种短跑不用于性能结论。
 
 每次 Google Benchmark iteration 是 **N 次容器操作的一整批**。`Time`/`CPU` 列单位为毫秒，表示整批耗时；`items_per_second` 是操作吞吐率，`seconds_per_op` 是按 CPU 时间归一化的每操作秒数，控制台会自动显示为 ns 等单位。汇总脚本输出各次重复的 **CPU ns/op 中位数**，越小越好；JSON 中保留每次重复和变异系数等统计。存在错误/跳过记录时，脚本拒绝输出比较表。
 
