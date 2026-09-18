@@ -103,4 +103,30 @@ TEST(RadixBitmap, RandomInterleavingAgainstStdSet) {
   }
 }
 
+TEST(RadixBitmap, ReusedPagesAndEmptyLeaves) {
+  RadixBitmapSet set;
+  const auto empty_bytes = set.StorageBytes();
+  for (int cycle = 0; cycle < 4; ++cycle) {
+    const int32_t base = (cycle - 2) * 65536;
+    // Leave exactly one occupied leaf; probe all other leaves after allocator
+    // reuse. This catches stale or uninitialized leaf data becoming visible.
+    ASSERT_TRUE(set.Insert(base + 65535));
+    for (int32_t low = 0; low < 65535; ++low) {
+      ASSERT_FALSE(set.Contains(base + low));
+      ASSERT_FALSE(set.Erase(base + low));
+      ASSERT_EQ(set.LowerBound(base + low), base + 65535);
+    }
+    ASSERT_TRUE(set.Erase(base + 65535));
+    EXPECT_EQ(set.StorageBytes(), empty_bytes);
+    for (int32_t low = 0; low < 65536; low += 64) {
+      ASSERT_TRUE(set.Insert(base + low));
+    }
+    for (int32_t low = 65535; low >= 0; --low) {
+      ASSERT_EQ(set.Erase(base + low), (low % 64) == 0);
+    }
+    EXPECT_EQ(set.Size(), 0u);
+    EXPECT_EQ(set.StorageBytes(), empty_bytes);
+  }
+}
+
 }  // namespace nova_bench

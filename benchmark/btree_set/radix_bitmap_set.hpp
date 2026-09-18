@@ -16,7 +16,7 @@ namespace nova_bench {
 class RadixBitmapSet {
  private:
   struct Bitmap256 {
-    std::array<uint64_t, 4> words{};
+    std::array<uint64_t, 4> words;
 
     bool Contains(unsigned bit) const noexcept {
       return (words[bit >> 6] & (uint64_t{1} << (bit & 63))) != 0;
@@ -52,7 +52,7 @@ class RadixBitmapSet {
   };
 
   struct Page {
-    Bitmap256 blocks;
+    Bitmap256 blocks{};
     std::array<Bitmap256, 256> leaves;
   };
 
@@ -72,14 +72,17 @@ class RadixBitmapSet {
     auto& page = pages_[prefix];
     if (!page) {
       // Allocation is the only throwing operation; publish no summary or size
-      // changes until it succeeds. make_unique value-initializes all bitmaps.
-      page = std::make_unique<Page>();
+      // changes until it succeeds. Only the validity bitmap is initialized.
+      page.reset(new Page);
       ++page_count_;
       groups_[prefix >> 8].Insert(prefix & 255);
       root_.Insert(prefix >> 8);
     }
+    if (!page->blocks.Contains(block)) {
+      page->leaves[block] = Bitmap256{};
+      page->blocks.Insert(block);
+    }
     if (!page->leaves[block].Insert(ordered & 255)) return false;
-    page->blocks.Insert(block);
     ++size_;
     return true;
   }
@@ -87,7 +90,9 @@ class RadixBitmapSet {
   bool Contains(int32_t key) const noexcept {
     const uint32_t ordered = Encode(key);
     const auto& page = pages_[ordered >> 16];
-    return page && page->leaves[(ordered >> 8) & 255].Contains(ordered & 255);
+    const unsigned block = (ordered >> 8) & 255;
+    return page && page->blocks.Contains(block) &&
+           page->leaves[block].Contains(ordered & 255);
   }
 
   bool Erase(int32_t key) noexcept {
@@ -95,7 +100,9 @@ class RadixBitmapSet {
     const unsigned prefix = ordered >> 16;
     const unsigned block = (ordered >> 8) & 255;
     auto& page = pages_[prefix];
-    if (!page || !page->leaves[block].Erase(ordered & 255)) return false;
+    if (!page || !page->blocks.Contains(block) ||
+        !page->leaves[block].Erase(ordered & 255))
+      return false;
     --size_;
     if (page->leaves[block].Empty()) {
       page->blocks.Erase(block);
@@ -126,8 +133,10 @@ class RadixBitmapSet {
     const auto& page = pages_[prefix];
     if (page) {
       const unsigned block = (ordered >> 8) & 255;
-      const unsigned bit = page->leaves[block].Next(ordered & 255);
-      if (bit < 256) return Decode((ordered & 0xffffff00u) | bit);
+      if (page->blocks.Contains(block)) {
+        const unsigned bit = page->leaves[block].Next(ordered & 255);
+        if (bit < 256) return Decode((ordered & 0xffffff00u) | bit);
+      }
       const unsigned next_block = page->blocks.Next(block + 1);
       if (next_block < 256) {
         return Decode((prefix << 16) | (next_block << 8) |

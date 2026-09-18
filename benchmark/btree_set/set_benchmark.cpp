@@ -111,8 +111,8 @@ int main(int argc, char** argv) {
   benchmark::Initialize(&argc, argv);
   if (benchmark::ReportUnrecognizedArguments(argc, argv)) return 1;
   benchmark::AddCustomContext("key_type", "int32_t");
-  benchmark::AddCustomContext("radix_layout",
-                              "8+8+8+8; lazy 64K-key pages; full int32 domain");
+  benchmark::AddCustomContext(
+      "radix_layout", "8+8+8+8; lazy leaf initialization; full int32 domain");
   benchmark::AddCustomContext("dataset",
                               "bijective32-even/odd; fixed seeds; unique keys");
   benchmark::AddCustomContext(
