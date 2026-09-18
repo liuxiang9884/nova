@@ -50,7 +50,7 @@ if (PROJECT_IS_TOP_LEVEL)
     endif ()
     add_subdirectory(examples)
     if (NOVA_BUILD_BENCHMARKS)
-        add_subdirectory(benchmark/ordered_set)
+        add_subdirectory(benchmark/btree_set)
     endif ()
 endif ()
 
