@@ -1,4 +1,6 @@
-# int32 有序 set 对比
+# 有序集合对比
+
+本实验位于 `benchmark` 分支，按有序集合这一主题组织；当前用例的键类型为 `int32_t`。
 
 使用 Google Benchmark 比较 `absl::btree_set<int32_t>`、Haoqiang Fan 的 64 阶 AVX2 B-Tree set 和 `std::set<int32_t>`。不包含 map/value。
 
@@ -9,8 +11,8 @@
 ```bash
 cmake -S . -B build/set-release -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DNOVA_BUILD_BENCHMARKS=ON
-cmake --build build/set-release --target nova_int32_set_benchmark nova_int32_set_test --parallel
-ctest --test-dir build/set-release -R nova_int32_set_correctness --output-on-failure
+cmake --build build/set-release --target nova_ordered_set_benchmark nova_ordered_set_test --parallel
+ctest --test-dir build/set-release -R nova_ordered_set_correctness --output-on-failure
 ```
 
 `NOVA_BUILD_BENCHMARKS` 默认关闭。开启时，nova 的 vcpkg manifest 自动选择 `benchmarks` feature，安装 `abseil` 与 `benchmark`；不使用 classic 安装目录。GoogleTest 使用 nova 已有依赖。
@@ -23,15 +25,15 @@ ctest --test-dir build/set-release -R nova_int32_set_correctness --output-on-fai
 
 ```bash
 # 在 sz_45 上执行。
-taskset -c 8 build/set-release/benchmark/int32_set/nova_int32_set_benchmark \
+taskset -c 8 build/set-release/benchmark/ordered_set/nova_ordered_set_benchmark \
   --benchmark_filter='/(1024|100000|1000000)$' \
   --benchmark_min_time=0.1s --benchmark_repetitions=5 \
   --benchmark_enable_random_interleaving=true \
   --benchmark_display_aggregates_only=true \
   --benchmark_context=machine=sz_45,cpu=Ryzen_9_9950X,pinned_cpu=8 \
-  --benchmark_out="$HOME/tmp/int32-set-results.json"
+  --benchmark_out="$HOME/tmp/ordered-set-results.json"
 
-python3 benchmark/int32_set/summarize.py "$HOME/tmp/int32-set-results.json"
+python3 benchmark/ordered_set/summarize.py "$HOME/tmp/ordered-set-results.json"
 ```
 
 输出目录需预先存在。本地 macOS 可去掉 `taskset -c 8` 做可移植部分的 smoke，但不将其作为指定机器的性能结果。不指定 filter 会包含 10,000,000 元素用例，运行时间和内存占用明显增加。快速检查可使用 `--benchmark_filter='/1024$' --benchmark_min_time=0.001s`；这种短跑不用于性能结论。

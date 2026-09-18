@@ -89,18 +89,20 @@ cmake -S . -B build/debug -DCMAKE_BUILD_TYPE=Debug \
 ./build.sh release  # 仅构建 Release
 ```
 
-## int32 set 基准测试
+## 基准测试
 
-`benchmark/int32_set` 使用 Google Benchmark 比较 `absl::btree_set<int32_t>`、作者的 AVX2 B-Tree set 与 `std::set<int32_t>` 的插入、命中/未命中/混合查找和删除。
+基准实验统一在 `benchmark` 分支开发，按需选择进入 `main`。目录索引与约定见 [benchmark/README.md](benchmark/README.md)。
+
+`benchmark/ordered_set` 使用 Google Benchmark 比较 `absl::btree_set<int32_t>`、作者的 AVX2 B-Tree set 与 `std::set<int32_t>` 的插入、命中/未命中/混合查找和删除。
 
 ```bash
 cmake -S . -B build/set-release -DCMAKE_BUILD_TYPE=Release -DNOVA_BUILD_BENCHMARKS=ON
-cmake --build build/set-release --target nova_int32_set_benchmark nova_int32_set_test --parallel
-ctest --test-dir build/set-release -R nova_int32_set_correctness --output-on-failure
-build/set-release/benchmark/int32_set/nova_int32_set_benchmark --benchmark_filter='/100000$'
+cmake --build build/set-release --target nova_ordered_set_benchmark nova_ordered_set_test --parallel
+ctest --test-dir build/set-release -R nova_ordered_set_correctness --output-on-failure
+build/set-release/benchmark/ordered_set/nova_ordered_set_benchmark --benchmark_filter='/100000$'
 ```
 
-作者实现需要 x86-64 AVX2/POPCNT；Apple Silicon 上仅测试 Abseil 和 STL。完整口径、性能结果与 JSON 汇总方法见 [benchmark/int32_set/README.md](benchmark/int32_set/README.md)。
+作者实现需要 x86-64 AVX2/POPCNT；Apple Silicon 上仅测试 Abseil 和 STL。完整口径、性能结果与 JSON 汇总方法见 [benchmark/ordered_set/README.md](benchmark/ordered_set/README.md)。
 
 ## 维护依赖清单
 
