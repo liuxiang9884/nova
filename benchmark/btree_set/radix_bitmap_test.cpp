@@ -162,4 +162,34 @@ TEST(RadixBitmap, CompactLeafRankGrowthAndMiddleErase) {
   EXPECT_EQ(set.StorageBytes(), empty_bytes);
 }
 
+TEST(RadixBitmap, DensePromotionPreservesKeysAndOrder) {
+  RadixBitmapSet set;
+  const auto empty_bytes = set.StorageBytes();
+  std::set<int32_t> reference;
+  // 64 distinct words then another word: cross the promotion threshold while
+  // preserving multiple bits per word, signed order, and duplicate semantics.
+  for (int32_t word = 1023; word >= 0; word -= 13) {
+    for (int bit : {0, 31, 63}) {
+      const int32_t key = -65536 + word * 64 + bit;
+      ASSERT_TRUE(set.Insert(key));
+      ASSERT_FALSE(set.Insert(key));
+      reference.insert(key);
+      ASSERT_EQ(set.Size(), reference.size());
+      for (auto saved : reference) ASSERT_TRUE(set.Contains(saved));
+      CheckLowerBound(set, reference, key - 1);
+      CheckLowerBound(set, reference, key + 1);
+    }
+  }
+  for (int32_t key = -65536; key < 0; ++key) {
+    ASSERT_EQ(set.Contains(key), reference.contains(key));
+    CheckLowerBound(set, reference, key);
+  }
+  for (auto key : reference) {
+    ASSERT_TRUE(set.Erase(key));
+    ASSERT_FALSE(set.Erase(key));
+  }
+  EXPECT_EQ(set.Size(), 0u);
+  EXPECT_EQ(set.StorageBytes(), empty_bytes);
+}
+
 }  // namespace nova_bench

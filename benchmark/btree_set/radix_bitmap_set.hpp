@@ -16,7 +16,7 @@
 namespace nova_bench {
 
 // Experimental four-level radix bitmap: 8+8+10+6 ordered key bits.
-// Each page packs only occupied 64-bit leaves, addressed by bitmap rank.
+// Sparse pages pack occupied 64-bit leaves by rank; dense pages index directly.
 // Independently implemented; the author's radix implementation is unpublished.
 class RadixBitmapSet {
  private:
@@ -81,6 +81,14 @@ class RadixBitmapSet {
     uint64_t operator[](unsigned rank) const noexcept {
       return Data()[rank];
     }
+    unsigned Size() const noexcept {
+      return size_;
+    }
+    void Reset() noexcept {
+      heap_.reset();
+      size_ = 0;
+      capacity_ = 16;
+    }
     bool empty() const noexcept {
       return size_ == 0;
     }
@@ -106,6 +114,17 @@ class RadixBitmapSet {
     Leaves leaves;
     // Number of occupied leaves preceding each 64-bit summary word.
     std::array<uint16_t, 16> prefix{};
+    std::unique_ptr<uint64_t[]> dense;
+
+    uint64_t Word(unsigned block) const noexcept {
+      return dense ? dense[block] : leaves[Rank(block)];
+    }
+    bool Empty() const noexcept {
+      return dense ? occupied.Empty() : leaves.empty();
+    }
+    size_t HeapBytes() const noexcept {
+      return dense ? 1024 * sizeof(uint64_t) : leaves.HeapBytes();
+    }
 
     unsigned Rank(unsigned block) const noexcept {
       return prefix[block >> 6] +
@@ -139,8 +158,31 @@ class RadixBitmapSet {
     bool Insert(unsigned low) {
       const unsigned block = low >> 6;
       const auto mask = uint64_t{1} << (low & 63);
+      if (dense) {
+        auto& word = dense[block];
+        if ((word & mask) != 0) return false;
+        if (word == 0) occupied.Insert(block);
+        word |= mask;
+        return true;
+      }
       const unsigned rank = Rank(block);
       if (!occupied.Contains(block)) {
+        if (leaves.Size() == 64) {
+          // Conversion stays in Insert's timed path. Allocate and populate
+          // before publishing; a failed allocation leaves the page unchanged.
+          auto fresh = std::make_unique<uint64_t[]>(1024);
+          unsigned index = 0;
+          for (unsigned bit = occupied.Next(0); bit < 1024;
+               bit = occupied.Next(bit + 1)) {
+            fresh[bit] = leaves[index++];
+          }
+          fresh[block] = mask;
+          dense = std::move(fresh);
+          leaves.Reset();
+          occupied.Insert(block);
+          // Prefix counts are no longer read for this page in dense mode.
+          return true;
+        }
         // Leaf growth allocates/copies before publishing its new storage.
         // Publish the validity bit only after allocation/movement succeeds.
         leaves.Insert(rank, mask);
@@ -156,32 +198,34 @@ class RadixBitmapSet {
     bool Contains(unsigned low) const noexcept {
       const unsigned block = low >> 6;
       return occupied.Contains(block) &&
-             (leaves[Rank(block)] & (uint64_t{1} << (low & 63))) != 0;
+             (Word(block) & (uint64_t{1} << (low & 63))) != 0;
     }
     bool Erase(unsigned low) noexcept {
       const unsigned block = low >> 6;
       if (!occupied.Contains(block)) return false;
-      const unsigned rank = Rank(block);
-      auto& word = leaves[rank];
+      const unsigned rank = dense ? block : Rank(block);
+      auto& word = dense ? dense[rank] : leaves[rank];
       const auto mask = uint64_t{1} << (low & 63);
       if ((word & mask) == 0) return false;
       word &= ~mask;
       if (word == 0) {
-        leaves.Erase(rank);
         occupied.Erase(block);
-        UpdatePrefix<false>(block);
+        if (!dense) {
+          leaves.Erase(rank);
+          UpdatePrefix<false>(block);
+        }
       }
       return true;
     }
     std::optional<unsigned> LowerBound(unsigned low) const noexcept {
       const unsigned block = low >> 6;
       if (occupied.Contains(block)) {
-        const auto word = leaves[Rank(block)] & (~uint64_t{0} << (low & 63));
+        const auto word = Word(block) & (~uint64_t{0} << (low & 63));
         if (word != 0) return (block << 6) | std::countr_zero(word);
       }
       const unsigned next = occupied.Next(block + 1);
       if (next == 1024) return std::nullopt;
-      return (next << 6) | std::countr_zero(leaves[Rank(next)]);
+      return (next << 6) | std::countr_zero(Word(next));
     }
   };
 
@@ -222,7 +266,7 @@ class RadixBitmapSet {
     auto& page = pages_[prefix];
     if (!page || !page->Erase(ordered & 65535)) return false;
     --size_;
-    if (page->leaves.empty()) {
+    if (page->Empty()) {
       page.reset();
       auto& group = groups_[prefix >> 8];
       group.Erase(prefix & 255);
@@ -239,7 +283,7 @@ class RadixBitmapSet {
   size_t StorageBytes() const noexcept {
     size_t bytes = sizeof(*this);
     for (const auto& page : pages_) {
-      if (page) bytes += sizeof(Page) + page->leaves.HeapBytes();
+      if (page) bytes += sizeof(Page) + page->HeapBytes();
     }
     return bytes;
   }
