@@ -113,7 +113,7 @@ int main(int argc, char** argv) {
   benchmark::AddCustomContext("key_type", "int32_t");
   benchmark::AddCustomContext(
       "radix_layout",
-      "8+8+10+6; adaptive compact/dense pages; lazy 256-page slabs; full int32 domain");
+      "8+8+10+6; adaptive compact/dense pages; lazy 256-page slabs; occupancy-gated dense words; full int32 domain");
   benchmark::AddCustomContext("dataset",
                               "bijective32-even/odd; fixed seeds; unique keys");
   benchmark::AddCustomContext(

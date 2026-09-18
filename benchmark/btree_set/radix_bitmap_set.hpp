@@ -174,8 +174,14 @@ class RadixBitmapSet {
       const auto mask = uint64_t{1} << (low & 63);
       if (dense) {
         auto& word = dense[block];
+        // An absent leaf has no initialized storage. Publish its full word
+        // before making it visible through the occupancy bitmap.
+        if (!occupied.Contains(block)) {
+          word = mask;
+          occupied.Insert(block);
+          return true;
+        }
         if ((word & mask) != 0) return false;
-        if (word == 0) occupied.Insert(block);
         word |= mask;
         return true;
       }
@@ -184,7 +190,9 @@ class RadixBitmapSet {
         if (leaves.Size() == 64) {
           // Conversion stays in Insert's timed path. Allocate and populate
           // before publishing; a failed allocation leaves the page unchanged.
-          auto fresh = std::make_unique<uint64_t[]>(1024);
+          // Only occupied words may be read, including after later erases.
+          // Unoccupied slots therefore need no zero-fill on conversion.
+          auto fresh = std::make_unique_for_overwrite<uint64_t[]>(1024);
           NOVA_RADIX_OBSERVE(dense_promotions, 1);
           NOVA_RADIX_OBSERVE(dense_bytes, 1024 * sizeof(uint64_t));
           unsigned index = 0;
