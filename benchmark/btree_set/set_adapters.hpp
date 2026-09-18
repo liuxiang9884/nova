@@ -6,6 +6,8 @@
 
 #include <absl/container/btree_set.h>
 
+#include "radix_bitmap_set.hpp"
+
 #if NOVA_SET_HAS_AVX2
 #include "author_btree.hpp"
 #endif

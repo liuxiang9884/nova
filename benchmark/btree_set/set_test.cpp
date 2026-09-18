@@ -104,6 +104,7 @@ void CheckRebalancing() {
 
 NOVA_SET_TESTS(AbslBtree, AbslSet)
 NOVA_SET_TESTS(StdSet, StdSet)
+NOVA_SET_TESTS(RadixBitmap, RadixBitmapSet)
 #if NOVA_SET_HAS_AVX2
 NOVA_SET_TESTS(AuthorBtree, AuthorSet)
 #endif
