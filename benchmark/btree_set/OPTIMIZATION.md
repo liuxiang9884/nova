@@ -1,5 +1,7 @@
 # Radix bitmap 的六轮优化
 
+本文件保留 R0–R6 历史。后续 R7–R9 实验见 [LAYOUT_OPTIMIZATION.md](LAYOUT_OPTIMIZATION.md)，当前结果见 [RESULTS.md](RESULTS.md)。
+
 本记录包含一次本轮基线 R0 和六轮独立优化 R1–R6。每一轮都先通过正确性/ASan/UBSan，再在 **sz_45 / Ryzen 9 9950X / CPU 8** 运行全部四种容器的同一组 benchmark。最终保留 R6，全部实验只在 `benchmark` 分支。
 
 ## 可复现版本
