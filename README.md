@@ -93,7 +93,7 @@ cmake -S . -B build/debug -DCMAKE_BUILD_TYPE=Debug \
 
 基准实验统一在 `benchmark` 分支开发，按需选择进入 `main`。目录索引与约定见 [benchmark/README.md](benchmark/README.md)。
 
-`benchmark/btree_set` 使用 Google Benchmark 比较 `absl::btree_set<int32_t>`、作者的 AVX2 B-Tree set 与 `std::set<int32_t>` 的插入、命中/未命中/混合查找和删除。
+`benchmark/btree_set` 使用 Google Benchmark 比较 `absl::btree_set<int32_t>`、作者的 AVX2 B-Tree set、`std::set<int32_t>` 与自主实现的四层 radix bitmap set 的插入、命中/未命中/混合查找和删除。
 
 ```bash
 cmake -S . -B build/set-release -DCMAKE_BUILD_TYPE=Release -DNOVA_BUILD_BENCHMARKS=ON
@@ -102,7 +102,7 @@ ctest --test-dir build/set-release -R nova_btree_set_correctness --output-on-fai
 build/set-release/benchmark/btree_set/nova_btree_set_benchmark --benchmark_filter='/100000$'
 ```
 
-作者实现需要 x86-64 AVX2/POPCNT；Apple Silicon 上仅测试 Abseil 和 STL。完整口径、性能结果与 JSON 汇总方法见 [benchmark/btree_set/README.md](benchmark/btree_set/README.md)。
+作者实现需要 x86-64 AVX2/POPCNT；Apple Silicon 上测试 Abseil、STL 和 radix bitmap。完整口径、性能结果与 JSON 汇总方法见 [benchmark/btree_set/README.md](benchmark/btree_set/README.md)。
 
 ## 维护依赖清单
 
