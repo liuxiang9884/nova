@@ -13,6 +13,11 @@
 #include <immintrin.h>
 #endif
 
+#ifndef NOVA_RADIX_OBSERVE
+#define NOVA_RADIX_OBSERVE(name, amount) ((void)0)
+#define NOVA_RADIX_DEFAULT_OBSERVER
+#endif
+
 namespace nova_bench {
 
 // Experimental four-level radix bitmap: 8+8+10+6 ordered key bits.
@@ -59,11 +64,16 @@ class RadixBitmapSet {
       if (size_ == capacity_) {
         const unsigned next_capacity = capacity_ * 2;
         auto fresh = std::make_unique_for_overwrite<uint64_t[]>(next_capacity);
+        NOVA_RADIX_OBSERVE(leaf_allocations, 1);
+        NOVA_RADIX_OBSERVE(leaf_bytes, next_capacity * sizeof(uint64_t));
+        NOVA_RADIX_OBSERVE(copied_bytes, size_ * sizeof(uint64_t));
+        NOVA_RADIX_OBSERVE(leaf_releases, heap_ ? 1 : 0);
         std::copy_n(Data(), size_, fresh.get());
         heap_ = std::move(fresh);
         capacity_ = static_cast<uint16_t>(next_capacity);
       }
       auto* data = Data();
+      NOVA_RADIX_OBSERVE(moved_bytes, (size_ - rank) * sizeof(uint64_t));
       std::memmove(data + rank + 1, data + rank,
                    (size_ - rank) * sizeof(uint64_t));
       data[rank] = value;
@@ -71,6 +81,7 @@ class RadixBitmapSet {
     }
     void Erase(unsigned rank) noexcept {
       auto* data = Data();
+      NOVA_RADIX_OBSERVE(moved_bytes, (size_ - rank - 1) * sizeof(uint64_t));
       std::memmove(data + rank, data + rank + 1,
                    (size_ - rank - 1) * sizeof(uint64_t));
       --size_;
@@ -85,6 +96,7 @@ class RadixBitmapSet {
       return size_;
     }
     void Reset() noexcept {
+      NOVA_RADIX_OBSERVE(leaf_releases, heap_ ? 1 : 0);
       heap_.reset();
       size_ = 0;
       capacity_ = 16;
@@ -133,6 +145,7 @@ class RadixBitmapSet {
     }
     template <bool Add>
     void UpdatePrefix(unsigned block) noexcept {
+      NOVA_RADIX_OBSERVE(prefix_updates, 1);
 #if defined(__AVX2__)
       // Compare lane numbers with the changed summary word. True lanes contain
       // -1: subtracting this mask increments those prefixes, adding decrements.
@@ -171,6 +184,8 @@ class RadixBitmapSet {
           // Conversion stays in Insert's timed path. Allocate and populate
           // before publishing; a failed allocation leaves the page unchanged.
           auto fresh = std::make_unique<uint64_t[]>(1024);
+          NOVA_RADIX_OBSERVE(dense_promotions, 1);
+          NOVA_RADIX_OBSERVE(dense_bytes, 1024 * sizeof(uint64_t));
           unsigned index = 0;
           for (unsigned bit = occupied.Next(0); bit < 1024;
                bit = occupied.Next(bit + 1)) {
@@ -243,6 +258,8 @@ class RadixBitmapSet {
     auto& page = pages_[prefix];
     if (!page) {
       auto fresh = std::make_unique<Page>();
+      NOVA_RADIX_OBSERVE(page_allocations, 1);
+      NOVA_RADIX_OBSERVE(page_bytes, sizeof(Page));
       fresh->Insert(ordered & 65535);
       page = std::move(fresh);
       groups_[prefix >> 8].Insert(prefix & 255);
@@ -267,6 +284,10 @@ class RadixBitmapSet {
     if (!page || !page->Erase(ordered & 65535)) return false;
     --size_;
     if (page->Empty()) {
+      NOVA_RADIX_OBSERVE(page_releases, 1);
+      NOVA_RADIX_OBSERVE(leaf_releases,
+                         !page->dense && page->leaves.HeapBytes() ? 1 : 0);
+      NOVA_RADIX_OBSERVE(dense_releases, page->dense ? 1 : 0);
       page.reset();
       auto& group = groups_[prefix >> 8];
       group.Erase(prefix & 255);
@@ -325,3 +346,8 @@ class RadixBitmapSet {
 };
 
 }  // namespace nova_bench
+
+#ifdef NOVA_RADIX_DEFAULT_OBSERVER
+#undef NOVA_RADIX_OBSERVE
+#undef NOVA_RADIX_DEFAULT_OBSERVER
+#endif

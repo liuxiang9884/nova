@@ -35,3 +35,7 @@ if (BUILD_TESTING)
             nova_btree_set_adapters GTest::gtest_main)
     add_test(NAME nova_btree_set_correctness COMMAND nova_btree_set_test)
 endif ()
+
+# Separately instrumented executable: never use its runtime as benchmark data.
+add_executable(nova_radix_diagnostics radix_diagnostics.cpp)
+target_link_libraries(nova_radix_diagnostics PRIVATE nova_btree_set_adapters)
