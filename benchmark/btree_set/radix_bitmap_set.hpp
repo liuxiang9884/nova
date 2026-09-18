@@ -1,12 +1,13 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
-#include <vector>
 
 namespace nova_bench {
 
@@ -45,9 +46,60 @@ class RadixBitmapSet {
     }
   };
 
+  // Most 64K-key pages hold about 15 occupied words at N=1M. Keep the first
+  // sixteen in the page, then grow geometrically. No global pool or constructor
+  // reserve moves allocation out of the timed insertion path.
+  class Leaves {
+   public:
+    void Insert(unsigned rank, uint64_t value) {
+      if (size_ == capacity_) {
+        const unsigned next_capacity = capacity_ * 2;
+        auto fresh = std::make_unique_for_overwrite<uint64_t[]>(next_capacity);
+        std::copy_n(Data(), size_, fresh.get());
+        heap_ = std::move(fresh);
+        capacity_ = static_cast<uint16_t>(next_capacity);
+      }
+      auto* data = Data();
+      std::memmove(data + rank + 1, data + rank,
+                   (size_ - rank) * sizeof(uint64_t));
+      data[rank] = value;
+      ++size_;
+    }
+    void Erase(unsigned rank) noexcept {
+      auto* data = Data();
+      std::memmove(data + rank, data + rank + 1,
+                   (size_ - rank - 1) * sizeof(uint64_t));
+      --size_;
+    }
+    uint64_t& operator[](unsigned rank) noexcept {
+      return Data()[rank];
+    }
+    uint64_t operator[](unsigned rank) const noexcept {
+      return Data()[rank];
+    }
+    bool empty() const noexcept {
+      return size_ == 0;
+    }
+    size_t HeapBytes() const noexcept {
+      return heap_ ? capacity_ * sizeof(uint64_t) : 0;
+    }
+
+   private:
+    uint64_t* Data() noexcept {
+      return heap_ ? heap_.get() : inline_.data();
+    }
+    const uint64_t* Data() const noexcept {
+      return heap_ ? heap_.get() : inline_.data();
+    }
+    std::unique_ptr<uint64_t[]> heap_;
+    uint16_t size_ = 0;
+    uint16_t capacity_ = 16;
+    std::array<uint64_t, 16> inline_{};
+  };
+
   struct Page {
     Bitmap<1024> occupied;
-    std::vector<uint64_t> leaves;
+    Leaves leaves;
     // Number of occupied leaves preceding each 64-bit summary word.
     std::array<uint16_t, 16> prefix{};
 
@@ -68,9 +120,9 @@ class RadixBitmapSet {
       const auto mask = uint64_t{1} << (low & 63);
       const unsigned rank = Rank(block);
       if (!occupied.Contains(block)) {
-        // vector<uint64_t> insertion has the strong exception guarantee.
+        // Leaf growth allocates/copies before publishing its new storage.
         // Publish the validity bit only after allocation/movement succeeds.
-        leaves.insert(leaves.begin() + rank, mask);
+        leaves.Insert(rank, mask);
         occupied.Insert(block);
         AddPrefix(block);
         return true;
@@ -94,7 +146,7 @@ class RadixBitmapSet {
       if ((word & mask) == 0) return false;
       word &= ~mask;
       if (word == 0) {
-        leaves.erase(leaves.begin() + rank);
+        leaves.Erase(rank);
         occupied.Erase(block);
         RemovePrefix(block);
       }
@@ -166,8 +218,7 @@ class RadixBitmapSet {
   size_t StorageBytes() const noexcept {
     size_t bytes = sizeof(*this);
     for (const auto& page : pages_) {
-      if (page)
-        bytes += sizeof(Page) + page->leaves.capacity() * sizeof(uint64_t);
+      if (page) bytes += sizeof(Page) + page->leaves.HeapBytes();
     }
     return bytes;
   }
