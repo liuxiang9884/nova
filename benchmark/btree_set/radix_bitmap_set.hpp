@@ -6,59 +6,106 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <vector>
 
 namespace nova_bench {
 
-// Experimental full-domain int32 set, independently implemented for this
-// benchmark. Four occupancy levels split the ordered key into 8+8+8+8 bits.
-// The 64K pointer directory shortcuts the first two levels for exact lookup;
-// ordered lookup uses all summaries. This is not the author's unpublished code.
+// Experimental four-level radix bitmap: 8+8+10+6 ordered key bits.
+// Each page packs only occupied 64-bit leaves, addressed by bitmap rank.
+// Independently implemented; the author's radix implementation is unpublished.
 class RadixBitmapSet {
  private:
-  struct Bitmap256 {
-    std::array<uint64_t, 4> words;
+  template <unsigned Bits>
+  struct Bitmap {
+    std::array<uint64_t, Bits / 64> words{};
 
     bool Contains(unsigned bit) const noexcept {
       return (words[bit >> 6] & (uint64_t{1} << (bit & 63))) != 0;
     }
-    bool Insert(unsigned bit) noexcept {
-      auto& word = words[bit >> 6];
-      const auto mask = uint64_t{1} << (bit & 63);
-      const bool changed = (word & mask) == 0;
-      word |= mask;
-      return changed;
+    void Insert(unsigned bit) noexcept {
+      words[bit >> 6] |= uint64_t{1} << (bit & 63);
     }
-    bool Erase(unsigned bit) noexcept {
-      auto& word = words[bit >> 6];
-      const auto mask = uint64_t{1} << (bit & 63);
-      const bool changed = (word & mask) != 0;
-      word &= ~mask;
-      return changed;
+    void Erase(unsigned bit) noexcept {
+      words[bit >> 6] &= ~(uint64_t{1} << (bit & 63));
     }
     bool Empty() const noexcept {
-      return (words[0] | words[1] | words[2] | words[3]) == 0;
+      for (auto word : words)
+        if (word != 0) return false;
+      return true;
     }
-    // Return 256 as a sentinel. Guard before shifting, including start == 256.
+    unsigned Rank(unsigned bit) const noexcept {
+      unsigned count = 0;
+      for (unsigned i = 0; i < (bit >> 6); ++i)
+        count += std::popcount(words[i]);
+      return count +
+             std::popcount(words[bit >> 6] & ((uint64_t{1} << (bit & 63)) - 1));
+    }
     unsigned Next(unsigned start) const noexcept {
-      if (start >= 256) return 256;
+      if (start >= Bits) return Bits;
       unsigned index = start >> 6;
       uint64_t word = words[index] & (~uint64_t{0} << (start & 63));
       for (;;) {
         if (word != 0) return index * 64 + std::countr_zero(word);
-        if (++index == 4) return 256;
+        if (++index == words.size()) return Bits;
         word = words[index];
       }
     }
   };
 
   struct Page {
-    Bitmap256 blocks{};
-    std::array<Bitmap256, 256> leaves;
+    Bitmap<1024> occupied;
+    std::vector<uint64_t> leaves;
+
+    bool Insert(unsigned low) {
+      const unsigned block = low >> 6;
+      const auto mask = uint64_t{1} << (low & 63);
+      const unsigned rank = occupied.Rank(block);
+      if (!occupied.Contains(block)) {
+        // vector<uint64_t> insertion has the strong exception guarantee.
+        // Publish the validity bit only after allocation/movement succeeds.
+        leaves.insert(leaves.begin() + rank, mask);
+        occupied.Insert(block);
+        return true;
+      }
+      auto& word = leaves[rank];
+      const bool changed = (word & mask) == 0;
+      word |= mask;
+      return changed;
+    }
+    bool Contains(unsigned low) const noexcept {
+      const unsigned block = low >> 6;
+      return occupied.Contains(block) &&
+             (leaves[occupied.Rank(block)] & (uint64_t{1} << (low & 63))) != 0;
+    }
+    bool Erase(unsigned low) noexcept {
+      const unsigned block = low >> 6;
+      if (!occupied.Contains(block)) return false;
+      const unsigned rank = occupied.Rank(block);
+      auto& word = leaves[rank];
+      const auto mask = uint64_t{1} << (low & 63);
+      if ((word & mask) == 0) return false;
+      word &= ~mask;
+      if (word == 0) {
+        leaves.erase(leaves.begin() + rank);
+        occupied.Erase(block);
+      }
+      return true;
+    }
+    std::optional<unsigned> LowerBound(unsigned low) const noexcept {
+      const unsigned block = low >> 6;
+      if (occupied.Contains(block)) {
+        const auto word =
+            leaves[occupied.Rank(block)] & (~uint64_t{0} << (low & 63));
+        if (word != 0) return (block << 6) | std::countr_zero(word);
+      }
+      const unsigned next = occupied.Next(block + 1);
+      if (next == 1024) return std::nullopt;
+      return (next << 6) | std::countr_zero(leaves[occupied.Rank(next)]);
+    }
   };
 
  public:
-  // The size hint is deliberately unused; page allocation/zeroing occurs on
-  // insertion and remains inside the benchmark's timed region.
+  // No size-hint preallocation: all page/leaf allocation is timed in Insert.
   explicit RadixBitmapSet(size_t = 0) noexcept {}
   RadixBitmapSet(const RadixBitmapSet&) = delete;
   RadixBitmapSet& operator=(const RadixBitmapSet&) = delete;
@@ -68,21 +115,16 @@ class RadixBitmapSet {
   bool Insert(int32_t key) {
     const uint32_t ordered = Encode(key);
     const unsigned prefix = ordered >> 16;
-    const unsigned block = (ordered >> 8) & 255;
     auto& page = pages_[prefix];
     if (!page) {
-      // Allocation is the only throwing operation; publish no summary or size
-      // changes until it succeeds. Only the validity bitmap is initialized.
-      page.reset(new Page);
-      ++page_count_;
+      auto fresh = std::make_unique<Page>();
+      fresh->Insert(ordered & 65535);
+      page = std::move(fresh);
       groups_[prefix >> 8].Insert(prefix & 255);
       root_.Insert(prefix >> 8);
+    } else if (!page->Insert(ordered & 65535)) {
+      return false;
     }
-    if (!page->blocks.Contains(block)) {
-      page->leaves[block] = Bitmap256{};
-      page->blocks.Insert(block);
-    }
-    if (!page->leaves[block].Insert(ordered & 255)) return false;
     ++size_;
     return true;
   }
@@ -90,29 +132,20 @@ class RadixBitmapSet {
   bool Contains(int32_t key) const noexcept {
     const uint32_t ordered = Encode(key);
     const auto& page = pages_[ordered >> 16];
-    const unsigned block = (ordered >> 8) & 255;
-    return page && page->blocks.Contains(block) &&
-           page->leaves[block].Contains(ordered & 255);
+    return page && page->Contains(ordered & 65535);
   }
 
   bool Erase(int32_t key) noexcept {
     const uint32_t ordered = Encode(key);
     const unsigned prefix = ordered >> 16;
-    const unsigned block = (ordered >> 8) & 255;
     auto& page = pages_[prefix];
-    if (!page || !page->blocks.Contains(block) ||
-        !page->leaves[block].Erase(ordered & 255))
-      return false;
+    if (!page || !page->Erase(ordered & 65535)) return false;
     --size_;
-    if (page->leaves[block].Empty()) {
-      page->blocks.Erase(block);
-      if (page->blocks.Empty()) {
-        page.reset();
-        --page_count_;
-        auto& group = groups_[prefix >> 8];
-        group.Erase(prefix & 255);
-        if (group.Empty()) root_.Erase(prefix >> 8);
-      }
+    if (page->leaves.empty()) {
+      page.reset();
+      auto& group = groups_[prefix >> 8];
+      group.Erase(prefix & 255);
+      if (group.Empty()) root_.Erase(prefix >> 8);
     }
     return true;
   }
@@ -121,10 +154,14 @@ class RadixBitmapSet {
     return size_;
   }
 
-  // Object + live page payload; excludes allocator metadata/retained free
-  // pages.
+  // Object + live page payload + leaf capacity, excluding allocator overhead.
   size_t StorageBytes() const noexcept {
-    return sizeof(*this) + page_count_ * sizeof(Page);
+    size_t bytes = sizeof(*this);
+    for (const auto& page : pages_) {
+      if (page)
+        bytes += sizeof(Page) + page->leaves.capacity() * sizeof(uint64_t);
+    }
+    return bytes;
   }
 
   std::optional<int32_t> LowerBound(int32_t key) const noexcept {
@@ -132,23 +169,12 @@ class RadixBitmapSet {
     const unsigned prefix = ordered >> 16;
     const auto& page = pages_[prefix];
     if (page) {
-      const unsigned block = (ordered >> 8) & 255;
-      if (page->blocks.Contains(block)) {
-        const unsigned bit = page->leaves[block].Next(ordered & 255);
-        if (bit < 256) return Decode((ordered & 0xffffff00u) | bit);
-      }
-      const unsigned next_block = page->blocks.Next(block + 1);
-      if (next_block < 256) {
-        return Decode((prefix << 16) | (next_block << 8) |
-                      page->leaves[next_block].Next(0));
-      }
+      if (const auto low = page->LowerBound(ordered & 65535))
+        return Decode((prefix << 16) | *low);
     }
     const unsigned next_page = NextPage(prefix + 1);
     if (next_page == 65536) return std::nullopt;
-    const auto& next = *pages_[next_page];
-    const unsigned block = next.blocks.Next(0);
-    return Decode((next_page << 16) | (block << 8) |
-                  next.leaves[block].Next(0));
+    return Decode((next_page << 16) | *pages_[next_page]->LowerBound(0));
   }
 
  private:
@@ -168,11 +194,10 @@ class RadixBitmapSet {
     return (next_group << 8) | groups_[next_group].Next(0);
   }
 
-  Bitmap256 root_{};
-  std::array<Bitmap256, 256> groups_{};
+  Bitmap<256> root_{};
+  std::array<Bitmap<256>, 256> groups_{};
   std::array<std::unique_ptr<Page>, 65536> pages_{};
   size_t size_ = 0;
-  size_t page_count_ = 0;
 };
 
 }  // namespace nova_bench

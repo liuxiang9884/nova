@@ -1,8 +1,9 @@
+#include <algorithm>
 #include <bit>
 #include <cstdint>
 #include <random>
 #include <set>
-#include <type_traits>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -127,6 +128,38 @@ TEST(RadixBitmap, ReusedPagesAndEmptyLeaves) {
     EXPECT_EQ(set.Size(), 0u);
     EXPECT_EQ(set.StorageBytes(), empty_bytes);
   }
+}
+
+TEST(RadixBitmap, CompactLeafRankGrowthAndMiddleErase) {
+  RadixBitmapSet set;
+  const auto empty_bytes = set.StorageBytes();
+  std::set<int32_t> reference;
+  std::vector<int32_t> words;
+  for (int32_t word = 0; word < 1024; ++word) words.push_back(word);
+  std::mt19937 rng(19);
+  std::shuffle(words.begin(), words.end(), rng);
+  for (auto word : words) {
+    for (int bit : {0, 1, 63}) {
+      const int32_t key = -65536 + word * 64 + bit;
+      ASSERT_TRUE(set.Insert(key));
+      reference.insert(key);
+      CheckLowerBound(set, reference, key - 1);
+      CheckLowerBound(set, reference, key + 1);
+    }
+  }
+  std::shuffle(words.begin(), words.end(), rng);
+  for (auto word : words) {
+    for (int bit : {1, 0, 63}) {
+      const int32_t key = -65536 + word * 64 + bit;
+      ASSERT_TRUE(set.Erase(key));
+      reference.erase(key);
+      ASSERT_EQ(set.Size(), reference.size());
+      ASSERT_FALSE(set.Contains(key));
+      CheckLowerBound(set, reference, key);
+      CheckLowerBound(set, reference, -65536);
+    }
+  }
+  EXPECT_EQ(set.StorageBytes(), empty_bytes);
 }
 
 }  // namespace nova_bench
