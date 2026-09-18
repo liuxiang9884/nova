@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "nova",
+  "version": "0.1.0",
+  "builtin-baseline": "114d9fe62faf35856b45cf55cb93b57028a45d63",
+  "dependencies": [
+    "cli11",
+    "cpp-yyjson",
+    "fmt",
+    "gtest",
+    "magic-enum",
+    "nameof",
+    "quill",
+    "tomlplusplus",
+    "yyjson"
+  ]
+}
