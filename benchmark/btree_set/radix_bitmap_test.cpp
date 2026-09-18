@@ -73,6 +73,23 @@ TEST(RadixBitmap, PageSlotsReuseAndAccountForRetainedStorage) {
   // Destruction must also destroy a nonempty pool's live Page objects.
 }
 
+TEST(RadixBitmap, DestroyNonemptyPoolWithSparseDenseAndFreeSlots) {
+  // Sanitizers verify that live heap leaves are freed once and dead slots are
+  // not destroyed again when a partially filled pool goes out of scope.
+  RadixBitmapSet set;
+  for (int32_t page = 0; page < 600; ++page)
+    ASSERT_TRUE(set.Insert(page * 65536));
+  for (int32_t word = 1; word < 20; ++word)
+    ASSERT_TRUE(set.Insert(word * 64));
+  for (int32_t word = 1; word < 70; ++word)
+    ASSERT_TRUE(set.Insert(65536 + word * 64));
+  for (int32_t page = 100; page < 600; ++page)
+    ASSERT_TRUE(set.Erase(page * 65536));
+  EXPECT_EQ(set.Size(), 188u);
+  EXPECT_TRUE(set.Contains(19 * 64));
+  EXPECT_TRUE(set.Contains(65536 + 69 * 64));
+}
+
 TEST(RadixBitmap, DensePageAndEverySummaryBit) {
   RadixBitmapSet set(0);
   const auto empty_bytes = set.StorageBytes();
