@@ -4,6 +4,11 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "15.3")
 
 include(cmake/settings.cmake)
 
+option(NOVA_BUILD_BENCHMARKS "Build nova benchmarks" OFF)
+if (NOVA_BUILD_BENCHMARKS)
+    list(APPEND VCPKG_MANIFEST_FEATURES benchmarks)
+endif ()
+
 project(nova VERSION 0.1.0 LANGUAGES C CXX)
 
 include(cmake/third_party.cmake)
@@ -44,7 +49,9 @@ if (PROJECT_IS_TOP_LEVEL)
         add_subdirectory(test)
     endif ()
     add_subdirectory(examples)
+    if (NOVA_BUILD_BENCHMARKS)
+        add_subdirectory(benchmark/int32_set)
+    endif ()
 endif ()
-
 
 

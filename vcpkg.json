@@ -13,5 +13,11 @@
     "quill",
     "tomlplusplus",
     "yyjson"
-  ]
+  ],
+  "features": {
+    "benchmarks": {
+      "description": "Integer set benchmarks using Abseil and Google Benchmark",
+      "dependencies": ["abseil", "benchmark"]
+    }
+  }
 }
