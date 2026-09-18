@@ -33,13 +33,6 @@ class RadixBitmapSet {
         if (word != 0) return false;
       return true;
     }
-    unsigned Rank(unsigned bit) const noexcept {
-      unsigned count = 0;
-      for (unsigned i = 0; i < (bit >> 6); ++i)
-        count += std::popcount(words[i]);
-      return count +
-             std::popcount(words[bit >> 6] & ((uint64_t{1} << (bit & 63)) - 1));
-    }
     unsigned Next(unsigned start) const noexcept {
       if (start >= Bits) return Bits;
       unsigned index = start >> 6;
@@ -55,16 +48,31 @@ class RadixBitmapSet {
   struct Page {
     Bitmap<1024> occupied;
     std::vector<uint64_t> leaves;
+    // Number of occupied leaves preceding each 64-bit summary word.
+    std::array<uint16_t, 16> prefix{};
+
+    unsigned Rank(unsigned block) const noexcept {
+      return prefix[block >> 6] +
+             std::popcount(occupied.words[block >> 6] &
+                           ((uint64_t{1} << (block & 63)) - 1));
+    }
+    void AddPrefix(unsigned block) noexcept {
+      for (unsigned i = (block >> 6) + 1; i < prefix.size(); ++i) ++prefix[i];
+    }
+    void RemovePrefix(unsigned block) noexcept {
+      for (unsigned i = (block >> 6) + 1; i < prefix.size(); ++i) --prefix[i];
+    }
 
     bool Insert(unsigned low) {
       const unsigned block = low >> 6;
       const auto mask = uint64_t{1} << (low & 63);
-      const unsigned rank = occupied.Rank(block);
+      const unsigned rank = Rank(block);
       if (!occupied.Contains(block)) {
         // vector<uint64_t> insertion has the strong exception guarantee.
         // Publish the validity bit only after allocation/movement succeeds.
         leaves.insert(leaves.begin() + rank, mask);
         occupied.Insert(block);
+        AddPrefix(block);
         return true;
       }
       auto& word = leaves[rank];
@@ -75,12 +83,12 @@ class RadixBitmapSet {
     bool Contains(unsigned low) const noexcept {
       const unsigned block = low >> 6;
       return occupied.Contains(block) &&
-             (leaves[occupied.Rank(block)] & (uint64_t{1} << (low & 63))) != 0;
+             (leaves[Rank(block)] & (uint64_t{1} << (low & 63))) != 0;
     }
     bool Erase(unsigned low) noexcept {
       const unsigned block = low >> 6;
       if (!occupied.Contains(block)) return false;
-      const unsigned rank = occupied.Rank(block);
+      const unsigned rank = Rank(block);
       auto& word = leaves[rank];
       const auto mask = uint64_t{1} << (low & 63);
       if ((word & mask) == 0) return false;
@@ -88,19 +96,19 @@ class RadixBitmapSet {
       if (word == 0) {
         leaves.erase(leaves.begin() + rank);
         occupied.Erase(block);
+        RemovePrefix(block);
       }
       return true;
     }
     std::optional<unsigned> LowerBound(unsigned low) const noexcept {
       const unsigned block = low >> 6;
       if (occupied.Contains(block)) {
-        const auto word =
-            leaves[occupied.Rank(block)] & (~uint64_t{0} << (low & 63));
+        const auto word = leaves[Rank(block)] & (~uint64_t{0} << (low & 63));
         if (word != 0) return (block << 6) | std::countr_zero(word);
       }
       const unsigned next = occupied.Next(block + 1);
       if (next == 1024) return std::nullopt;
-      return (next << 6) | std::countr_zero(leaves[occupied.Rank(next)]);
+      return (next << 6) | std::countr_zero(leaves[Rank(next)]);
     }
   };
 

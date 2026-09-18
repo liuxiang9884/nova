@@ -113,7 +113,7 @@ int main(int argc, char** argv) {
   benchmark::AddCustomContext("key_type", "int32_t");
   benchmark::AddCustomContext(
       "radix_layout",
-      "8+8+10+6; bitmap rank and compact leaves; full int32 domain");
+      "8+8+10+6; prefix rank and compact leaves; full int32 domain");
   benchmark::AddCustomContext("dataset",
                               "bijective32-even/odd; fixed seeds; unique keys");
   benchmark::AddCustomContext(
