@@ -206,4 +206,37 @@ TEST(RadixBitmap, DensePromotionPreservesKeysAndOrder) {
   EXPECT_EQ(set.StorageBytes(), empty_bytes);
 }
 
+TEST(RadixBitmap, LocalGroupsGrowShrinkAndReuse) {
+  RadixBitmapSet set;
+  const auto empty_bytes = set.StorageBytes();
+  std::mt19937 rng(721);
+  for (int group = 0; group < 16; ++group) {
+    std::vector<int32_t> keys;
+    for (int word : {0, 1, 2, 7, 8, 15, 16, 31, 32, 47, 62, 63}) {
+      keys.push_back(-65536 + group * 4096 + word * 64);
+      keys.push_back(keys.back() + 63);
+    }
+    std::shuffle(keys.begin(), keys.end(), rng);
+    std::set<int32_t> reference;
+    for (int cycle = 0; cycle < 3; ++cycle) {
+      for (auto key : keys) {
+        ASSERT_TRUE(set.Insert(key));
+        reference.insert(key);
+        ASSERT_EQ(set.Size(), reference.size());
+        CheckLowerBound(set, reference, key - 1);
+      }
+      std::shuffle(keys.begin(), keys.end(), rng);
+      for (auto key : keys) {
+        ASSERT_TRUE(set.Erase(key));
+        reference.erase(key);
+        ASSERT_EQ(set.Size(), reference.size());
+        for (auto probe : keys)
+          ASSERT_EQ(set.Contains(probe), reference.contains(probe));
+        CheckLowerBound(set, reference, key);
+      }
+      EXPECT_EQ(set.StorageBytes(), empty_bytes);
+    }
+  }
+}
+
 }  // namespace nova_bench
