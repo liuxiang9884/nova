@@ -9,6 +9,10 @@
 #include <memory>
 #include <optional>
 
+#if defined(__AVX2__)
+#include <immintrin.h>
+#endif
+
 namespace nova_bench {
 
 // Experimental four-level radix bitmap: 8+8+10+6 ordered key bits.
@@ -108,11 +112,28 @@ class RadixBitmapSet {
              std::popcount(occupied.words[block >> 6] &
                            ((uint64_t{1} << (block & 63)) - 1));
     }
-    void AddPrefix(unsigned block) noexcept {
-      for (unsigned i = (block >> 6) + 1; i < prefix.size(); ++i) ++prefix[i];
-    }
-    void RemovePrefix(unsigned block) noexcept {
-      for (unsigned i = (block >> 6) + 1; i < prefix.size(); ++i) --prefix[i];
+    template <bool Add>
+    void UpdatePrefix(unsigned block) noexcept {
+#if defined(__AVX2__)
+      // Compare lane numbers with the changed summary word. True lanes contain
+      // -1: subtracting this mask increments those prefixes, adding decrements.
+      const auto lanes = _mm256_setr_epi16(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+                                           12, 13, 14, 15);
+      const auto mask = _mm256_cmpgt_epi16(
+          lanes, _mm256_set1_epi16(static_cast<short>(block >> 6)));
+      const auto values =
+          _mm256_loadu_si256(reinterpret_cast<const __m256i*>(prefix.data()));
+      const auto updated =
+          Add ? _mm256_sub_epi16(values, mask) : _mm256_add_epi16(values, mask);
+      _mm256_storeu_si256(reinterpret_cast<__m256i*>(prefix.data()), updated);
+#else
+      for (unsigned i = (block >> 6) + 1; i < prefix.size(); ++i) {
+        if constexpr (Add)
+          ++prefix[i];
+        else
+          --prefix[i];
+      }
+#endif
     }
 
     bool Insert(unsigned low) {
@@ -124,7 +145,7 @@ class RadixBitmapSet {
         // Publish the validity bit only after allocation/movement succeeds.
         leaves.Insert(rank, mask);
         occupied.Insert(block);
-        AddPrefix(block);
+        UpdatePrefix<true>(block);
         return true;
       }
       auto& word = leaves[rank];
@@ -148,7 +169,7 @@ class RadixBitmapSet {
       if (word == 0) {
         leaves.Erase(rank);
         occupied.Erase(block);
-        RemovePrefix(block);
+        UpdatePrefix<false>(block);
       }
       return true;
     }
