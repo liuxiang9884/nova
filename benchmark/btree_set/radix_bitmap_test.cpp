@@ -49,6 +49,30 @@ TEST(RadixBitmap, BoundariesAndPageReclamation) {
   EXPECT_TRUE(set.Erase(INT32_MAX));
 }
 
+TEST(RadixBitmap, PageSlotsReuseAndAccountForRetainedStorage) {
+  RadixBitmapSet set;
+  const auto empty = set.StorageBytes();
+  auto key = [](uint32_t prefix) {
+    return std::bit_cast<int32_t>((prefix << 16) ^ 0x80000000u);
+  };
+  for (uint32_t p = 0; p < 600; ++p) ASSERT_TRUE(set.Insert(key(p)));
+  const auto peak = set.StorageBytes();
+  for (uint32_t p = 0; p < 500; ++p) ASSERT_TRUE(set.Erase(key(p)));
+  EXPECT_EQ(set.StorageBytes(), peak);  // Unused slab slots are counted.
+  for (uint32_t p = 600; p < 1100; ++p) ASSERT_TRUE(set.Insert(key(p)));
+  EXPECT_EQ(set.StorageBytes(), peak);  // Released slots need no new slabs.
+  EXPECT_EQ(set.Size(), 600u);
+  for (uint32_t p = 0; p < 500; ++p) EXPECT_FALSE(set.Contains(key(p)));
+  for (uint32_t p = 500; p < 1100; ++p) {
+    ASSERT_EQ(set.LowerBound(key(p)), key(p));
+    ASSERT_TRUE(set.Erase(key(p)));
+  }
+  EXPECT_EQ(set.StorageBytes(), empty);
+  ASSERT_TRUE(set.Insert(INT32_MAX));  // Pool can restart after full release.
+  EXPECT_EQ(set.LowerBound(INT32_MIN), INT32_MAX);
+  // Destruction must also destroy a nonempty pool's live Page objects.
+}
+
 TEST(RadixBitmap, DensePageAndEverySummaryBit) {
   RadixBitmapSet set(0);
   const auto empty_bytes = set.StorageBytes();

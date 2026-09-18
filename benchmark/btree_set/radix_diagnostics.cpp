@@ -6,6 +6,7 @@
 #include "dataset.hpp"
 
 struct Counters {
+  uint64_t pool_allocations = 0, pool_bytes = 0, pool_releases = 0;
   uint64_t page_allocations = 0, page_bytes = 0, page_releases = 0;
   uint64_t leaf_allocations = 0, leaf_bytes = 0, leaf_releases = 0;
   uint64_t moved_bytes = 0, copied_bytes = 0, prefix_updates = 0;
@@ -20,6 +21,9 @@ void Print(size_t n, const char* operation, size_t storage) {
   std::cout << "{\"n\":" << n << ",\"operation\":\"" << operation
             << "\",\"storage_bytes\":" << storage;
 #define FIELD(name) std::cout << ",\"" #name "\":" << counters.name
+  FIELD(pool_allocations);
+  FIELD(pool_bytes);
+  FIELD(pool_releases);
   FIELD(page_allocations);
   FIELD(page_bytes);
   FIELD(page_releases);
