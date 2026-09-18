@@ -1,5 +1,7 @@
 # 四层 radix bitmap set 与 benchmark
 
+此文件记录首版方案；后续布局和性能取舍见 [多轮优化计划](2026-09-18-radix-bitmap-optimization.md)。
+
 ## 目标与边界
 
 在 `benchmark/btree_set` 增加自主实现的 `int32_t` radix bitmap set，比较 Abseil、作者 AVX2 B-Tree、STL 与新实现；不修改作者算法，不声称复现作者尚未公开的 radix 实现，不进入 main。

@@ -1,97 +1,64 @@
-# sz_45 / Ryzen 9 9950X 四种 set 的测试结果
+# sz_45 / Ryzen 9 9950X 最终 set 对比（R6）
 
-2026-09-18 新增自主实现的 radix bitmap set 后，同次重跑四种实现。本页和 CSV 全部来自 sz_45；旧三种实现的结果留在 Git 历史中，未混入本轮比较。代码仅保留在 `benchmark` 分支。
+2026-09-18 完成六轮优化后的当前结果。最终代码为自主实现的四层 `8+8+10+6` radix bitmap，采用紧凑/稠密页切换、内联叶字及 SIMD 前缀更新；完整过程和所有退步见 [OPTIMIZATION.md](OPTIMIZATION.md)。实验保留在 `benchmark` 分支。
 
-## 环境与方法
+## 环境与统计
 
-- SSH 别名 `sz_45`，主机名 `dctp`，Linux x86-64，AMD Ryzen 9 9950X，16 核 / 32 线程；不是作者使用的 9950X3D。
-- 固定 CPU 8，SMT 同胞 CPU 24；该 CCD 的共享 L3 为 32 MiB，全 CPU 合计 64 MiB。没有隔离整核或停止其他服务。
-- 测量源码：`703431e2165c7e04236ae2b58c49739684cbb461`。其后提交只更新文档与结果，不改变被测代码。
-- GCC 13.3.0，Release `-O3 -DNDEBUG`，四种实现统一 `-mavx2 -mpopcnt`，C++20；未使用 `-march=native`。
-- Abseil `20260107.1#3`，Google Benchmark `1.9.5`，vcpkg baseline `114d9fe62faf35856b45cf55cb93b57028a45d63`，复用此前的独立 manifest 安装目录。
-- 正式测量开始：2026-09-18 15:52:53 +08:00。60 组 × 5 次重复，每次目标计时至少 0.1 秒，启用 random interleaving；构建、Release 和 sanitizer 检查完成后才开始测量。
-- governor 为 `powersave`，CPU scaling 和 ASLR 开启；未修改系统设置。最大 CPU 时间变异系数 11.99%（radix 百万键混合查询）；radix 百万键删除 9.96%，因此不把它与作者删除的几个百分点差异视为确定性优劣。
-- 固定种子、完整域正负互异 `int32_t` 键；100% / 0% / 50% 命中。数据生成、容器构造、准备和销毁排除。作者预分配节点池、radix 常驻目录的构造成本均排除；radix 插入时的页分配/清零和删除时的页释放计入。不是统一 allocator 或端到端建表成本比较。
+- `sz_45` / 主机名 `dctp` / AMD Ryzen 9 9950X，固定 CPU 8，SMT 同胞 24，该 CCD 的 L3 为 32 MiB；不是作者的 9950X3D。
+- 源码提交 `1d05f7710eeefb052e99ff81a6299d43d21a8ff6`，后续提交只增强测试和更新文档，不改被测算法。测量开始 2026-09-18 16:35:27 +08:00。
+- GCC 13.3.0，Release `-O3 -DNDEBUG -mavx2 -mpopcnt`，C++20，四种实现同一可执行文件；Abseil 20260107.1#3，Google Benchmark 1.9.5，vcpkg manifest baseline `114d9fe62faf35856b45cf55cb93b57028a45d63`。
+- 60 组 × 5 次重复，每次目标计时 0.1 秒，random interleaving，CPU ns/op 中位数；固定全 int32 域的互异键和相同查询/删除序列。
+- 数据生成、构造、准备与销毁排除。作者预分配节点池和 radix 常驻目录的构造排除；radix 页/叶分配、转换清零、扩容、移动与删除时的释放都计入。没有将新增预分配移出计时。
+- 保留 powersave、CPU scaling、ASLR，未隔离整核；不主动清空 cache。R6 最大 CV 为 36.04%（radix 十万未命中查询的一次较慢样本），全部五次保留并使用中位数，另以四种实现各 10 次补充复测，radix 中位数 2.211 ns/op、CV 1.89%，与主表接近；补充值不替换主表。其余小差异不作确定性结论。
 
-## 结果
+## 最终结果
 
 CPU ns/op；各次重复的中位数，数值越小越好。
 
 | N | 操作 | absl_btree_set | author_btree_avx2 | radix_bitmap_set | std_set |
 | ---: | --- | ---: | ---: | ---: | ---: |
-| 1,024 | insert | 16.25 | 8.84 | 71.28 | 12.26 |
-| 1,024 | find_hit | 7.69 | 3.99 | 1.12 | 3.40 |
-| 1,024 | find_miss | 8.18 | 3.99 | 0.42 | 3.13 |
-| 1,024 | find_mixed | 8.04 | 4.01 | 0.70 | 3.11 |
-| 1,024 | erase | 13.72 | 11.66 | 18.76 | 12.20 |
-| 100,000 | insert | 52.20 | 14.97 | 586.48 | 82.88 |
-| 100,000 | find_hit | 36.47 | 9.13 | 2.85 | 102.57 |
-| 100,000 | find_miss | 36.31 | 9.46 | 2.91 | 102.62 |
-| 100,000 | find_mixed | 39.28 | 9.27 | 2.66 | 105.63 |
-| 100,000 | erase | 47.53 | 24.33 | 138.73 | 120.88 |
-| 1,000,000 | insert | 68.59 | 25.28 | 99.03 | 159.18 |
-| 1,000,000 | find_hit | 53.08 | 18.45 | 12.24 | 305.72 |
-| 1,000,000 | find_miss | 52.62 | 18.90 | 12.34 | 280.85 |
-| 1,000,000 | find_mixed | 55.54 | 18.78 | 12.25 | 298.56 |
-| 1,000,000 | erase | 63.34 | 37.50 | 38.50 | 282.17 |
+| 1,024 | insert | 16.42 | 9.15 | 19.53 | 12.25 |
+| 1,024 | find_hit | 7.74 | 4.09 | 2.05 | 3.76 |
+| 1,024 | find_miss | 8.30 | 3.98 | 0.45 | 3.15 |
+| 1,024 | find_mixed | 7.99 | 4.00 | 1.20 | 3.12 |
+| 1,024 | erase | 13.40 | 11.76 | 16.49 | 12.35 |
+| 100,000 | insert | 52.19 | 15.01 | 20.00 | 82.75 |
+| 100,000 | find_hit | 36.73 | 9.22 | 3.93 | 104.92 |
+| 100,000 | find_miss | 36.12 | 9.31 | 2.23 | 102.37 |
+| 100,000 | find_mixed | 40.07 | 9.30 | 6.46 | 105.34 |
+| 100,000 | erase | 47.45 | 23.76 | 26.83 | 125.80 |
+| 1,000,000 | insert | 68.59 | 25.42 | 18.94 | 151.80 |
+| 1,000,000 | find_hit | 53.15 | 18.55 | 9.11 | 283.87 |
+| 1,000,000 | find_miss | 52.78 | 18.80 | 1.87 | 258.82 |
+| 1,000,000 | find_mixed | 56.18 | 18.77 | 8.81 | 270.57 |
+| 1,000,000 | erase | 63.23 | 36.65 | 24.60 | 272.50 |
 
-机器可读摘要见 [results-sz45-9950x.csv](results-sz45-9950x.csv)。原始 JSON 的 300 次测量均无 error/skip，60 组均有 5 次原始重复；`CPU / N` 与 `seconds_per_op` 已逐条核对。
+CSV 见 [results-sz45-9950x.csv](results-sz45-9950x.csv)。300 次原始测量全部有效，CPU/N 与 `seconds_per_op` 逐条一致。
 
-### 可以得出的结论
+**百万键下，R6 的五项操作均快于同轮作者 B-Tree。** 插入 18.94 对 25.42 ns/op；命中查询 9.11 对 18.55；未命中 1.87 对 18.80；混合 8.81 对 18.77；删除 24.60 对 36.65。这不是所有规模都占优：1K 和 100K 的插入/删除仍由作者 B-Tree 更快。
 
-- 这一版 radix 的三种精确查找在本轮三个规模中均最快。百万键命中查询 12.24 ns/op，作者 18.45，Abseil 53.08，STL 305.72；分别约为 **1.51×、4.34×、24.97×** 的吞吐率。
-- 插入有明显代价：百万键 radix 为 99.03 ns/op，作者为 25.28，耗时约 **3.92 倍**；十万键为 586.48 对 14.97，耗时约 **39.18 倍**。稀疏前缀导致大量位图页分配和清零，只有更多键共用已分配页时，每键成本才容易摊薄。未做 profile 将分配、清零、缓存失效的各项占比分开，此处是结合布局和测量的解释。
-- 删除在百万键下与作者接近（38.50 对 37.50 ns/op），差异落在本轮波动范围内；十万键 radix 为 138.73，明显慢于作者 24.33，空页回收也是操作的一部分。
-- 相对作者 B-Tree，百万键三种查询收益约 1.5 倍，不是统一快 10 倍。不能把这版的结果等同于作者未公开 radix 实现的表现；也不能推广到连续小范围键、其他 key 类型或混合读写工作负载。
+相对本轮 R0，百万插入耗时约降 81.2%、删除约降 43.9%，容量从 514.51 降至约 25.62 MiB；但十万混合查询由 2.65 升至 6.46 ns/op。千万键补充对比中，R6 插入 39.85 仍慢于 R0 的 28.51，命中查询 13.92 也慢于 12.42；已在逐轮报告列出，未用百万结果掩盖大规模退步。
 
-### Radix 的内存代价
+## 存储
 
-以下为 `StorageBytes()`：对象与活页的字节数，排除 allocator 开销及保留页、数据集和其他容器，不是 RSS。由三种查询的 `storage_bytes` 交叉核对。
+`StorageBytes()` 为对象、活页和分配容量；排除 allocator 元数据、保留空闲内存、数据集和其他容器，不是 RSS。
 
-| N | 活页及对象字节 | MiB |
+| N | 字节 | MiB |
 | ---: | ---: | ---: |
-| 1,024 | 8,912,784 | 8.50 |
-| 100,000 | 422,448,400 | 402.88 |
-| 1,000,000 | 539,500,592 | 514.51 |
+| 1,024 | 850,448 | 0.81 |
+| 100,000 | 16,539,056 | 15.77 |
+| 1,000,000 | 26,863,912 | 25.62 |
+| 10,000,000（补充） | 557,850,664 | 532.01 |
 
-空集合的常驻目录约 520 KiB；百万随机键已占满所有 65,536 个页。查询只触及相关 cache line，不能由分配容量推断每次查询会扫描整个 515 MiB。当前设计以空间换直接定位，后续若优化插入和内存，应另测稀疏/自适应叶布局。
+## 与作者更新表的关系
+
+[作者 9 月 17 日更新](https://zhuanlan.zhihu.com/p/2006092283301352464)中，百万 radix 的插入/查询/删除为 2.708 / 1.325 / 2.896 ns/op。我们的最终结果仍没有达到作者报告的插入/删除水平。原文的 9950X3D、随机数据、五次取最快与这里不同；新版源码和初始化边界未公开，不能将同机超过公开 B-Tree 等同于复现作者新版。
 
 ## 验证与复现
 
-- 新 API 测试先于实现添加，初次编译因缺少 `radix_bitmap_set.hpp` 失败。
-- macOS ARM64 / AppleClang Release：13 项正确性测试通过（按平台条件不包含作者 AVX2 版本）。
-- sz_45 GCC Release：完整构建成功，CTest 3/3 通过，其中 set 测试含 16 项；保留原有日志测试。
-- sz_45 Debug + `-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer`：16 项通过，启用泄漏检查和 halt-on-error，无 sanitizer 报告。外部依赖并未全面以 sanitizer 重编译。
-- radix 验证完整键边界、重复、缺失删除、全页位覆盖、所有上层摘要位、随机交错操作、负数顺序、`lower_bound` 与 `std::set` 对照、回收后重插与存储计数恢复。
-- N=10,000,000 的四种实现 × 五种操作另做单轮 smoke，查询/删除计数检查通过。它不参与以上五次重复的性能表。
-- 最终审查检查摘要更新/清理、移位边界、异常前发布顺序、所有权与计时边界；没有修改作者算法、已有数据生成或基线计时方式。
+- 每轮完整 Release 构建、CTest 3/3、ASan/UBSan 检查通过；最终 19 项 set 测试通过，覆盖边界、重复、missing erase、紧凑 rank/扩容、完整叶、稠密转换、收缩后重插、回收及有符号 lower_bound 对照。
+- 本机 AppleClang ARM64 的最终 16 项正确性检查通过，验证标量后备路径；不作为性能数据。
+- R0/R5/R6 千万键五项操作分别做 5 次重复，75 条有效记录，未混入上述三个规模的主表。完整过程总计 2,100 条标准规模原始测量，另有 75 条大规模记录。
+- 外部依赖未全部 sanitizer 重编译；算法和测试编译单元已启用 ASan/UBSan、泄漏检测及 halt-on-error。
 
-标准构建与运行命令见 [README.md](README.md)。本次由于 sz_45 默认 vcpkg 版本较旧，使用已有独立 vcpkg 工作树和 manifest 安装目录，原 `~/dev/nova`、`~/vcpkg` checkout 保持不变：
-
-```bash
-export VCPKG_ROOT="$HOME/tmp/nova-int32-set-9950x-20260918/vcpkg"
-cmake -S src -B release -G Ninja -DCMAKE_BUILD_TYPE=Release \
-  -DNOVA_BUILD_BENCHMARKS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-  -DVCPKG_INSTALLED_DIR="$HOME/tmp/nova-int32-set-9950x-20260918/release/vcpkg_installed"
-cmake --build release --parallel 8
-ctest --test-dir release --output-on-failure
-```
-
-sz_45 产物根目录：`/home/liuxiang/tmp/nova-radix-bitmap-20260918/`：
-
-```text
-src/                     # 固定提交的 git archive，无 macOS AppleDouble 文件
-release/                 # Release 构建及 compile_commands.json
-asan/                    # sanitizer 构建
-verify-and-run.sh        # 验证、正式测量与 10M smoke 的完整命令
-results-sz45-9950x.json   # 300 次正式原始测量及聚合统计
-large-smoke.json          # 20 组单轮 smoke
-summary.md
-environment.txt
-ctest.log
-asan-test.log
-```
-
-本地原始结果与日志副本：`/Users/liuxiang/tmp/nova-radix-bitmap/sz45/`。JSON context 记录机器、CPU、绑定核心、布局和源码提交。
-
-作者源码仍来自固定 gist revision `2ccbb7ca56cd071b3d83852ceaf090d2e558628b`；原始 `test_time_btree.cpp` SHA-256 为 `074f9e798915d1d728f4c657bfc2bdc713ed07148d5b9db7e5a0bec061dd1714`。
+构建、接口和标准命令见 [README.md](README.md)。远端产物根目录为 `/home/liuxiang/tmp/nova-radix-optimization-20260918/`；`r6/` 包含源码、Release/ASan 构建、环境、原始 `results.json`/`large.json` 和日志。`run-round.sh`、`run-large.sh` 保存完整调用；`final-verify/` 验证最终新增测试。本地副本位于 `/Users/liuxiang/tmp/nova-radix-optimization/results/`。默认远端 `~/dev/nova` 与 `~/vcpkg` checkout 保持不变。
